@@ -10,6 +10,8 @@ from flask_socketio import SocketIO, emit
 import psycopg2
 from smartcard.CardRequest import CardRequest
 from smartcard.util import toHexString
+import os, subprocess, threading
+
 
 # =========================
 # 基本設定
@@ -17,6 +19,17 @@ from smartcard.util import toHexString
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
 socketio = SocketIO(app, cors_allowed_origins="*")
+
+# --- シャットダウンAPI用設定 ---
+SHUTDOWN_TOKEN = os.getenv("SHUTDOWN_TOKEN")  # 任意。必要なら systemd に環境変数を追加して使う
+ALLOWED_SHUTDOWN_ADDRS = {"127.0.0.1", "::1"}
+
+def _is_local_request():
+    try:
+        addr = request.remote_addr or ""
+        return addr in ALLOWED_SHUTDOWN_ADDRS
+    except Exception:
+        return False
 
 DB = dict(host="127.0.0.1", port=5432, dbname="sensordb", user="app", password="app")
 GET_UID = [0xFF, 0xCA, 0x00, 0x00, 0x00]  # PC/SC: GET DATA (UID/IDm)
@@ -490,6 +503,41 @@ def check_tag():
     else:
         print("❌ タグ情報確認 タイムアウト")
         return jsonify({"uid": None, "status": "timeout"})
+
+@app.route("/api/shutdown", methods=["POST"])
+def api_shutdown():
+    """
+    ローカル操作（127.0.0.1/::1）または有効なトークンでのみ受け付ける安全シャットダウン。
+    UI側は confirm ダイアログを出し、confirm=True を必須にする。
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        confirmed = bool(data.get("confirm"))
+        # トークンは JSON またはヘッダで受け取り可能
+        token = (data.get("token")
+                 or request.headers.get("X-Shutdown-Token")
+                 or (request.headers.get("Authorization", "").replace("Bearer ", "")))
+
+        if not confirmed:
+            return jsonify({"ok": False, "error": "confirm_required"}), 400
+
+        if not (_is_local_request() or (SHUTDOWN_TOKEN and token == SHUTDOWN_TOKEN)):
+            return jsonify({"ok": False, "error": "forbidden"}), 403
+
+        def do_shutdown():
+            try:
+                # 1秒後に実行（HTTP応答が返りやすいようディレイ）
+                try:
+                    subprocess.run(["sudo", "/sbin/shutdown", "-h", "now"], check=True)
+                except FileNotFoundError:
+                    subprocess.run(["sudo", "/usr/sbin/shutdown", "-h", "now"], check=True)
+            except Exception as e:
+                print(f"[shutdown] failed: {e}", flush=True)
+
+        threading.Timer(1.0, do_shutdown).start()
+        return jsonify({"ok": True, "message": "Shutting down..."})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 
 # =========================
