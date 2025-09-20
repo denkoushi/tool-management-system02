@@ -50,3 +50,10 @@
 ### 2025-09-20〜21 追記
 - 再現スクリプトを追加（os_prereqs.sh / install_docker.sh / install_kiosk_autostart.sh / remove_kiosk_autostart.sh / apply_db_tuning.{sql,sh}）。
 - RUNBOOK に「再現性確保（Scripts Inventory）」章を追記。
+
+### 2025-09-21
+- UI からの安全シャットダウンを実装：
+  - バックエンド: `POST /api/shutdown`（ローカル許可、任意トークン対応、1秒ディレイで実行）
+  - sudoers: `/sbin/shutdown -h now` のみ NOPASSWD で許可（ユーザー: tools01）
+  - フロント: 右下フローティングボタン（動的挿入、z-index 最大、キオスクでも視認可能）
+- RUNBOOK に運用手順を追記。
