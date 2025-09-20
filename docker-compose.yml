@@ -2,20 +2,33 @@ services:
   postgres:
     image: postgres:16
     container_name: pg
+    restart: unless-stopped
     environment:
       - POSTGRES_USER=app
       - POSTGRES_PASSWORD=app
       - POSTGRES_DB=sensordb
+      - TZ=Asia/Tokyo
+    # 外部から見せない場合は localhost バインド
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d sensordb || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
 
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
+    restart: unless-stopped
+    environment:
+      - TZ=Asia/Tokyo
+    # 必要になったら LAN へ開放する: "3000:3000"
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     volumes:
       - gdata:/var/lib/grafana
     depends_on:
