@@ -1001,10 +1001,32 @@
             loadToolNames();
         });
     </script>
-    <!-- ===== 安全シャットダウン（ローカル限定） ===== -->
-<div id="power-controls" style="margin:16px 0; text-align:right;">
-  <button id="btnShutdown" class="btn btn-danger">安全にシャットダウン</button>
-  <small style="display:block;opacity:.7;">この端末（Raspberry Pi）上で開いている場合のみ実行できます</small>
+
+    
+    <!-- ===== 安全シャットダウン（固定フローティング） ===== -->
+<style>
+  #power-controls-fixed {
+    position: fixed; right: 16px; bottom: 16px;
+    z-index: 2147483647;  /* 最前面に出す */
+    display: flex; flex-direction: column; align-items: flex-end; gap: 6px;
+    pointer-events: auto;
+  }
+  #power-controls-fixed button {
+    background: #d9534f; color: #fff; border: 0;
+    padding: 10px 14px; border-radius: 6px;
+    box-shadow: 0 2px 6px rgba(0,0,0,.25); cursor: pointer;
+    font-size: 14px;
+  }
+  #power-controls-fixed button:hover { filter: brightness(1.05); }
+  #power-controls-fixed small {
+    color: #333; background: rgba(255,255,255,.85);
+    padding: 2px 6px; border-radius: 4px;
+  }
+</style>
+
+<div id="power-controls-fixed" aria-live="polite">
+  <button id="btnShutdown">安全にシャットダウン</button>
+  <small>この端末（Raspberry Pi）上で開いている場合のみ実行できます</small>
 </div>
 
 <script>
@@ -1032,6 +1054,7 @@
 })();
 </script>
 <!-- ===== /安全シャットダウン ===== -->
+
 
 </body>
 </html>
