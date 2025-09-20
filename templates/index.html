@@ -2,1161 +2,511 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>工具管理システム</title>
     <script src="/static/js/socket.io.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        html, body {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-        }
-        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html, body { width: 100%; height: 100%; overflow: hidden; }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f0f2f5;
-            color: #333;
-            /* タッチスクロール最適化 */
+            background: #f0f2f5; color: #333;
             -webkit-overflow-scrolling: touch;
         }
-        
-        .container {
-            width: 100vw;
-            height: 100vh;
-            margin: 0;
-            background: white;
-            display: flex;
-            flex-direction: column;
-        }
-        
-        /* タブナビゲーション - コンパクト化 */
+        .container { width: 100vw; height: 100vh; background: #fff; display: flex; flex-direction: column; }
+
+        /* タブ */
         .tabs {
             display: flex;
             background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            position: sticky;
-            top: 0;
-            z-index: 100;
+            box-shadow: 0 2px 4px rgba(0,0,0,.1);
+            position: sticky; top: 0; z-index: 100;
         }
-        
         .tab-button {
-            flex: 1;
-            padding: min(10px, 2vh) min(5px, 1vw);
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: clamp(16px, 3vh, 22px);
-            font-weight: 600;
-            color: rgba(255, 255, 255, 0.8);
-            transition: all 0.3s ease;
-            border-bottom: 3px solid transparent;
+            flex: 1; padding: min(10px,2vh) min(5px,1vw);
+            background: none; border: none; cursor: pointer;
+            font-size: clamp(16px,3vh,22px); font-weight: 600;
+            color: rgba(255,255,255,.85);
+            border-bottom: 3px solid transparent; transition: .3s;
             white-space: nowrap;
         }
-        
-        .tab-button.active {
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            border-bottom-color: white;
-        }
-        
-        .tab-content {
-            display: none;
-            padding: 10px;
-            flex: 1;
-            overflow-y: auto;
-        }
-        
-        .tab-content.active {
-            display: flex;
-            flex-direction: column;
-        }
-        
-        /* 借用/返却タブ - コンパクトレイアウト */
-        #operations {
-            padding: min(10px, 2vh) min(10px, 2vw);
-        }
-        
-        #operations h2 {
-            font-size: clamp(14px, 2.5vh, 18px);
-            margin: 0;
-            color: #333;
-            font-weight: 600;
-        }
-        
-        /* ボタン - タッチ操作最適化 */
-        .button-row {
-            display: flex;
-            gap: min(8px, 1.5vw);
-            margin-bottom: min(8px, 1.5vh);
-        }
-        
+        .tab-button.active { background: rgba(255,255,255,.2); color: #fff; border-bottom-color: #fff; }
+
+        .tab-content { display: none; padding: 10px; flex: 1; overflow-y: auto; }
+        .tab-content.active { display: flex; flex-direction: column; }
+
+        /* 借用/返却タブ */
+        #operations { padding: min(10px,2vh) min(10px,2vw); }
+        #operations h2 { font-size: clamp(14px,2.5vh,18px); margin: 0; font-weight: 600; color: #333; }
+
+        .button-row { display: flex; gap: min(8px,1.5vw); margin-bottom: min(8px,1.5vh); }
         .btn {
-            padding: min(12px, 2vh) min(10px, 2vw);
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: clamp(36px, 8vh, 52px);
-            font-weight: 600;
-            transition: all 0.2s ease;
-            flex: 1;
-            min-height: max(44px, 8vh);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 5px;
+            padding: min(12px,2vh) min(10px,2vw); border: none; border-radius: 6px; cursor: pointer;
+            font-size: clamp(36px,8vh,52px); font-weight: 600; transition: .2s;
+            flex: 1; min-height: max(44px,8vh); display: flex; align-items: center; justify-content: center; gap: 6px;
         }
-        
-        .btn-primary {
-            background: #4facfe;
-            color: white;
-        }
-        
-        .btn-primary:active {
-            background: #3d8ed4;
-            transform: scale(0.98);
-        }
-        
-        .btn-secondary {
-            background: #6c757d;
-            color: white;
-        }
-        
-        .btn-danger {
-            background: #dc3545;
-            color: white;
-        }
-        
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        
-        /* ステータス表示 - インライン小型化 */
+        .btn-primary { background: #4facfe; color: #fff; }
+        .btn-primary:active { background: #3d8ed4; transform: scale(.98); }
+        .btn-secondary { background: #6c757d; color: #fff; }
+        .btn-danger { background: #dc3545; color: #fff; }
+        .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+        .operation-header { display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: min(10px,2vh); padding-bottom: min(8px,1.5vh); border-bottom: 1px solid #e9ecef; }
+
         .status-indicator {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            padding: min(3px, 0.5vh) min(8px, 1vw);
-            border-radius: 12px;
-            font-size: clamp(11px, 1.8vh, 14px);
-            font-weight: 600;
-            margin-left: auto;
-            transition: all 0.3s ease;
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: min(3px,.5vh) min(8px,1vw);
+            border-radius: 12px; font-size: clamp(11px,1.8vh,14px); font-weight: 600; transition: .3s;
         }
-        
-        .status-active {
-            background: #d4edda;
-            color: #155724;
-            animation: pulse 2s infinite;
-        }
-        
-        .status-inactive {
-            background: #f8f9fa;
-            color: #6c757d;
-        }
-        
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
-        }
-        
-        /* 操作エリアヘッダー */
-        .operation-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: min(10px, 2vh);
-            padding-bottom: min(8px, 1.5vh);
-            border-bottom: 1px solid #e9ecef;
-        }
-        
-        .operation-header h2 {
-            margin: 0;
-        }
-        
-        /* 進行状況 - 横並びコンパクト */
-        .scan-progress {
-            display: flex;
-            gap: min(10px, 2vw);
-            margin: min(10px, 2vh) 0 min(8px, 1.5vh) 0;
-            background: #f8f9fa;
-            border-radius: 8px;
-            padding: min(8px, 1.5vh);
-        }
-        
-        .scan-step {
-            flex: 1;
-        }
-        
-        .scan-step label {
-            display: block;
-            font-size: clamp(11px, 1.8vh, 14px);
-            color: #6c757d;
-            margin-bottom: 5px;
-            font-weight: 600;
-        }
-        
+        .status-active { background: #d4edda; color: #155724; animation: pulse 2s infinite; }
+        .status-inactive { background: #f8f9fa; color: #6c757d; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.7} }
+
+        .scan-progress { display: flex; gap: min(10px,2vw); margin: min(10px,2vh) 0 min(8px,1.5vh); background:#f8f9fa;
+            border-radius: 8px; padding: min(8px,1.5vh); }
+        .scan-step { flex: 1; }
+        .scan-step label { display:block; font-size: clamp(11px,1.8vh,14px); color:#6c757d; margin-bottom:5px; font-weight:600; }
         .scan-display {
-            background: white;
-            border: 2px solid #e9ecef;
-            border-radius: 5px;
-            padding: min(6px, 1vh);
-            font-size: clamp(24px, 4.5vh, 33px);
-            min-height: max(32px, 5vh);
-            display: flex;
-            align-items: center;
-            word-break: break-all;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            background:#fff; border:2px solid #e9ecef; border-radius:5px; padding:min(6px,1vh);
+            font-size: clamp(24px,4.5vh,33px); min-height:max(32px,5vh); display:flex; align-items:center;
+            word-break: break-all; overflow:hidden; text-overflow: ellipsis;
         }
-        
-        .scan-display.active {
-            border-color: #4facfe;
-            background: #e7f5ff;
-        }
-        
-        .scan-display.completed {
-            border-color: #28a745;
-            background: #d4edda;
-        }
-        
-        /* メッセージ表示 */
-        .alert {
-            padding: min(8px, 1.5vh) min(12px, 2vw);
-            border-radius: 5px;
-            margin: min(8px, 1.5vh) 0;
-            font-size: clamp(12px, 2vh, 15px);
-            font-weight: 500;
-        }
-        
-        .alert-success {
-            background: #d4edda;
-            border: 1px solid #c3e6cb;
-            color: #155724;
-        }
-        
-        .alert-danger {
-            background: #f8d7da;
-            border: 1px solid #f5c6cb;
-            color: #721c24;
-        }
-        
-        .alert-info {
-            background: #cce7ff;
-            border: 1px solid #b8daff;
-            color: #004085;
-        }
-        
-        .alert-warning {
-            background: #fff3cd;
-            border: 1px solid #ffeaa7;
-            color: #856404;
-        }
-        
-        /* データテーブル - コンパクト化 */
-        .section-divider {
-            border: none;
-            border-top: 2px solid #e9ecef;
-            margin: min(12px, 2vh) 0 min(10px, 1.8vh) 0;
-        }
-        
-        .section-title {
-            font-size: clamp(13px, 2vh, 16px);
-            font-weight: 600;
-            color: #495057;
-            margin-bottom: min(8px, 1.5vh);
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-        
-        .data-table {
-            width: 100%;
-            border-collapse: collapse;
-            background: white;
-            border: 1px solid #dee2e6;
-            border-radius: 5px;
-            overflow: hidden;
-            font-size: clamp(24px, 4.5vh, 33px);
-        }
-        
-        .data-table th {
-            background: #f8f9fa;
-            color: #495057;
-            padding: min(8px, 1.5vh) min(5px, 1vw);
-            text-align: left;
-            font-weight: 600;
-            border-bottom: 2px solid #dee2e6;
-        }
-        
-        .data-table td {
-            padding: min(6px, 1vh) min(5px, 1vw);
-            border-bottom: 1px solid #f1f3f4;
-        }
-        
-        .data-table tr:last-child td {
-            border-bottom: none;
-        }
-        
-        /* 登録・マスタタブは従来デザイン維持 */
-        #registration, #master {
-            padding: 15px;
-            overflow-y: auto;
-        }
-        
-        #registration h2, #master h2 {
-            font-size: 18px;
-            margin-bottom: 15px;
-            color: #333;
-        }
-        
-        #registration h3, #master h3 {
-            font-size: 16px;
-            margin: 15px 0 10px 0;
-            color: #495057;
-        }
-        
-        .input-row {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 15px;
-            align-items: end;
-        }
-        
-        .input-group {
-            flex: 1;
-        }
-        
-        .input-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: 600;
-            color: #495057;
-            font-size: 14px;
-        }
-        
-        .form-control {
-            width: 100%;
-            padding: 10px;
-            border: 2px solid #e9ecef;
-            border-radius: 5px;
-            font-size: 14px;
-            transition: border-color 0.3s ease;
-        }
-        
-        .form-control:focus {
-            outline: none;
-            border-color: #4facfe;
-            box-shadow: 0 0 0 0.2rem rgba(79, 172, 254, 0.25);
-        }
-        
-        /* スクロール可能エリア */
-        .scrollable-section {
-            flex: 1;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-            min-height: 100px;
-        }
-        
-        /* 借用/返却タブの下部エリア */
-        .bottom-tables {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-        
-        .table-section {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            min-height: 0;
-        }
-        
-        /* 縦長画面対応 */
+        .scan-display.active { border-color:#4facfe; background:#e7f5ff; }
+        .scan-display.completed { border-color:#28a745; background:#d4edda; }
+
+        .alert { padding: min(8px,1.5vh) min(12px,2vw); border-radius: 5px; margin: min(8px,1.5vh) 0; font-size: clamp(12px,2vh,15px); }
+        .alert-success { background:#d4edda; border:1px solid #c3e6cb; color:#155724; }
+        .alert-danger { background:#f8d7da; border:1px solid #f5c6cb; color:#721c24; }
+        .alert-info { background:#cce7ff; border:1px solid #b8daff; color:#004085; }
+        .alert-warning { background:#fff3cd; border:1px solid #ffeaa7; color:#856404; }
+
+        .section-divider { border:none; border-top:2px solid #e9ecef; margin: min(12px,2vh) 0 min(10px,1.8vh); }
+        .section-title { font-size: clamp(13px,2vh,16px); font-weight:600; color:#495057; margin-bottom:min(8px,1.5vh); display:flex; align-items:center; gap:6px; }
+        .data-table { width:100%; border-collapse:collapse; background:#fff; border:1px solid #dee2e6; border-radius:5px; overflow:hidden; font-size: clamp(24px,4.5vh,33px); }
+        .data-table th { background:#f8f9fa; color:#495057; padding:min(8px,1.5vh) min(5px,1vw); text-align:left; font-weight:600; border-bottom:2px solid #dee2e6; }
+        .data-table td { padding:min(6px,1vh) min(5px,1vw); border-bottom:1px solid #f1f3f4; }
+        .data-table tr:last-child td { border-bottom: none; }
+
+        #registration, #master { padding: 15px; overflow-y: auto; }
+        #registration h2, #master h2 { font-size: 18px; margin-bottom: 15px; color:#333; }
+        #registration h3, #master h3 { font-size: 16px; margin: 15px 0 10px; color:#495057; }
+
+        .input-row { display: flex; gap: 10px; margin-bottom: 15px; align-items: end; }
+        .input-group { flex: 1; }
+        .input-group label { display:block; margin-bottom:5px; font-weight:600; color:#495057; font-size:14px; }
+        .form-control { width:100%; padding:10px; border:2px solid #e9ecef; border-radius:5px; font-size:14px; transition: border-color .3s; }
+        .form-control:focus { outline:none; border-color:#4facfe; box-shadow:0 0 0 .2rem rgba(79,172,254,.25); }
+
+        .scrollable-section { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; min-height: 100px; }
+        .bottom-tables { flex: 1; display:flex; flex-direction:column; overflow:hidden; }
+        .table-section { flex:1; display:flex; flex-direction:column; min-height:0; }
+
         @media (orientation: portrait) {
-            .operation-header {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 5px;
-            }
-            
-            .status-indicator {
-                margin-left: 0;
-                align-self: flex-end;
-            }
-            
-            .button-row {
-                flex-wrap: wrap;
-            }
+            .operation-header { flex-direction:column; align-items:flex-start; gap:6px; }
+            .status-indicator { margin-left:0; align-self:flex-end; }
+            .button-row { flex-wrap: wrap; }
         }
-        
-        /* タッチデバイス最適化 */
         @media (hover: none) {
-            .btn:hover {
-                transform: none;
-            }
-            
-            .btn:active {
-                transform: scale(0.98);
-            }
+            .btn:hover { transform: none; }
+            .btn:active { transform: scale(.98); }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="tabs">
-            <button class="tab-button active" onclick="showTab('operations')">📲 借用/返却</button>
-            <button class="tab-button" onclick="showTab('registration')">🔖 タグ登録</button>
-            <button class="tab-button" onclick="showTab('master')">📚 マスタ</button>
+<div class="container">
+    <div class="tabs">
+        <button class="tab-button active" onclick="showTab('operations')">📲 借用/返却</button>
+        <button class="tab-button" onclick="showTab('registration')">🔖 タグ登録</button>
+        <button class="tab-button" onclick="showTab('master')">📚 マスタ</button>
+    </div>
+
+    <!-- 借用/返却 -->
+    <div id="operations" class="tab-content active">
+        <div class="operation-header">
+            <h2>①ユーザー → ②工具 の順にスキャン</h2>
+            <span id="scanStatus" class="status-indicator status-inactive">● 停止中</span>
         </div>
-        
-        <!-- 借用/返却タブ - コンパクトレイアウト -->
-        <div id="operations" class="tab-content active">
-            <div class="operation-header">
-                <h2>①ユーザー → ②工具 の順にスキャン</h2>
-                <span id="scanStatus" class="status-indicator status-inactive">
-                    ● 停止中
-                </span>
+
+        <div class="button-row">
+            <button class="btn btn-primary" id="startScanBtn" onclick="startScan()">スキャン開始</button>
+            <button class="btn btn-secondary" id="stopScanBtn" onclick="stopScan()" disabled>停止</button>
+            <button class="btn btn-danger" onclick="resetState()">リセット</button>
+        </div>
+
+        <div class="scan-progress">
+            <div class="scan-step">
+                <label>①ユーザー</label>
+                <div id="userDisplay" class="scan-display"></div>
             </div>
-            
-            <div class="button-row">
-                <button class="btn btn-primary" id="startScanBtn" onclick="startScan()">
-                    スキャン開始
-                </button>
-                <button class="btn btn-secondary" id="stopScanBtn" onclick="stopScan()" disabled>
-                    停止
-                </button>
-                <button class="btn btn-danger" onclick="resetState()">
-                    リセット
-                </button>
-            </div>
-            
-            <div class="scan-progress">
-                <div class="scan-step">
-                    <label>①ユーザー</label>
-                    <div id="userDisplay" class="scan-display"></div>
-                </div>
-                <div class="scan-step">
-                    <label>②工具</label>
-                    <div id="toolDisplay" class="scan-display"></div>
-                </div>
-            </div>
-            
-            <div id="scanMessage"></div>
-            <div id="transactionResult"></div>
-            
-            <hr class="section-divider">
-            
-            <div class="bottom-tables">
-                <div class="table-section">
-                    <div class="section-title">📋 貸出中</div>
-                    <div class="scrollable-section">
-                        <table class="data-table" id="openLoansTable">
-                            <thead>
-                                <tr>
-                                    <th>工具</th>
-                                    <th>借用者</th>
-                                    <th>借用日時</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                
-                <div class="table-section" style="margin-top: min(10px, 2vh);">
-                    <div class="section-title">🕒 履歴</div>
-                    <div class="scrollable-section">
-                        <table class="data-table" id="historyTable">
-                            <thead>
-                                <tr>
-                                    <th>区分</th>
-                                    <th>工具</th>
-                                    <th>ユーザー</th>
-                                    <th>日時</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+            <div class="scan-step">
+                <label>②工具</label>
+                <div id="toolDisplay" class="scan-display"></div>
             </div>
         </div>
-        
-        <!-- タグ登録タブ（従来デザイン維持） -->
-        <div id="registration" class="tab-content">
-            <h2>🔖 タグ登録</h2>
-            
-<!-- タグ情報確認セクション -->
-            <div style="margin-bottom: 30px; padding: 20px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #17a2b8;">
-                <h3>🔍 タグ情報確認</h3>
-                <p style="margin-bottom: 15px; color: #6c757d; font-size: 14px;">
-                    NFCタグをスキャンして、現在の登録状況を確認できます
-                </p>
-                <div class="input-group" style="margin-bottom: 15px;">
-                    <button class="btn btn-primary" onclick="checkTagInfo()" style="background: #17a2b8; border-color: #17a2b8;">
-                        🔍 タグ情報を確認
-                    </button>
+
+        <div id="scanMessage"></div>
+        <div id="transactionResult"></div>
+
+        <hr class="section-divider">
+
+        <div class="bottom-tables">
+            <div class="table-section">
+                <div class="section-title">📋 貸出中</div>
+                <div class="scrollable-section">
+                    <table class="data-table" id="openLoansTable">
+                        <thead>
+                        <tr><th>工具</th><th>借用者</th><th>借用日時</th></tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
                 </div>
-                <div id="tagCheckResult"></div>
             </div>
 
-            <div style="display: flex; gap: 30px; flex-wrap: wrap;">
-                <!-- ユーザー登録 -->
-                <div style="flex: 1; min-width: 300px;">
-                    <h3>👤 ユーザー登録</h3>
-                    <div class="input-group" style="margin-bottom: 15px;">
-                        <button class="btn btn-primary" onclick="scanForUser()">スキャンしてUID取得</button>
-                    </div>
-                    <div class="input-group" style="margin-bottom: 15px;">
-                        <label>UID（自動入力）</label>
-                        <input type="text" id="userUidInput" class="form-control" readonly>
-                    </div>
-                    <div class="input-group" style="margin-bottom: 15px;">
-                        <label>氏名（例：山田太郎）</label>
-                        <input type="text" id="userNameInput" class="form-control" placeholder="山田太郎">
-                    </div>
-                    <button class="btn btn-primary" onclick="registerUser()">💾 登録 / 更新（ユーザー）</button>
-                    <div id="userRegResult"></div>
+            <div class="table-section" style="margin-top:min(10px,2vh);">
+                <div class="section-title">🕒 履歴</div>
+                <div class="scrollable-section">
+                    <table class="data-table" id="historyTable">
+                        <thead>
+                        <tr><th>区分</th><th>工具</th><th>ユーザー</th><th>日時</th></tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
                 </div>
-                
-                <!-- 工具登録 -->
-                <div style="flex: 1; min-width: 300px;">
-                    <h3>🛠 工具登録</h3>
-                    <div class="input-group" style="margin-bottom: 15px;">
-                        <button class="btn btn-primary" onclick="scanForTool()">スキャンしてUID取得</button>
-                    </div>
-                    <div class="input-group" style="margin-bottom: 15px;">
-                        <label>UID（自動入力）</label>
-                        <input type="text" id="toolUidInput" class="form-control" readonly>
-                    </div>
-                    <div class="input-group" style="margin-bottom: 15px;">
-                        <label>工具名（マスタから選択）</label>
-                        <select id="toolNameSelect" class="form-control">
-                            <option value="">（選択してください）</option>
-                        </select>
-                    </div>
-                    <button class="btn btn-primary" onclick="registerTool()">💾 登録 / 更新（工具）</button>
-                    <div id="toolRegResult"></div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- 工具名マスタタブ（従来デザイン維持） -->
-        <div id="master" class="tab-content">
-            <h2>📚 工具名マスタ</h2>
-            
-            <div class="input-row">
-                <div class="input-group">
-                    <label>工具名を追加</label>
-                    <input type="text" id="newToolNameInput" class="form-control" placeholder="新しい工具名">
-                </div>
-                <button class="btn btn-primary" onclick="addToolName()">➕ 追加</button>
-            </div>
-            
-            <div id="masterResult"></div>
-            
-            <h3>現在の工具名一覧</h3>
-            <div class="input-row">
-                <div class="input-group">
-                    <label>削除する工具名を選択</label>
-                    <select id="deleteToolNameSelect" class="form-control">
-                        <option value="">（選択してください）</option>
-                    </select>
-                </div>
-                <button class="btn btn-danger" onclick="deleteToolName()">🗑️ 削除</button>
             </div>
         </div>
     </div>
 
-    <script>
-        // WebSocket接続
-        const socket = io();
-        
-        // グローバル変数
-        let scanActive = false;
-        let currentUserUid = '';
-        let currentToolUid = '';
-        
-        // タブ切り替え
-        function showTab(tabName) {
-            // 全てのタブを非アクティブに
-            document.querySelectorAll('.tab-content').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            document.querySelectorAll('.tab-button').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            
-            // 選択されたタブをアクティブに
-            document.getElementById(tabName).classList.add('active');
-            event.target.classList.add('active');
-            
-            // 工具名一覧を更新（該当タブの場合）
-            if (tabName === 'registration' || tabName === 'master') {
-                loadToolNames();
-            }
-            
-            // 貸出データを更新（operations タブの場合）
-            if (tabName === 'operations') {
-                loadLoansData();
-            }
-        }
-        
-        // スキャン開始
-        function startScan() {
-            fetch('/api/start_scan', { method: 'POST' })
-                .then(response => response.json())
-                .then(data => {
-                    scanActive = true;
-                    updateScanStatus(true);
-                    showMessage('scanMessage', data.message, 'info');
-                });
-        }
-        
-        // スキャン停止
-        function stopScan() {
-            fetch('/api/stop_scan', { method: 'POST' })
-                .then(response => response.json())
-                .then(data => {
-                    scanActive = false;
-                    updateScanStatus(false);
-                    showMessage('scanMessage', data.message, 'warning');
-                });
-        }
-        
-        // 状態リセット
-        function resetState() {
-            fetch('/api/reset', { method: 'POST' })
-                .then(response => response.json())
-                .then(data => {
-                    currentUserUid = '';
-                    currentToolUid = '';
-                    updateDisplays();
-                    showMessage('scanMessage', '🔄 リセット完了', 'info');
-                    document.getElementById('transactionResult').innerHTML = '';
-                });
-        }
-        
-        // スキャン状態更新
-        function updateScanStatus(active) {
-            const statusElement = document.getElementById('scanStatus');
-            const startBtn = document.getElementById('startScanBtn');
-            const stopBtn = document.getElementById('stopScanBtn');
-            
-            if (active) {
-                statusElement.className = 'status-indicator status-active';
-                statusElement.innerHTML = 'スキャン中';
-                startBtn.disabled = true;
-                stopBtn.disabled = false;
-            } else {
-                statusElement.className = 'status-indicator status-inactive';
-                statusElement.innerHTML = '● 停止中';
-                startBtn.disabled = false;
-                stopBtn.disabled = true;
-            }
-        }
-        
-        // 表示内容更新
-        function updateDisplays() {
-            const userDisplay = document.getElementById('userDisplay');
-            const toolDisplay = document.getElementById('toolDisplay');
-            
-            userDisplay.textContent = currentUserUid ? currentUserUid : '';
-            toolDisplay.textContent = currentToolUid ? currentToolUid : '';
-            
-            // スタイル更新
-            if (currentUserUid) {
-                userDisplay.classList.add('completed');
-            } else {
-                userDisplay.classList.remove('completed');
-                userDisplay.classList.remove('active');
-            }
-            
-            if (currentToolUid) {
-                toolDisplay.classList.add('completed');
-            } else {
-                toolDisplay.classList.remove('completed');
-                if (currentUserUid) {
-                    toolDisplay.classList.add('active');
-                } else {
-                    toolDisplay.classList.remove('active');
-                }
-            }
-        }
-        
-        // メッセージ表示
-        function showMessage(elementId, message, type) {
-            const element = document.getElementById(elementId);
-            element.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
-            
-            // 5秒後にメッセージを消去
-            setTimeout(() => {
-                element.innerHTML = '';
-            }, 5000);
-        }
-        
-        // 貸出データ読み込み
-        function loadLoansData() {
-            fetch('/api/loans')
-                .then(response => response.json())
-                .then(data => {
-                    // 貸出中テーブル
-                    const openTableBody = document.querySelector('#openLoansTable tbody');
-                    openTableBody.innerHTML = '';
-                    data.open_loans.forEach(loan => {
-                        const row = openTableBody.insertRow();
-                        row.insertCell(0).textContent = loan.tool;
-                        row.insertCell(1).textContent = loan.borrower;
-                        const date = new Date(loan.loaned_at);
-                        row.insertCell(2).textContent = `${date.getMonth()+1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2,'0')}`;
-                    });
-                    
-                    // 履歴テーブル
-                    const histTableBody = document.querySelector('#historyTable tbody');
-                    histTableBody.innerHTML = '';
-                    data.history.forEach(hist => {
-                        const row = histTableBody.insertRow();
-                        row.insertCell(0).textContent = hist.action;
-                        row.insertCell(1).textContent = hist.tool;
-                        row.insertCell(2).textContent = hist.borrower;
-                        const date = new Date(hist.returned_at || hist.loaned_at);
-                        row.insertCell(3).textContent = `${date.getMonth()+1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2,'0')}`;
-                    });
-                });
-        }
-        
-        // 手動スキャン（ユーザー登録用）
-        function scanForUser() {
-            showMessage('userRegResult', 'スキャン中...', 'info');
-            fetch('/api/scan_tag', { method: 'POST' })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        document.getElementById('userUidInput').value = data.uid;
-                        showMessage('userRegResult', `✅ UID: ${data.uid}`, 'success');
-                    } else {
-                        showMessage('userRegResult', '❌ 読み取りタイムアウト（タグを一度離して再タッチ）', 'danger');
-                    }
-                });
-        }
-        
-        // 手動スキャン（工具登録用）
-        function scanForTool() {
-            showMessage('toolRegResult', 'スキャン中...', 'info');
-            fetch('/api/scan_tag', { method: 'POST' })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        document.getElementById('toolUidInput').value = data.uid;
-                        showMessage('toolRegResult', `✅ UID: ${data.uid}`, 'success');
-                    } else {
-                        showMessage('toolRegResult', '❌ 読み取りタイムアウト（タグを一度離して再タッチ）', 'danger');
-                    }
-                });
-        }
-        
-        // ユーザー登録
-        function registerUser() {
-            const uid = document.getElementById('userUidInput').value;
-            const name = document.getElementById('userNameInput').value.trim();
-            
-            if (!uid || !name) {
-                showMessage('userRegResult', '❌ UID と 氏名 は必須です', 'danger');
-                return;
-            }
-            
-            fetch('/api/register_user', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ uid, name })
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        showMessage('userRegResult', data.message, 'success');
-                        document.getElementById('userNameInput').value = '';
-                    } else {
-                        showMessage('userRegResult', data.error, 'danger');
-                    }
-                });
-        }
-        
-        // 工具登録
-        function registerTool() {
-            const uid = document.getElementById('toolUidInput').value;
-            const name = document.getElementById('toolNameSelect').value;
-            
-            if (!uid || !name) {
-                showMessage('toolRegResult', '❌ UID と 工具名 は必須です', 'danger');
-                return;
-            }
-            
-            fetch('/api/register_tool', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ uid, name })
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        showMessage('toolRegResult', data.message, 'success');
-                        document.getElementById('toolUidInput').value = '';
-                        document.getElementById('toolNameSelect').value = '';
-                    } else {
-                        showMessage('toolRegResult', data.error, 'danger');
-                    }
-                });
-        }
-        
-        // 工具名一覧読み込み
-        function loadToolNames() {
-            fetch('/api/tool_names')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.names) {
-                        // 工具登録用セレクトボックス
-                        const toolSelect = document.getElementById('toolNameSelect');
-                        toolSelect.innerHTML = '<option value="">（選択してください）</option>';
-                        data.names.forEach(name => {
-                            const option = document.createElement('option');
-                            option.value = name;
-                            option.textContent = name;
-                            toolSelect.appendChild(option);
-                        });
-                        
-                        // 削除用セレクトボックス
-                        const deleteSelect = document.getElementById('deleteToolNameSelect');
-                        deleteSelect.innerHTML = '<option value="">（選択してください）</option>';
-                        data.names.forEach(name => {
-                            const option = document.createElement('option');
-                            option.value = name;
-                            option.textContent = name;
-                            deleteSelect.appendChild(option);
-                        });
-                    }
-                });
-        }
-        
-        // 工具名追加
-        function addToolName() {
-            const name = document.getElementById('newToolNameInput').value.trim();
-            
-            if (!name) {
-                showMessage('masterResult', '❌ 工具名を入力してください', 'danger');
-                return;
-            }
-            
-            fetch('/api/add_tool_name', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name })
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        showMessage('masterResult', data.message, 'success');
-                        document.getElementById('newToolNameInput').value = '';
-                        loadToolNames();
-                    } else {
-                        showMessage('masterResult', data.error, 'danger');
-                    }
-                });
-        }
-        
-        // 工具名削除
-        function deleteToolName() {
-            const name = document.getElementById('deleteToolNameSelect').value;
-            
-            if (!name) {
-                showMessage('masterResult', '❌ 削除する工具名を選択してください', 'danger');
-                return;
-            }
-            
-            if (!confirm(`「${name}」を削除してもよろしいですか？`)) {
-                return;
-            }
-            
-            fetch('/api/delete_tool_name', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name })
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        showMessage('masterResult', data.message, 'success');
-                        loadToolNames();
-                    } else {
-                        showMessage('masterResult', data.error, 'danger');
-                    }
-                });
-        }
-        
-        // WebSocketイベントリスナー
-        socket.on('scan_update', function(data) {
-            currentUserUid = data.user_uid || currentUserUid;
-            currentToolUid = data.tool_uid || currentToolUid;
-            
-            const userDisplay = document.getElementById('userDisplay');
-            const toolDisplay = document.getElementById('toolDisplay');
-            
-            if (data.user_name) {
-                userDisplay.textContent = data.user_name;
-            }
-            if (data.tool_name) {
-                toolDisplay.textContent = data.tool_name;
-            }
-            
-            updateDisplays();
-            showMessage('scanMessage', data.message, 'info');
-        });
-        
-        socket.on('transaction_complete', function(data) {
-            const userDisplay = document.getElementById('userDisplay');
-            const toolDisplay = document.getElementById('toolDisplay');
-            
-            userDisplay.textContent = data.user_name;
-            toolDisplay.textContent = data.tool_name;
-            
-            const alertType = data.action === 'borrow' ? 'success' : 'info';
-            showMessage('transactionResult', data.message, alertType);
-            
-            // データ更新
-            loadLoansData();
-        });
-        
-        socket.on('state_reset', function(data) {
-            currentUserUid = '';
-            currentToolUid = '';
-            updateDisplays();
-            showMessage('scanMessage', data.message, 'info');
-        });
-        
-        socket.on('error', function(data) {
-            showMessage('scanMessage', data.message, 'danger');
-        });
-        
-// タグ情報確認
-        function checkTagInfo() {
-            showMessage('tagCheckResult', 'タグをスキャンしています...', 'info');
-            fetch('/api/check_tag', { method: 'POST' })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        let messageType;
-                        let detailMessage;
-                        
-                        if (data.type === 'user') {
-                            messageType = 'success';
-                            detailMessage = `
-                                <div style="padding: 10px; background: white; border-radius: 5px; margin-top: 10px;">
-                                    <strong>🆔 UID:</strong> ${data.uid}<br>
-                                    <strong>📝 登録タイプ:</strong> ユーザー<br>
-                                    <strong>👤 氏名:</strong> ${data.name}
-                                </div>
-                            `;
-                        } else if (data.type === 'tool') {
-                            messageType = 'info';
-                            detailMessage = `
-                                <div style="padding: 10px; background: white; border-radius: 5px; margin-top: 10px;">
-                                    <strong>🆔 UID:</strong> ${data.uid}<br>
-                                    <strong>📝 登録タイプ:</strong> 工具<br>
-                                    <strong>🛠️ 工具名:</strong> ${data.name}
-                                </div>
-                            `;
-                        } else {
-                            messageType = 'warning';
-                            detailMessage = `
-                                <div style="padding: 10px; background: white; border-radius: 5px; margin-top: 10px;">
-                                    <strong>🆔 UID:</strong> ${data.uid}<br>
-                                    <strong>📝 登録状況:</strong> 未登録<br>
-                                    <em>このタグはまだユーザーまたは工具として登録されていません</em>
-                                </div>
-                            `;
-                        }
-                        
-                        document.getElementById('tagCheckResult').innerHTML = 
-                            `<div class="alert alert-${messageType}">${data.message}${detailMessage}</div>`;
-                    } else {
-                        showMessage('tagCheckResult', '❌ 読み取りタイムアウト（タグを一度離して再タッチ）', 'danger');
-                    }
-                });
-        }
+    <!-- タグ登録 -->
+    <div id="registration" class="tab-content">
+        <h2>🔖 タグ登録</h2>
 
-        // ページ読み込み時の初期化
-        document.addEventListener('DOMContentLoaded', function() {
-            loadLoansData();
-            loadToolNames();
-        });
-    </script>
+        <!-- タグ情報確認 -->
+        <div style="margin-bottom:30px; padding:20px; background:#f8f9fa; border-radius:8px; border-left:4px solid #17a2b8;">
+            <h3>🔍 タグ情報確認</h3>
+            <p style="margin-bottom:15px; color:#6c757d; font-size:14px;">NFCタグをスキャンして、現在の登録状況を確認できます</p>
+            <div class="input-group" style="margin-bottom:15px;">
+                <button class="btn btn-primary" onclick="checkTagInfo()" style="background:#17a2b8; border-color:#17a2b8;">🔍 タグ情報を確認</button>
+            </div>
+            <div id="tagCheckResult"></div>
+        </div>
 
-    
-    <!-- ===== 安全シャットダウン（固定フローティング） ===== -->
-<style>
-  #power-controls-fixed {
-    position: fixed; right: 16px; bottom: 16px;
-    z-index: 2147483647;  /* 最前面に出す */
-    display: flex; flex-direction: column; align-items: flex-end; gap: 6px;
-    pointer-events: auto;
-  }
-  #power-controls-fixed button {
-    background: #d9534f; color: #fff; border: 0;
-    padding: 10px 14px; border-radius: 6px;
-    box-shadow: 0 2px 6px rgba(0,0,0,.25); cursor: pointer;
-    font-size: 14px;
-  }
-  #power-controls-fixed button:hover { filter: brightness(1.05); }
-  #power-controls-fixed small {
-    color: #333; background: rgba(255,255,255,.85);
-    padding: 2px 6px; border-radius: 4px;
-  }
-</style>
+        <div style="display:flex; gap:30px; flex-wrap:wrap;">
+            <!-- ユーザー登録 -->
+            <div style="flex:1; min-width:300px;">
+                <h3>👤 ユーザー登録</h3>
+                <div class="input-group" style="margin-bottom:15px;">
+                    <button class="btn btn-primary" onclick="scanForUser()">スキャンしてUID取得</button>
+                </div>
+                <div class="input-group" style="margin-bottom:15px;">
+                    <label>UID（自動入力）</label>
+                    <input type="text" id="userUidInput" class="form-control" readonly>
+                </div>
+                <div class="input-group" style="margin-bottom:15px;">
+                    <label>氏名（例：山田太郎）</label>
+                    <input type="text" id="userNameInput" class="form-control" placeholder="山田太郎">
+                </div>
+                <button class="btn btn-primary" onclick="registerUser()">💾 登録 / 更新（ユーザー）</button>
+                <div id="userRegResult"></div>
+            </div>
 
-<div id="power-controls-fixed" aria-live="polite">
-  <button id="btnShutdown">安全にシャットダウン</button>
-  <small>この端末（Raspberry Pi）上で開いている場合のみ実行できます</small>
+            <!-- 工具登録 -->
+            <div style="flex:1; min-width:300px;">
+                <h3>🛠 工具登録</h3>
+                <div class="input-group" style="margin-bottom:15px;">
+                    <button class="btn btn-primary" onclick="scanForTool()">スキャンしてUID取得</button>
+                </div>
+                <div class="input-group" style="margin-bottom:15px;">
+                    <label>UID（自動入力）</label>
+                    <input type="text" id="toolUidInput" class="form-control" readonly>
+                </div>
+                <div class="input-group" style="margin-bottom:15px;">
+                    <label>工具名（マスタから選択）</label>
+                    <select id="toolNameSelect" class="form-control">
+                        <option value="">（選択してください）</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" onclick="registerTool()">💾 登録 / 更新（工具）</button>
+                <div id="toolRegResult"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 工具名マスタ -->
+    <div id="master" class="tab-content">
+        <h2>📚 工具名マスタ</h2>
+
+        <div class="input-row">
+            <div class="input-group">
+                <label>工具名を追加</label>
+                <input type="text" id="newToolNameInput" class="form-control" placeholder="新しい工具名">
+            </div>
+            <button class="btn btn-primary" onclick="addToolName()">➕ 追加</button>
+        </div>
+
+        <div id="masterResult"></div>
+
+        <h3>現在の工具名一覧</h3>
+        <div class="input-row">
+            <div class="input-group">
+                <label>削除する工具名を選択</label>
+                <select id="deleteToolNameSelect" class="form-control">
+                    <option value="">（選択してください）</option>
+                </select>
+            </div>
+            <button class="btn btn-danger" onclick="deleteToolName()">🗑️ 削除</button>
+        </div>
+    </div>
 </div>
 
+<!-- ===== メインスクリプト（スキャン文脈の独立運用対応） ===== -->
 <script>
-(function() {
-  const btn = document.getElementById('btnShutdown');
-  if (!btn) return;
-  btn.addEventListener('click', async () => {
-    if (!confirm('Raspberry Pi を安全にシャットダウンします。よろしいですか？\n処理開始後は数十秒で電源LEDが消灯します。')) return;
-    try {
-      const res = await fetch('/api/shutdown', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ confirm: true })
-      });
-      const j = await res.json().catch(() => ({}));
-      if (res.ok && j.ok) {
-        alert('シャットダウンを開始しました。LED消灯を確認してから電源を抜いてください。');
-      } else {
-        alert('失敗: ' + (j.error || res.status));
-      }
-    } catch (e) {
-      alert('エラー: ' + e);
+    // WebSocket
+    const socket = io();
+
+    // 状態
+    let scanActive = false;
+    let currentUserUid = '';
+    let currentToolUid = '';
+
+    // タブ切替
+    function showTab(tabName) {
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
+        document.getElementById(tabName).classList.add('active');
+        event.target.classList.add('active');
+
+        if (tabName === 'registration' || tabName === 'master') loadToolNames();
+        if (tabName === 'operations') loadLoansData();
     }
-  });
-})();
+
+    // スキャン開始/停止：appScan ラッパ経由（文脈=loan）
+    function startScan() {
+        appScan.start('loan')
+            .then(() => { scanActive = true; updateScanStatus(true); showMessage('scanMessage','スキャンを開始しました','info'); })
+            .catch(() => { showMessage('scanMessage','スキャン開始に失敗しました','danger'); });
+    }
+    function stopScan() {
+        appScan.stop()
+            .then(() => { scanActive = false; updateScanStatus(false); showMessage('scanMessage','スキャンを停止しました','warning'); })
+            .catch(() => {});
+    }
+
+    // 表示更新
+    function updateScanStatus(active) {
+        const s = document.getElementById('scanStatus');
+        const startBtn = document.getElementById('startScanBtn');
+        const stopBtn  = document.getElementById('stopScanBtn');
+        if (active) {
+            s.className = 'status-indicator status-active'; s.innerHTML = 'スキャン中';
+            startBtn.disabled = true; stopBtn.disabled = false;
+        } else {
+            s.className = 'status-indicator status-inactive'; s.innerHTML = '● 停止中';
+            startBtn.disabled = false; stopBtn.disabled = true;
+        }
+    }
+    function updateDisplays() {
+        const u = document.getElementById('userDisplay');
+        const t = document.getElementById('toolDisplay');
+        u.textContent = currentUserUid || ''; t.textContent = currentToolUid || '';
+        if (currentUserUid) { u.classList.add('completed'); } else { u.classList.remove('completed','active'); }
+        if (currentToolUid) { t.classList.add('completed'); } else { t.classList.remove('completed'); currentUserUid ? t.classList.add('active') : t.classList.remove('active'); }
+    }
+    function showMessage(id, msg, type) {
+        const el = document.getElementById(id);
+        el.innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
+        setTimeout(()=>{ el.innerHTML=''; }, 5000);
+    }
+
+    // 一覧読み込み
+    function loadLoansData() {
+        fetch('/api/loans').then(r=>r.json()).then(data=>{
+            const openBody = document.querySelector('#openLoansTable tbody'); openBody.innerHTML = '';
+            data.open_loans.forEach(v=>{
+                const tr=openBody.insertRow(); tr.insertCell(0).textContent=v.tool; tr.insertCell(1).textContent=v.borrower;
+                const d=new Date(v.loaned_at); tr.insertCell(2).textContent=`${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
+            });
+            const histBody = document.querySelector('#historyTable tbody'); histBody.innerHTML = '';
+            data.history.forEach(h=>{
+                const tr=histBody.insertRow(); tr.insertCell(0).textContent=h.action; tr.insertCell(1).textContent=h.tool; tr.insertCell(2).textContent=h.borrower;
+                const d=new Date(h.returned_at || h.loaned_at); tr.insertCell(3).textContent=`${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
+            });
+        });
+    }
+
+    // リセット
+    function resetState() {
+        fetch('/api/reset',{method:'POST'}).then(r=>r.json()).then(()=>{
+            currentUserUid=''; currentToolUid=''; updateDisplays(); showMessage('scanMessage','🔄 リセット完了','info'); document.getElementById('transactionResult').innerHTML='';
+        });
+    }
+
+    // 登録タブ：単発スキャンAPI
+    function scanForUser() {
+        showMessage('userRegResult','スキャン中...','info');
+        fetch('/api/scan_tag',{method:'POST'}).then(r=>r.json()).then(d=>{
+            if(d.status==='success'){ document.getElementById('userUidInput').value=d.uid; showMessage('userRegResult',`✅ UID: ${d.uid}`,'success'); }
+            else{ showMessage('userRegResult','❌ 読み取りタイムアウト（タグを一度離して再タッチ）','danger'); }
+        });
+    }
+    function scanForTool() {
+        showMessage('toolRegResult','スキャン中...','info');
+        fetch('/api/scan_tag',{method:'POST'}).then(r=>r.json()).then(d=>{
+            if(d.status==='success'){ document.getElementById('toolUidInput').value=d.uid; showMessage('toolRegResult',`✅ UID: ${d.uid}`,'success'); }
+            else{ showMessage('toolRegResult','❌ 読み取りタイムアウト（タグを一度離して再タッチ）','danger'); }
+        });
+    }
+
+    // 登録/マスタAPI
+    function registerUser(){
+        const uid=document.getElementById('userUidInput').value;
+        const name=document.getElementById('userNameInput').value.trim();
+        if(!uid||!name){ showMessage('userRegResult','❌ UID と 氏名 は必須です','danger'); return; }
+        fetch('/api/register_user',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uid,name})})
+            .then(r=>r.json()).then(d=>{ d.status==='success'? (showMessage('userRegResult',d.message,'success'),document.getElementById('userNameInput').value='') : showMessage('userRegResult',d.error,'danger');});
+    }
+    function registerTool(){
+        const uid=document.getElementById('toolUidInput').value;
+        const name=document.getElementById('toolNameSelect').value;
+        if(!uid||!name){ showMessage('toolRegResult','❌ UID と 工具名 は必須です','danger'); return; }
+        fetch('/api/register_tool',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uid,name})})
+            .then(r=>r.json()).then(d=>{ d.status==='success'? (showMessage('toolRegResult',d.message,'success'),document.getElementById('toolUidInput').value='',document.getElementById('toolNameSelect').value='') : showMessage('toolRegResult',d.error,'danger');});
+    }
+    function loadToolNames(){
+        fetch('/api/tool_names').then(r=>r.json()).then(d=>{
+            if(!d.names) return;
+            const toolSel=document.getElementById('toolNameSelect'); toolSel.innerHTML='<option value="">（選択してください）</option>';
+            d.names.forEach(n=>{ const o=document.createElement('option'); o.value=n; o.textContent=n; toolSel.appendChild(o); });
+            const delSel=document.getElementById('deleteToolNameSelect'); delSel.innerHTML='<option value="">（選択してください）</option>';
+            d.names.forEach(n=>{ const o=document.createElement('option'); o.value=n; o.textContent=n; delSel.appendChild(o); });
+        });
+    }
+    function addToolName(){
+        const name=document.getElementById('newToolNameInput').value.trim();
+        if(!name){ showMessage('masterResult','❌ 工具名を入力してください','danger'); return; }
+        fetch('/api/add_tool_name',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})})
+            .then(r=>r.json()).then(d=>{ d.status==='success'? (showMessage('masterResult',d.message,'success'),document.getElementById('newToolNameInput').value='',loadToolNames()) : showMessage('masterResult',d.error,'danger');});
+    }
+    function deleteToolName(){
+        const name=document.getElementById('deleteToolNameSelect').value;
+        if(!name){ showMessage('masterResult','❌ 削除する工具名を選択してください','danger'); return; }
+        if(!confirm(`「${name}」を削除してもよろしいですか？`)) return;
+        fetch('/api/delete_tool_name',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})})
+            .then(r=>r.json()).then(d=>{ d.status==='success'? (showMessage('masterResult',d.message,'success'),loadToolNames()) : showMessage('masterResult',d.error,'danger');});
+    }
+
+    // WebSocket受信：借用/返却タブのときだけUI反映（文脈ガード）
+    socket.on('scan_update', function(data){
+        const ctx = (window.appScan && window.appScan.get && window.appScan.get())
+                  || (document.getElementById('operations').classList.contains('active') ? 'loan' : 'register');
+        if (ctx !== 'loan') return;
+
+        currentUserUid = data.user_uid || currentUserUid;
+        currentToolUid = data.tool_uid || currentToolUid;
+
+        const u=document.getElementById('userDisplay');
+        const t=document.getElementById('toolDisplay');
+        if (data.user_name) u.textContent = data.user_name;
+        if (data.tool_name) t.textContent = data.tool_name;
+
+        updateDisplays();
+        if (data.message) showMessage('scanMessage', data.message, 'info');
+    });
+    socket.on('transaction_complete', function(data){
+        document.getElementById('userDisplay').textContent = data.user_name;
+        document.getElementById('toolDisplay').textContent = data.tool_name;
+        showMessage('transactionResult', data.message, data.action==='borrow'?'success':'info');
+        loadLoansData();
+    });
+    socket.on('state_reset',  function(d){ currentUserUid=''; currentToolUid=''; updateDisplays(); showMessage('scanMessage',d.message,'info'); });
+    socket.on('error',        function(d){ showMessage('scanMessage', d.message,'danger'); });
+
+    // タグ情報確認（登録タブ）
+    function checkTagInfo(){
+        showMessage('tagCheckResult','タグをスキャンしています...','info');
+        fetch('/api/check_tag',{method:'POST'}).then(r=>r.json()).then(d=>{
+            if(d.status==='success'){
+                let type=d.type, msg=d.message, uid=d.uid, name=d.name, html='', cls='info';
+                if(type==='user'){ cls='success'; html=`<div style="padding:10px;background:#fff;border-radius:5px;margin-top:10px;">
+                    <strong>🆔 UID:</strong> ${uid}<br><strong>📝 登録タイプ:</strong> ユーザー<br><strong>👤 氏名:</strong> ${name}</div>`; }
+                else if(type==='tool'){ cls='info'; html=`<div style="padding:10px;background:#fff;border-radius:5px;margin-top:10px;">
+                    <strong>🆔 UID:</strong> ${uid}<br><strong>📝 登録タイプ:</strong> 工具<br><strong>🛠️ 工具名:</strong> ${name}</div>`; }
+                else { cls='warning'; html=`<div style="padding:10px;background:#fff;border-radius:5px;margin-top:10px;">
+                    <strong>🆔 UID:</strong> ${uid}<br><strong>📝 登録状況:</strong> 未登録<br><em>このタグはまだユーザーまたは工具として登録されていません</em></div>`; }
+                document.getElementById('tagCheckResult').innerHTML = `<div class="alert alert-${cls}">${msg}${html}</div>`;
+            } else {
+                showMessage('tagCheckResult','❌ 読み取りタイムアウト（タグを一度離して再タッチ）','danger');
+            }
+        });
+    }
+
+    // 初期化
+    document.addEventListener('DOMContentLoaded', function(){
+        loadLoansData(); loadToolNames();
+    });
 </script>
-<!-- ===== /安全シャットダウン ===== -->
 
-
-    <!-- ===== 安全シャットダウン（JSで右下に動的挿入） ===== -->
+<!-- ===== 安全シャットダウン（動的・右下固定） ===== -->
 <script>
-(function() {
+(function(){
   if (document.getElementById('btnShutdownFixed')) return;
-
-  // ラッパー（右下固定）
   const wrap = document.createElement('div');
-  wrap.id = 'shutdownFixedWrap';
-  wrap.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:2147483647;display:flex;flex-direction:column;align-items:flex-end;gap:6px;';
-
-  // ボタン本体
-  const btn = document.createElement('button');
-  btn.id = 'btnShutdownFixed';
-  btn.textContent = '安全にシャットダウン';
-  btn.style.cssText = 'background:#d9534f;color:#fff;border:0;padding:10px 14px;border-radius:6px;box-shadow:0 2px 6px rgba(0,0,0,.25);cursor:pointer;font-size:14px;';
-  btn.addEventListener('mouseenter', ()=>btn.style.filter='brightness(1.05)');
-  btn.addEventListener('mouseleave', ()=>btn.style.filter='');
-
-  // 説明テキスト
+  wrap.id='shutdownFixedWrap';
+  wrap.style.cssText='position:fixed;right:16px;bottom:16px;z-index:2147483647;display:flex;flex-direction:column;align-items:flex-end;gap:6px;';
+  const btn  = document.createElement('button');
+  btn.id='btnShutdownFixed';
+  btn.textContent='安全にシャットダウン';
+  btn.style.cssText='background:#d9534f;color:#fff;border:0;padding:10px 14px;border-radius:6px;box-shadow:0 2px 6px rgba(0,0,0,.25);cursor:pointer;font-size:14px;';
   const note = document.createElement('small');
-  note.textContent = 'この端末（Raspberry Pi）上で開いている場合のみ実行できます';
-  note.style.cssText = 'color:#333;background:rgba(255,255,255,.85);padding:2px 6px;border-radius:4px;text-align:right;';
-
-  // クリック処理
-  btn.addEventListener('click', async () => {
-    if (!confirm('Raspberry Pi を安全にシャットダウンします。よろしいですか？\n処理開始後は数十秒で電源LEDが消灯します。')) return;
-    try {
-      const res = await fetch('/api/shutdown', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ confirm: true })
-      });
-      const j = await res.json().catch(() => ({}));
-      if (res.ok && j.ok) {
-        alert('シャットダウンを開始しました。LED消灯を確認してから電源を抜いてください。');
-      } else {
-        alert('失敗: ' + (j.error || res.status));
-      }
-    } catch (e) {
-      alert('エラー: ' + e);
-    }
+  note.textContent='この端末（Raspberry Pi）上で開いている場合のみ実行できます';
+  note.style.cssText='color:#333;background:rgba(255,255,255,.85);padding:2px 6px;border-radius:4px;text-align:right;';
+  btn.addEventListener('click', async ()=>{
+    if(!confirm('Raspberry Pi を安全にシャットダウンします。よろしいですか？\n処理開始後は数十秒で電源LEDが消灯します。')) return;
+    try{
+      const res=await fetch('/api/shutdown',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirm:true})});
+      const j=await res.json().catch(()=>({}));
+      if(res.ok && j.ok) alert('シャットダウンを開始しました。LED消灯を確認してから電源を抜いてください。');
+      else alert('失敗: '+(j.error||res.status));
+    }catch(e){ alert('エラー: '+e); }
   });
-
-  wrap.appendChild(btn);
-  wrap.appendChild(note);
-  document.body.appendChild(wrap);
+  wrap.appendChild(btn); wrap.appendChild(note); document.body.appendChild(wrap);
 })();
 </script>
-<!-- ===== /安全シャットダウン ===== -->
-
 
 <!-- ===== スキャン制御（タブ独立運用） ===== -->
 <script>
-  // グローバル：タブ文脈付きスキャン制御
-  window.appScan = (function () {
-    let active = false;
-    let ctx = null; // "loan" or "register"
-
-    async function start(newCtx) {
-      try {
-        if (active) { await fetch('/api/stop_scan', { method: 'POST' }); }
-        ctx = newCtx;
-        active = true;
-        await fetch('/api/start_scan', { method: 'POST' });
-      } catch (_) {}
+  // 文脈付きスキャン制御（loan / register）
+  window.appScan = (function(){
+    let active=false, ctx=null;
+    async function start(newCtx){
+      try{ if(active){ await fetch('/api/stop_scan',{method:'POST'}); } ctx=newCtx; active=true; await fetch('/api/start_scan',{method:'POST'}); }
+      catch(_){}
     }
-
-    async function stop() {
-      try {
-        if (active) { await fetch('/api/stop_scan', { method: 'POST' }); }
-      } catch (_) {}
-      active = false;
-      ctx = null;
+    async function stop(){
+      try{ if(active){ await fetch('/api/stop_scan',{method:'POST'}); } }
+      catch(_){}
+      active=false; ctx=null;
     }
-
-    function get() { return ctx; }
-
-    // ページ離脱時も停止（keepalive でできるだけ通知）
-    window.addEventListener('beforeunload', () => {
-      try {
-        if (navigator.sendBeacon) {
-          const blob = new Blob([], { type: 'application/json' });
-          navigator.sendBeacon('/api/stop_scan', blob);
-        } else {
-          fetch('/api/stop_scan', { method: 'POST', keepalive: true });
-        }
-      } catch (_) {}
+    function get(){ return ctx; }
+    window.addEventListener('beforeunload', ()=>{
+      try{
+        if(navigator.sendBeacon){
+          const b=new Blob([], {type:'application/json'}); navigator.sendBeacon('/api/stop_scan', b);
+        } else { fetch('/api/stop_scan',{method:'POST', keepalive:true}); }
+      } catch(_){}
     });
-
     return { start, stop, get };
   })();
 
-  // タブ切り替えで「必ず」スキャン停止（重複/ライブラリ差異を吸収）
-  document.addEventListener('click', (ev) => {
-    const tabLike = ev.target.closest('a[data-bs-toggle="tab"],[role="tab"],.tablinks,[data-tab-target],[data-tab]');
+  // タブ切替時は必ず停止（.tab-button を明示）
+  document.addEventListener('click', (ev)=>{
+    const tabLike = ev.target.closest('a[data-bs-toggle="tab"],[role="tab"],.tablinks,.tab-button,[data-tab-target],[data-tab]');
     if (tabLike) { window.appScan.stop(); }
   });
 </script>
 <!-- ===== /スキャン制御 ===== -->
 
-
-    
 </body>
 </html>
