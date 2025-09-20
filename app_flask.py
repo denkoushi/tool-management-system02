@@ -34,8 +34,20 @@ scan_state = {
 # =========================
 # DBユーティリティ
 # =========================
+# --- DB接続: リトライ付き（最大30秒） ---
 def get_conn():
-    return psycopg2.connect(**DB)
+    import time
+    last_err = None
+    for i in range(30):
+        try:
+            conn = psycopg2.connect(**DB)
+            return conn
+        except Exception as e:
+            last_err = e
+            print(f"[DB] connect retry {i+1}/30: {e}", flush=True)
+            time.sleep(1)
+    # 30回失敗したら最後の例外を投げる
+    raise last_err
 
 def ensure_tables():
     """必要テーブルを作成"""
