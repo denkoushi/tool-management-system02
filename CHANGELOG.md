@@ -46,3 +46,7 @@
 ### 動作確認
 - ユーザー/工具タグの登録、**ユーザー → 工具** の順での貸出、返却の双方で UI/DB が更新されることを確認。
 - 再起動後の **完全自動復帰**（Docker + systemd + アプリ起動 + 到達性 200）を確認。
+
+### 2025-09-20〜21 追記
+- 再現スクリプトを追加（os_prereqs.sh / install_docker.sh / install_kiosk_autostart.sh / remove_kiosk_autostart.sh / apply_db_tuning.{sql,sh}）。
+- RUNBOOK に「再現性確保（Scripts Inventory）」章を追記。
