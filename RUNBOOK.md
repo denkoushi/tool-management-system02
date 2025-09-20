@@ -256,3 +256,23 @@
 - 未返却アラート（Slack/メール）、CSV エクスポート API、Grafana ダッシュボード雛形
 
 ---
+## 10. 再現性確保（Scripts Inventory）
+
+本番機で手作業した設定を、スクリプト化してリポジトリに保存しています。新しい環境では以下を順に実行すれば、同じ状態を再現できます。
+
+- OS前提導入  
+    bash scripts/os_prereqs.sh
+
+- Docker + Compose 導入（実行後に一度ログアウト/ログイン）  
+    bash scripts/install_docker.sh
+
+- コンテナ起動（既存手順どおり）  
+    docker compose up -d
+
+- DBポストインストール（JSTタイムゾーン & インデックス）  
+    bash scripts/apply_db_tuning.sh
+
+- キオスク自動起動（XDG オートスタート、任意）  
+    bash scripts/install_kiosk_autostart.sh
+    # 無効化する場合:
+    bash scripts/remove_kiosk_autostart.sh
