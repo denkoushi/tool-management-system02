@@ -1056,5 +1056,57 @@
 <!-- ===== /安全シャットダウン ===== -->
 
 
+    <!-- ===== 安全シャットダウン（JSで右下に動的挿入） ===== -->
+<script>
+(function() {
+  if (document.getElementById('btnShutdownFixed')) return;
+
+  // ラッパー（右下固定）
+  const wrap = document.createElement('div');
+  wrap.id = 'shutdownFixedWrap';
+  wrap.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:2147483647;display:flex;flex-direction:column;align-items:flex-end;gap:6px;';
+
+  // ボタン本体
+  const btn = document.createElement('button');
+  btn.id = 'btnShutdownFixed';
+  btn.textContent = '安全にシャットダウン';
+  btn.style.cssText = 'background:#d9534f;color:#fff;border:0;padding:10px 14px;border-radius:6px;box-shadow:0 2px 6px rgba(0,0,0,.25);cursor:pointer;font-size:14px;';
+  btn.addEventListener('mouseenter', ()=>btn.style.filter='brightness(1.05)');
+  btn.addEventListener('mouseleave', ()=>btn.style.filter='');
+
+  // 説明テキスト
+  const note = document.createElement('small');
+  note.textContent = 'この端末（Raspberry Pi）上で開いている場合のみ実行できます';
+  note.style.cssText = 'color:#333;background:rgba(255,255,255,.85);padding:2px 6px;border-radius:4px;text-align:right;';
+
+  // クリック処理
+  btn.addEventListener('click', async () => {
+    if (!confirm('Raspberry Pi を安全にシャットダウンします。よろしいですか？\n処理開始後は数十秒で電源LEDが消灯します。')) return;
+    try {
+      const res = await fetch('/api/shutdown', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm: true })
+      });
+      const j = await res.json().catch(() => ({}));
+      if (res.ok && j.ok) {
+        alert('シャットダウンを開始しました。LED消灯を確認してから電源を抜いてください。');
+      } else {
+        alert('失敗: ' + (j.error || res.status));
+      }
+    } catch (e) {
+      alert('エラー: ' + e);
+    }
+  });
+
+  wrap.appendChild(btn);
+  wrap.appendChild(note);
+  document.body.appendChild(wrap);
+})();
+</script>
+<!-- ===== /安全シャットダウン ===== -->
+
+
+    
 </body>
 </html>
