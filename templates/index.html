@@ -1107,6 +1107,56 @@
 <!-- ===== /安全シャットダウン ===== -->
 
 
+<!-- ===== スキャン制御（タブ独立運用） ===== -->
+<script>
+  // グローバル：タブ文脈付きスキャン制御
+  window.appScan = (function () {
+    let active = false;
+    let ctx = null; // "loan" or "register"
+
+    async function start(newCtx) {
+      try {
+        if (active) { await fetch('/api/stop_scan', { method: 'POST' }); }
+        ctx = newCtx;
+        active = true;
+        await fetch('/api/start_scan', { method: 'POST' });
+      } catch (_) {}
+    }
+
+    async function stop() {
+      try {
+        if (active) { await fetch('/api/stop_scan', { method: 'POST' }); }
+      } catch (_) {}
+      active = false;
+      ctx = null;
+    }
+
+    function get() { return ctx; }
+
+    // ページ離脱時も停止（keepalive でできるだけ通知）
+    window.addEventListener('beforeunload', () => {
+      try {
+        if (navigator.sendBeacon) {
+          const blob = new Blob([], { type: 'application/json' });
+          navigator.sendBeacon('/api/stop_scan', blob);
+        } else {
+          fetch('/api/stop_scan', { method: 'POST', keepalive: true });
+        }
+      } catch (_) {}
+    });
+
+    return { start, stop, get };
+  })();
+
+  // タブ切り替えで「必ず」スキャン停止（重複/ライブラリ差異を吸収）
+  document.addEventListener('click', (ev) => {
+    const tabLike = ev.target.closest('a[data-bs-toggle="tab"],[role="tab"],.tablinks,[data-tab-target],[data-tab]');
+    if (tabLike) { window.appScan.stop(); }
+  });
+</script>
+<!-- ===== /スキャン制御 ===== -->
+
+
     
 </body>
 </html>
