@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport"
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>工具管理システム</title>
+  <title>アイテム管理システム</title>
   <script src="/static/js/socket.io.js"></script>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
@@ -119,7 +119,7 @@
   <!-- 借用/返却 -->
   <div id="operations" class="tab-content active">
     <div class="operation-header">
-      <h2>①ユーザー → ②工具 の順にスキャン</h2>
+      <h2>①ユーザー → ②アイテム の順にスキャン</h2>
       <span id="scanStatus" class="status-indicator status-inactive">● 停止中</span>
     </div>
 
@@ -135,7 +135,7 @@
         <div id="userDisplay" class="scan-display"></div>
       </div>
       <div class="scan-step">
-        <label>②工具</label>
+        <label>②アイテム</label>
         <div id="toolDisplay" class="scan-display"></div>
       </div>
     </div>
@@ -150,7 +150,7 @@
         <div class="section-title">📋 貸出中</div>
         <div class="scrollable-section">
           <table class="data-table" id="openLoansTable">
-            <thead><tr><th>工具</th><th>借用者</th><th>借用日時</th></tr></thead>
+            <thead><tr><th>アイテム</th><th>借用者</th><th>借用日時</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -159,7 +159,7 @@
         <div class="section-title">🕒 履歴</div>
         <div class="scrollable-section">
           <table class="data-table" id="historyTable">
-            <thead><tr><th>区分</th><th>工具</th><th>ユーザー</th><th>日時</th></tr></thead>
+            <thead><tr><th>区分</th><th>アイテム</th><th>ユーザー</th><th>日時</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -199,9 +199,9 @@
         <div id="userRegResult"></div>
       </div>
 
-      <!-- 工具登録 -->
+      <!-- アイテム登録 -->
       <div style="flex:1; min-width:300px;">
-        <h3>🛠 工具登録</h3>
+        <h3>📦 アイテム登録</h3>
         <div class="input-group" style="margin-bottom:15px;">
           <button class="btn btn-primary" onclick="scanForTool()">スキャンしてUID取得</button>
         </div>
@@ -210,35 +210,35 @@
           <input type="text" id="toolUidInput" class="form-control" readonly>
         </div>
         <div class="input-group" style="margin-bottom:15px;">
-          <label>工具名（マスタから選択）</label>
+          <label>アイテム名（マスタから選択）</label>
           <select id="toolNameSelect" class="form-control">
             <option value="">（選択してください）</option>
           </select>
         </div>
-        <button class="btn btn-primary" onclick="registerTool()">💾 登録 / 更新（工具）</button>
+        <button class="btn btn-primary" onclick="registerTool()">💾 登録 / 更新（アイテム）</button>
         <div id="toolRegResult"></div>
       </div>
     </div>
   </div>
 
-  <!-- 工具名マスタ -->
+  <!-- アイテム名マスタ -->
   <div id="master" class="tab-content">
-    <h2>📚 工具名マスタ</h2>
+    <h2>📚 アイテム名マスタ</h2>
 
     <div class="input-row">
       <div class="input-group">
-        <label>工具名を追加</label>
-        <input type="text" id="newToolNameInput" class="form-control" placeholder="新しい工具名">
+        <label>アイテム名を追加</label>
+        <input type="text" id="newToolNameInput" class="form-control" placeholder="新しいアイテム名">
       </div>
       <button class="btn btn-primary" onclick="addToolName()">➕ 追加</button>
     </div>
 
     <div id="masterResult"></div>
 
-    <h3>現在の工具名一覧</h3>
+    <h3>現在のアイテム名一覧</h3>
     <div class="input-row">
       <div class="input-group">
-        <label>削除する工具名を選択</label>
+        <label>削除するアイテム名を選択</label>
         <select id="deleteToolNameSelect" class="form-control">
           <option value="">（選択してください）</option>
         </select>
@@ -364,7 +364,7 @@
   function registerTool(){
     const uid=document.getElementById('toolUidInput').value;
     const name=document.getElementById('toolNameSelect').value;
-    if(!uid||!name){ showMessage('toolRegResult','❌ UID と 工具名 は必須です','danger'); return; }
+    if(!uid||!name){ showMessage('toolRegResult','❌ UID と アイテム名 は必須です','danger'); return; }
     fetch('/api/register_tool',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uid,name})})
       .then(r=>r.json()).then(d=>{ d.status==='success'? (showMessage('toolRegResult',d.message,'success'),document.getElementById('toolUidInput').value='',document.getElementById('toolNameSelect').value='') : showMessage('toolRegResult',d.error,'danger');});
   }
@@ -379,13 +379,13 @@
   }
   function addToolName(){
     const name=document.getElementById('newToolNameInput').value.trim();
-    if(!name){ showMessage('masterResult','❌ 工具名を入力してください','danger'); return; }
+    if(!name){ showMessage('masterResult','❌ アイテム名を入力してください','danger'); return; }
     fetch('/api/add_tool_name',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})})
       .then(r=>r.json()).then(d=>{ d.status==='success'? (showMessage('masterResult',d.message,'success'),document.getElementById('newToolNameInput').value='',loadToolNames()) : showMessage('masterResult',d.error,'danger');});
   }
   function deleteToolName(){
     const name=document.getElementById('deleteToolNameSelect').value;
-    if(!name){ showMessage('masterResult','❌ 削除する工具名を選択してください','danger'); return; }
+    if(!name){ showMessage('masterResult','❌ 削除するアイテム名を選択してください','danger'); return; }
     if(!confirm(`「${name}」を削除してもよろしいですか？`)) return;
     fetch('/api/delete_tool_name',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})})
       .then(r=>r.json()).then(d=>{ d.status==='success'? (showMessage('masterResult',d.message,'success'),loadToolNames()) : showMessage('masterResult',d.error,'danger');});
@@ -426,9 +426,9 @@
         if(type==='user'){ cls='success'; html=`<div style="padding:10px;background:#fff;border-radius:5px;margin-top:10px;">
           <strong>🆔 UID:</strong> ${uid}<br><strong>📝 登録タイプ:</strong> ユーザー<br><strong>👤 氏名:</strong> ${name}</div>`; }
         else if(type==='tool'){ cls='info'; html=`<div style="padding:10px;background:#fff;border-radius:5px;margin-top:10px;">
-          <strong>🆔 UID:</strong> ${uid}<br><strong>📝 登録タイプ:</strong> 工具<br><strong>🛠️ 工具名:</strong> ${name}</div>`; }
+          <strong>🆔 UID:</strong> ${uid}<br><strong>📝 登録タイプ:</strong> アイテム<br><strong>📦 アイテム名:</strong> ${name}</div>`; }
         else { cls='warning'; html=`<div style="padding:10px;background:#fff;border-radius:5px;margin-top:10px;">
-          <strong>🆔 UID:</strong> ${uid}<br><strong>📝 登録状況:</strong> 未登録<br><em>このタグはまだユーザーまたは工具として登録されていません</em></div>`; }
+          <strong>🆔 UID:</strong> ${uid}<br><strong>📝 登録状況:</strong> 未登録<br><em>このタグはまだユーザーまたはアイテムとして登録されていません</em></div>`; }
         document.getElementById('tagCheckResult').innerHTML = `<div class="alert alert-${cls}">${msg}${html}</div>`;
       } else {
         showMessage('tagCheckResult','❌ 読み取りタイムアウト（タグを一度離して再タッチ）','danger');
