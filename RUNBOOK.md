@@ -194,6 +194,44 @@
 
 ---
 
+## 11. UI からの安全シャットダウン（ローカル限定）
+
+**概要**  
+- 画面右下に「安全にシャットダウン」ボタンを表示。  
+- **このRaspberry Pi 上のブラウザ（キオスク含む）**からのみ実行可能（127.0.0.1/::1 判定）。  
+- 必要に応じて、トークン（`SHUTDOWN_TOKEN`）でLAN内からの実行も許可できます。
+
+**前提（sudoers を一度だけ設定）**  
+- 運用ユーザー（例：`tools01`）に対し、`shutdown -h now` のみパスワード無しで許可。
+
+    sudo tee /etc/sudoers.d/toolmgmt-shutdown >/dev/null <<'SUDO'
+    tools01 ALL=(root) NOPASSWD: /sbin/shutdown -h now, /usr/sbin/shutdown -h now
+    SUDO
+    sudo visudo -cf /etc/sudoers.d/toolmgmt-shutdown && echo "sudoers OK"
+
+**API**  
+- `POST /api/shutdown`  
+  - 要求: JSON `{"confirm": true}`  
+  - 許可: ローカル(127.0.0.1/::1) からのみ。もしくは `SHUTDOWN_TOKEN` によるトークン一致時に許可。  
+  - 応答: `{"ok": true, "message": "Shutting down..."}`（応答後、数秒で停止処理へ）
+
+**フロントエンド**  
+- 右下固定のフローティングボタン（`index.html` の `</body>` 直前でJSにより動的挿入）。  
+- ボタン押下時、確認ダイアログ→ `/api/shutdown` を呼び出し。成功なら「開始しました」とトースト表示。
+
+**任意: 遠隔で使う（推奨しない）**  
+- `setup_auto_start.sh` の systemd ユニットへ環境変数を追加（例）  
+    Environment=SHUTDOWN_TOKEN=<ランダムな長い文字列>
+- その上でフロントの fetch にヘッダを追加  
+    X-Shutdown-Token: <上と同じ値>
+- 誤操作/悪用のリスクが上がるため、十分なネットワーク制御を前提とすること。
+
+**注意点**  
+- 実行後はLED消灯を確認してから電源を抜くこと。  
+- `pcsc_scan` など別プロセスがカードリーダを掴んでいても、停止プロセスとは無関係。
+
+
+
 ## 6. 運用チートシート（よく使うコマンド）
 
 - サービス状態とログ：
