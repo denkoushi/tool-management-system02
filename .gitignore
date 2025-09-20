@@ -21,3 +21,4 @@ Thumbs.db
 # Project specific
 *.backup*
 ok_images.zip
+backups/
