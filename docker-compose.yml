@@ -1,0 +1,26 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: pg
+    environment:
+      - POSTGRES_USER=app
+      - POSTGRES_PASSWORD=app
+      - POSTGRES_DB=sensordb
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - gdata:/var/lib/grafana
+    depends_on:
+      - postgres
+
+volumes:
+  pgdata:
+  gdata:
