@@ -1001,5 +1001,37 @@
             loadToolNames();
         });
     </script>
+    <!-- ===== 安全シャットダウン（ローカル限定） ===== -->
+<div id="power-controls" style="margin:16px 0; text-align:right;">
+  <button id="btnShutdown" class="btn btn-danger">安全にシャットダウン</button>
+  <small style="display:block;opacity:.7;">この端末（Raspberry Pi）上で開いている場合のみ実行できます</small>
+</div>
+
+<script>
+(function() {
+  const btn = document.getElementById('btnShutdown');
+  if (!btn) return;
+  btn.addEventListener('click', async () => {
+    if (!confirm('Raspberry Pi を安全にシャットダウンします。よろしいですか？\n処理開始後は数十秒で電源LEDが消灯します。')) return;
+    try {
+      const res = await fetch('/api/shutdown', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm: true })
+      });
+      const j = await res.json().catch(() => ({}));
+      if (res.ok && j.ok) {
+        alert('シャットダウンを開始しました。LED消灯を確認してから電源を抜いてください。');
+      } else {
+        alert('失敗: ' + (j.error || res.status));
+      }
+    } catch (e) {
+      alert('エラー: ' + e);
+    }
+  });
+})();
+</script>
+<!-- ===== /安全シャットダウン ===== -->
+
 </body>
 </html>
