@@ -139,6 +139,16 @@
 
 ---
 
+### 3.1 マスターデータ同期（USB）
+
+- USB メモリを ext4 等でフォーマットし、**ラベルを `TOOLMASTER`** に設定します。
+- `sudo bash scripts/install_usb_master_sync.sh` を 1 度実行すると、`/usr/local/bin/tool_master_sync.sh` と udev/systemd 連携がセットアップされます。
+- 以降は USB を挿すだけで `master/tool_master.csv`・`master/users.csv`・`master/tools.csv` を読み込み、処理完了後に最新データを書き戻して自動的にアンマウントします。
+- CSV は UTF-8・ヘッダー付き。大量登録や人手による修正時は PC で CSV を編集して USB に保存し、そのまま挿入すれば取り込まれます。
+- ログ確認: `journalctl -u tool-master-sync@*`。失敗時は CSV のフォーマットや参照整合性（例: `tools.csv` の `name` が `tool_master.csv` に存在するか）を確認します。
+
+---
+
 ## 4. データ保全（バックアップ／リストア）
 
 ### 4.1 日次バックアップ（保持 14 日）
