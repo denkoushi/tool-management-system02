@@ -89,7 +89,19 @@ UI は `templates/index.html`、静的ファイルは `static/` 配下から提�
 
 ---
 
-## 6) よくあるトラブルと対処
+## 6) USB マスターデータ同期
+
+複数拠点で同じマスターデータを使い回すため、USB メモリ（ラベル: `TOOLMASTER`）を挿すだけで CSV を同期できる仕組みを用意しています。
+
+1. `sudo bash scripts/install_usb_master_sync.sh` を実行し、systemd/udev と同期スクリプトを導入します。
+2. USB メモリを挿すと自動で `/media/tool-master/` にマウントされ、`master/` 配下の CSV から `tool_master` / `users` / `tools` を読み込みます。読み込み後は最新のデータを CSV に書き戻してアンマウントします。
+3. 人手で編集する場合は `tool_master.csv`（工具名）、`users.csv`、`tools.csv`（タグ UID と工具名の紐づけ）を UTF-8・ヘッダー付きで更新してください。編集後に USB を挿すだけで Pi 側に取り込まれます。
+
+> ログは `journalctl -u tool-master-sync@*` で確認できます。取り込みに失敗した場合は CSV の書式（ヘッダーやカラム順）を見直してください。
+
+---
+
+## 7) よくあるトラブルと対処
 
 **PC/SC デーモンが起動していない**
     
@@ -107,7 +119,7 @@ UI は `templates/index.html`、静的ファイルは `static/` 配下から提�
     
     # ブラウザから http://<PiのIP>:8501 を開き直す
     # 同一LAN内でファイアウォール/ポートブロックが無いか確認
-    # サービス起動時のログを確認（下記 7) 参照）
+    # サービス起動時のログを確認（下記 8) 参照）
 
 **DB 接続エラー**
     
@@ -116,7 +128,7 @@ UI は `templates/index.html`、静的ファイルは `static/` 配下から提�
 
 ---
 
-## 7) ログ確認（systemd / 前面起動）
+## 8) ログ確認（systemd / 前面起動）
 
 **systemd サービス運用時のログ**
     
@@ -129,7 +141,7 @@ UI は `templates/index.html`、静的ファイルは `static/` 配下から提�
 
 ---
 
-## 8) 方針
+## 9) 方針
 
 - まずは **ZIP 版そのままの挙動を安定運用**（`python app_flask.py`）。  
 - 既存の別リポジトリにあるドキュメント整備や構造化（`app/` パッケージ化）は、**動作を壊さない範囲で段階的に取り込み**ます。
