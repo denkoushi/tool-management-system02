@@ -78,3 +78,4 @@
   - **手動返却**: スキャンできない場合も返却済みにでき、履歴へ移動。
   - **削除**: 貸出記録のみを破棄し、タグIDとアイテム名の紐づけは維持。
 - バックエンド API を拡張：`POST /api/loans/<id>/manual_return` と `DELETE /api/loans/<id>` を追加し、Socket.IO 通知を既存フローと共通化。
+- USB メモリ挿入でマスターデータ（tool_master/users/tools）を自動取り込み・書き戻しするスクリプトを追加。ラベル `TOOLMASTER` の USB を挿すだけで同期が完了。
