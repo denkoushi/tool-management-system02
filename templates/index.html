@@ -44,8 +44,11 @@
   body{
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
     background: var(--bg); color: var(--text);
+    display:flex; justify-content:flex-start; align-items:stretch;
   }
-  .container{width:100vw;height:100vh;background:var(--surface);display:flex;flex-direction:column;}
+  .app-layout{display:flex;width:100vw;height:100vh;}
+  .container{flex:0 0 50vw;height:100vh;background:var(--surface);display:flex;flex-direction:column;box-shadow:2px 0 12px rgba(15,23,42,.08);}
+  .future-panel{flex:1;background:var(--bg);}
 
   /* Tabs */
   .tabs{
@@ -178,6 +181,7 @@
   
 </head>
 <body>
+<div class="app-layout">
 <div class="container">
   <div class="tabs">
     <button class="tab-button active" onclick="showTab('operations')">📲 借用/返却</button>
@@ -315,6 +319,8 @@
       <button class="btn btn-danger" onclick="deleteToolName()">🗑️ 削除</button>
     </div>
   </div>
+</div>
+<div class="future-panel" aria-hidden="true"></div>
 </div>
 
 <!-- ===== メインスクリプト（タブ独立運用 & UI同期） ===== -->
