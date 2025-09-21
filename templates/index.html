@@ -94,6 +94,26 @@
   .btn-danger{background:var(--danger); color:#fff;}
   .btn:disabled{opacity:.5; cursor:not-allowed;}
 
+  .btn-table{
+    padding:6px 10px;
+    border-radius:6px;
+    border:1px solid var(--border);
+    background:#fff;
+    font-size: var(--fs-sm);
+    font-weight:700;
+    cursor:pointer;
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+    min-height:30px;
+    transition:.15s;
+  }
+  .btn-table:hover{background:var(--surface-2);} 
+  .btn-manual-return{border-color:var(--brand); color:var(--brand);} 
+  .btn-manual-return:hover{background:#eef6ff;}
+  .btn-delete{border-color:var(--danger); color:var(--danger);} 
+  .btn-delete:hover{background:#fef2f2;}
+
   /* Status pill */
   .status-indicator{
     display:inline-flex; align-items:center; gap:6px;
@@ -150,6 +170,7 @@
     line-height: 1.15;
   }
   .data-table tbody tr:hover{background:#f9fafb;}
+  .table-actions{display:flex; gap:6px; flex-wrap:wrap;}
 
   /* Lists layout: more space for tables without変更多段 */
   .bottom-tables{flex:1; display:flex; flex-direction:column; gap: 8px; overflow:hidden;}
@@ -223,7 +244,7 @@
         <div class="section-title">📋 貸出中</div>
         <div class="scrollable-section">
           <table class="data-table" id="openLoansTable">
-            <thead><tr><th>アイテム</th><th>借用者</th><th>借用日時</th></tr></thead>
+            <thead><tr><th>アイテム</th><th>借用者</th><th>借用日時</th><th>操作</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -393,8 +414,29 @@
     fetch('/api/loans').then(r=>r.json()).then(data=>{
       const openBody=document.querySelector('#openLoansTable tbody'); openBody.innerHTML='';
       data.open_loans.forEach(v=>{
-        const tr=openBody.insertRow(); tr.insertCell(0).textContent=v.tool; tr.insertCell(1).textContent=v.borrower;
-        const d=new Date(v.loaned_at); tr.insertCell(2).textContent=`${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
+        const tr=openBody.insertRow();
+        tr.dataset.loanId = v.id;
+        tr.dataset.toolUid = v.tool_uid;
+        tr.dataset.toolLabel = v.tool;
+        const tdTool = tr.insertCell(0); tdTool.textContent=v.tool;
+        tr.insertCell(1).textContent=v.borrower;
+        const d=new Date(v.loaned_at);
+        tr.insertCell(2).textContent=`${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
+        const actions=tr.insertCell(3);
+        actions.className='table-actions';
+
+        const btnReturn=document.createElement('button');
+        btnReturn.className='btn-table btn-manual-return';
+        btnReturn.textContent='手動返却';
+        btnReturn.addEventListener('click',()=>manualReturnLoan(v.id, v.tool, v.borrower));
+
+        const btnDelete=document.createElement('button');
+        btnDelete.className='btn-table btn-delete';
+        btnDelete.textContent='削除';
+        btnDelete.addEventListener('click',()=>deleteToolRegistration(v.tool_uid, v.tool));
+
+        actions.appendChild(btnReturn);
+        actions.appendChild(btnDelete);
       });
       const histBody=document.querySelector('#historyTable tbody'); histBody.innerHTML='';
       data.history.forEach(h=>{
@@ -402,6 +444,38 @@
         const d=new Date(h.returned_at || h.loaned_at); tr.insertCell(3).textContent=`${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
       });
     });
+  }
+
+  async function manualReturnLoan(loanId, toolLabel, borrowerLabel){
+    if(!confirm(`「${toolLabel}」を手動で返却済みにします。${borrowerLabel}からの貸出を閉じてもよろしいですか？`)) return;
+    try{
+      const res = await fetch(`/api/loans/${loanId}/manual_return`, {method:'POST'});
+      const data = await res.json();
+      if(res.ok && data.status==='success'){
+        showMessage('transactionResult', data.message, 'info');
+        loadLoansData();
+      }else{
+        showMessage('scanMessage', data.error || '返却処理に失敗しました', 'danger');
+      }
+    }catch(e){
+      showMessage('scanMessage', `エラー: ${e}`, 'danger');
+    }
+  }
+
+  async function deleteToolRegistration(toolUid, toolLabel){
+    if(!confirm(`UID ${toolUid}\n「${toolLabel}」を登録情報ごと削除します。履歴も消えますがよろしいですか？`)) return;
+    try{
+      const res = await fetch(`/api/tools/${encodeURIComponent(toolUid)}`, {method:'DELETE'});
+      const data = await res.json();
+      if(res.ok && data.status==='success'){
+        showMessage('transactionResult', data.message, 'warning');
+        loadLoansData();
+      }else{
+        showMessage('scanMessage', data.error || '削除に失敗しました', 'danger');
+      }
+    }catch(e){
+      showMessage('scanMessage', `エラー: ${e}`, 'danger');
+    }
   }
 
   // リセット
