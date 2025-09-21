@@ -86,6 +86,13 @@ def ensure_tables():
               )
             """)
             cur.execute("""
+              CREATE TABLE IF NOT EXISTS tool_name_archive(
+                tool_uid TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                deleted_at TIMESTAMPTZ NOT NULL DEFAULT now()
+              )
+            """)
+            cur.execute("""
               CREATE TABLE IF NOT EXISTS scan_events(
                 id BIGSERIAL PRIMARY KEY,
                 ts TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -116,6 +123,10 @@ def name_of_user(conn, uid):
 def name_of_tool(conn, uid):
     with conn.cursor() as cur:
         cur.execute("SELECT name FROM tools WHERE uid=%s", (uid,))
+        r = cur.fetchone()
+        if r:
+            return r[0]
+        cur.execute("SELECT name FROM tool_name_archive WHERE tool_uid=%s", (uid,))
         r = cur.fetchone()
     return r[0] if r else uid
 
@@ -167,13 +178,14 @@ def fetch_open_loans(conn, limit=100):
         cur.execute("""
           SELECT l.id,
                  l.tool_uid,
-                 COALESCE(t.name, l.tool_uid) AS tool_name,
+                 COALESCE(t.name, a.name, l.tool_uid) AS tool_name,
                  l.borrower_uid,
                  COALESCE(u.full_name, l.borrower_uid) AS borrower_name,
                  l.loaned_at
             FROM loans l
        LEFT JOIN tools t ON t.uid=l.tool_uid
        LEFT JOIN users u ON u.uid=l.borrower_uid
+       LEFT JOIN tool_name_archive a ON a.tool_uid=l.tool_uid
            WHERE l.returned_at IS NULL
         ORDER BY l.loaned_at DESC
            LIMIT %s
@@ -184,12 +196,13 @@ def fetch_recent_history(conn, limit=50):
     with conn.cursor() as cur:
         cur.execute("""
           SELECT CASE WHEN l.returned_at IS NULL THEN '貸出' ELSE '返却' END AS action,
-                 COALESCE(t.name, l.tool_uid) AS tool,
+                 COALESCE(t.name, a.name, l.tool_uid) AS tool,
                  COALESCE(u.full_name, l.borrower_uid) AS borrower,
                  l.loaned_at, l.returned_at
             FROM loans l
        LEFT JOIN tools t ON t.uid=l.tool_uid
        LEFT JOIN users u ON u.uid=l.borrower_uid
+       LEFT JOIN tool_name_archive a ON a.tool_uid=l.tool_uid
         ORDER BY COALESCE(l.returned_at, l.loaned_at) DESC
            LIMIT %s
         """, (limit,))
@@ -215,11 +228,27 @@ def delete_tool_and_loans(conn, tool_uid):
     with conn, conn.cursor() as cur:
         cur.execute("SELECT name FROM tools WHERE uid=%s", (tool_uid,))
         row = cur.fetchone()
+        existed = bool(row)
         tool_name = row[0] if row else tool_uid
+
+        cur.execute("""
+          INSERT INTO tool_name_archive(tool_uid, name, deleted_at)
+          VALUES(%s,%s, now())
+          ON CONFLICT(tool_uid) DO UPDATE
+            SET name=EXCLUDED.name,
+                deleted_at=EXCLUDED.deleted_at
+        """, (tool_uid, tool_name))
+
         cur.execute("DELETE FROM loans WHERE tool_uid=%s", (tool_uid,))
-        cur.execute("DELETE FROM tools WHERE uid=%s", (tool_uid,))
-        # tool_master からの削除は残しておく（他の UID で使い回す可能性があるため）
-        return tool_name, bool(row)
+        loans_removed = cur.rowcount
+
+        if existed:
+            cur.execute("DELETE FROM tools WHERE uid=%s", (tool_uid,))
+
+        if not existed and loans_removed == 0:
+            raise RuntimeError("指定した工具が見つかりません")
+
+        return tool_name, existed, loans_removed
 
 # =========================
 # NFCスキャン機能
@@ -419,13 +448,15 @@ def delete_tool(tool_uid):
     conn = get_conn()
     try:
         try:
-            tool_name, existed = delete_tool_and_loans(conn, tool_uid)
+            tool_name, existed, loans_removed = delete_tool_and_loans(conn, tool_uid)
         except RuntimeError as e:
             return jsonify({"error": str(e)}), 404
         if existed:
             message = f"🗑️ 工具を削除しました: {tool_name} ({tool_uid})"
-        else:
+        elif loans_removed:
             message = f"🗑️ 工具 UID {tool_uid} の貸出履歴を削除しました"
+        else:
+            message = f"🗑️ 工具 UID {tool_uid} の情報を整理しました"
         return jsonify({"status": "success", "message": message})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
