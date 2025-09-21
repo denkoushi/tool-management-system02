@@ -165,8 +165,11 @@ def borrow_or_return(conn, user_uid, tool_uid):
 def fetch_open_loans(conn, limit=100):
     with conn.cursor() as cur:
         cur.execute("""
-          SELECT COALESCE(t.name, l.tool_uid) AS tool,
-                 COALESCE(u.full_name, l.borrower_uid) AS borrower,
+          SELECT l.id,
+                 l.tool_uid,
+                 COALESCE(t.name, l.tool_uid) AS tool_name,
+                 l.borrower_uid,
+                 COALESCE(u.full_name, l.borrower_uid) AS borrower_name,
                  l.loaned_at
             FROM loans l
        LEFT JOIN tools t ON t.uid=l.tool_uid
@@ -191,6 +194,33 @@ def fetch_recent_history(conn, limit=50):
            LIMIT %s
         """, (limit,))
         return cur.fetchall()
+
+def complete_loan_manually(conn, loan_id):
+    """スキャンせずに返却処理を行う"""
+    with conn, conn.cursor() as cur:
+        cur.execute("""
+          UPDATE loans
+             SET returned_at = NOW(),
+                 return_user_uid = COALESCE(return_user_uid, borrower_uid)
+           WHERE id=%s AND returned_at IS NULL
+       RETURNING tool_uid, borrower_uid
+        """, (loan_id,))
+        row = cur.fetchone()
+        if not row:
+            raise RuntimeError("対象の貸出が見つかりませんでした")
+        return row
+
+def delete_tool_and_loans(conn, tool_uid):
+    """誤登録した工具を削除（関連レコードも削除）"""
+    with conn, conn.cursor() as cur:
+        cur.execute("SELECT name FROM tools WHERE uid=%s", (tool_uid,))
+        row = cur.fetchone()
+        if not row:
+            raise RuntimeError("指定した工具が見つかりません")
+        tool_name = row[0]
+        cur.execute("DELETE FROM loans WHERE tool_uid=%s", (tool_uid,))
+        cur.execute("DELETE FROM tools WHERE uid=%s", (tool_uid,))
+        return tool_name
 
 # =========================
 # NFCスキャン機能
@@ -343,13 +373,60 @@ def get_loans():
         open_loans = fetch_open_loans(conn)
         history = fetch_recent_history(conn)
         return jsonify({
-            "open_loans": [{"tool": r[0], "borrower": r[1], "loaned_at": r[2].isoformat()} for r in open_loans],
+            "open_loans": [{
+                "id": r[0],
+                "tool_uid": r[1],
+                "tool": r[2],
+                "borrower_uid": r[3],
+                "borrower": r[4],
+                "loaned_at": r[5].isoformat()
+            } for r in open_loans],
             "history": [{
                 "action": r[0], "tool": r[1], "borrower": r[2], 
                 "loaned_at": r[3].isoformat(), 
                 "returned_at": r[4].isoformat() if r[4] else None
             } for r in history]
         })
+    finally:
+        conn.close()
+
+@app.route('/api/loans/<int:loan_id>/manual_return', methods=['POST'])
+def manual_return_loan(loan_id):
+    conn = get_conn()
+    try:
+        try:
+            tool_uid, borrower_uid = complete_loan_manually(conn, loan_id)
+        except RuntimeError as e:
+            return jsonify({"error": str(e)}), 404
+        tool_name = name_of_tool(conn, tool_uid)
+        borrower_name = name_of_user(conn, borrower_uid)
+        message = f"✅ 手動返却：{tool_name} を {borrower_name} から回収しました"
+        socketio.emit('transaction_complete', {
+            'user_uid': borrower_uid,
+            'user_name': borrower_name,
+            'tool_uid': tool_uid,
+            'tool_name': tool_name,
+            'message': message,
+            'action': 'return'
+        })
+        return jsonify({"status": "success", "message": message})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route('/api/tools/<tool_uid>', methods=['DELETE'])
+def delete_tool(tool_uid):
+    conn = get_conn()
+    try:
+        try:
+            tool_name = delete_tool_and_loans(conn, tool_uid)
+        except RuntimeError as e:
+            return jsonify({"error": str(e)}), 404
+        message = f"🗑️ 工具を削除しました: {tool_name} ({tool_uid})"
+        return jsonify({"status": "success", "message": message})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
     finally:
         conn.close()
 
