@@ -433,7 +433,7 @@
         const btnDelete=document.createElement('button');
         btnDelete.className='btn-table btn-delete';
         btnDelete.textContent='削除';
-        btnDelete.addEventListener('click',()=>deleteToolRegistration(v.tool_uid, v.tool));
+        btnDelete.addEventListener('click',()=>deleteLoanEntry(v.id, v.tool_uid, v.tool));
 
         actions.appendChild(btnReturn);
         actions.appendChild(btnDelete);
@@ -462,10 +462,10 @@
     }
   }
 
-  async function deleteToolRegistration(toolUid, toolLabel){
-    if(!confirm(`UID ${toolUid}\n「${toolLabel}」を登録情報ごと削除します。履歴も消えますがよろしいですか？`)) return;
+  async function deleteLoanEntry(loanId, toolUid, toolLabel){
+    if(!confirm(`UID ${toolUid}\n「${toolLabel}」の貸出記録を削除します。履歴には残りません。よろしいですか？`)) return;
     try{
-      const res = await fetch(`/api/tools/${encodeURIComponent(toolUid)}`, {method:'DELETE'});
+      const res = await fetch(`/api/loans/${loanId}`, {method:'DELETE'});
       const data = await res.json();
       if(res.ok && data.status==='success'){
         showMessage('transactionResult', data.message, 'warning');
