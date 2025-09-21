@@ -215,12 +215,11 @@ def delete_tool_and_loans(conn, tool_uid):
     with conn, conn.cursor() as cur:
         cur.execute("SELECT name FROM tools WHERE uid=%s", (tool_uid,))
         row = cur.fetchone()
-        if not row:
-            raise RuntimeError("指定した工具が見つかりません")
-        tool_name = row[0]
+        tool_name = row[0] if row else tool_uid
         cur.execute("DELETE FROM loans WHERE tool_uid=%s", (tool_uid,))
         cur.execute("DELETE FROM tools WHERE uid=%s", (tool_uid,))
-        return tool_name
+        # tool_master からの削除は残しておく（他の UID で使い回す可能性があるため）
+        return tool_name, bool(row)
 
 # =========================
 # NFCスキャン機能
@@ -420,10 +419,13 @@ def delete_tool(tool_uid):
     conn = get_conn()
     try:
         try:
-            tool_name = delete_tool_and_loans(conn, tool_uid)
+            tool_name, existed = delete_tool_and_loans(conn, tool_uid)
         except RuntimeError as e:
             return jsonify({"error": str(e)}), 404
-        message = f"🗑️ 工具を削除しました: {tool_name} ({tool_uid})"
+        if existed:
+            message = f"🗑️ 工具を削除しました: {tool_name} ({tool_uid})"
+        else:
+            message = f"🗑️ 工具 UID {tool_uid} の貸出履歴を削除しました"
         return jsonify({"status": "success", "message": message})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
