@@ -86,13 +86,6 @@ def ensure_tables():
               )
             """)
             cur.execute("""
-              CREATE TABLE IF NOT EXISTS tool_name_archive(
-                tool_uid TEXT PRIMARY KEY,
-                name TEXT NOT NULL,
-                deleted_at TIMESTAMPTZ NOT NULL DEFAULT now()
-              )
-            """)
-            cur.execute("""
               CREATE TABLE IF NOT EXISTS scan_events(
                 id BIGSERIAL PRIMARY KEY,
                 ts TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -123,10 +116,6 @@ def name_of_user(conn, uid):
 def name_of_tool(conn, uid):
     with conn.cursor() as cur:
         cur.execute("SELECT name FROM tools WHERE uid=%s", (uid,))
-        r = cur.fetchone()
-        if r:
-            return r[0]
-        cur.execute("SELECT name FROM tool_name_archive WHERE tool_uid=%s", (uid,))
         r = cur.fetchone()
     return r[0] if r else uid
 
@@ -178,14 +167,13 @@ def fetch_open_loans(conn, limit=100):
         cur.execute("""
           SELECT l.id,
                  l.tool_uid,
-                 COALESCE(t.name, a.name, l.tool_uid) AS tool_name,
+                 COALESCE(t.name, l.tool_uid) AS tool_name,
                  l.borrower_uid,
                  COALESCE(u.full_name, l.borrower_uid) AS borrower_name,
                  l.loaned_at
             FROM loans l
        LEFT JOIN tools t ON t.uid=l.tool_uid
        LEFT JOIN users u ON u.uid=l.borrower_uid
-       LEFT JOIN tool_name_archive a ON a.tool_uid=l.tool_uid
            WHERE l.returned_at IS NULL
         ORDER BY l.loaned_at DESC
            LIMIT %s
@@ -196,13 +184,12 @@ def fetch_recent_history(conn, limit=50):
     with conn.cursor() as cur:
         cur.execute("""
           SELECT CASE WHEN l.returned_at IS NULL THEN '貸出' ELSE '返却' END AS action,
-                 COALESCE(t.name, a.name, l.tool_uid) AS tool,
+                 COALESCE(t.name, l.tool_uid) AS tool,
                  COALESCE(u.full_name, l.borrower_uid) AS borrower,
                  l.loaned_at, l.returned_at
             FROM loans l
        LEFT JOIN tools t ON t.uid=l.tool_uid
        LEFT JOIN users u ON u.uid=l.borrower_uid
-       LEFT JOIN tool_name_archive a ON a.tool_uid=l.tool_uid
         ORDER BY COALESCE(l.returned_at, l.loaned_at) DESC
            LIMIT %s
         """, (limit,))
@@ -223,32 +210,23 @@ def complete_loan_manually(conn, loan_id):
             raise RuntimeError("対象の貸出が見つかりませんでした")
         return row
 
-def delete_tool_and_loans(conn, tool_uid):
-    """誤登録した工具を削除（関連レコードも削除）"""
+def delete_open_loan(conn, loan_id):
+    """貸出中リストから該当レコードを削除"""
     with conn, conn.cursor() as cur:
-        cur.execute("SELECT name FROM tools WHERE uid=%s", (tool_uid,))
-        row = cur.fetchone()
-        existed = bool(row)
-        tool_name = row[0] if row else tool_uid
-
         cur.execute("""
-          INSERT INTO tool_name_archive(tool_uid, name, deleted_at)
-          VALUES(%s,%s, now())
-          ON CONFLICT(tool_uid) DO UPDATE
-            SET name=EXCLUDED.name,
-                deleted_at=EXCLUDED.deleted_at
-        """, (tool_uid, tool_name))
+          SELECT l.tool_uid,
+                 COALESCE(t.name, l.tool_uid) AS tool_name
+            FROM loans l
+       LEFT JOIN tools t ON t.uid = l.tool_uid
+           WHERE l.id=%s AND l.returned_at IS NULL
+        """, (loan_id,))
+        row = cur.fetchone()
+        if not row:
+            raise RuntimeError("貸出中のレコードが見つかりません")
 
-        cur.execute("DELETE FROM loans WHERE tool_uid=%s", (tool_uid,))
-        loans_removed = cur.rowcount
-
-        if existed:
-            cur.execute("DELETE FROM tools WHERE uid=%s", (tool_uid,))
-
-        if not existed and loans_removed == 0:
-            raise RuntimeError("指定した工具が見つかりません")
-
-        return tool_name, existed, loans_removed
+        tool_uid, tool_name = row
+        cur.execute("DELETE FROM loans WHERE id=%s", (loan_id,))
+        return tool_uid, tool_name
 
 # =========================
 # NFCスキャン機能
@@ -443,21 +421,16 @@ def manual_return_loan(loan_id):
     finally:
         conn.close()
 
-@app.route('/api/tools/<tool_uid>', methods=['DELETE'])
-def delete_tool(tool_uid):
+@app.route('/api/loans/<int:loan_id>', methods=['DELETE'])
+def delete_open_loan_api(loan_id):
     conn = get_conn()
     try:
         try:
-            tool_name, existed, loans_removed = delete_tool_and_loans(conn, tool_uid)
+            tool_uid, tool_name = delete_open_loan(conn, loan_id)
         except RuntimeError as e:
             return jsonify({"error": str(e)}), 404
-        if existed:
-            message = f"🗑️ 工具を削除しました: {tool_name} ({tool_uid})"
-        elif loans_removed:
-            message = f"🗑️ 工具 UID {tool_uid} の貸出履歴を削除しました"
-        else:
-            message = f"🗑️ 工具 UID {tool_uid} の情報を整理しました"
-        return jsonify({"status": "success", "message": message})
+        message = f"🗑️ 貸出記録を削除しました: {tool_name} ({tool_uid})"
+        return jsonify({"status": "success", "message": message, "tool_uid": tool_uid})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     finally:
