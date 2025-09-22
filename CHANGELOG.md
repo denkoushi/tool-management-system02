@@ -79,3 +79,4 @@
   - **削除**: 貸出記録のみを破棄し、タグIDとアイテム名の紐づけは維持。
 - バックエンド API を拡張：`POST /api/loans/<id>/manual_return` と `DELETE /api/loans/<id>` を追加し、Socket.IO 通知を既存フローと共通化。
 - USB メモリ挿入でマスターデータ（tool_master/users/tools）を自動取り込み・書き戻しするスクリプトを追加。ラベル `TOOLMASTER` の USB を挿すだけで同期が完了。
+- README / RUNBOOK に Raspberry Pi 初期セットアップの具体的な手順（Docker 公式スクリプト、`docker compose up -d` など）を追記し、再構築時の手順を明確化。
