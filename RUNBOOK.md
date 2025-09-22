@@ -141,11 +141,27 @@
 
 ### 3.1 マスターデータ同期（USB）
 
-- USB メモリを ext4 等でフォーマットし、**ラベルを `TOOLMASTER`** に設定します。
-- `sudo bash scripts/install_usb_master_sync.sh` を 1 度実行すると、`/usr/local/bin/tool_master_sync.sh` と udev/systemd 連携がセットアップされます。
-- 以降は USB を挿すだけで `master/tool_master.csv`・`master/users.csv`・`master/tools.csv` を読み込み、処理完了後に最新データを書き戻して自動的にアンマウントします。
-- CSV は UTF-8・ヘッダー付き。大量登録や人手による修正時は PC で CSV を編集して USB に保存し、そのまま挿入すれば取り込まれます。
-- ログ確認: `journalctl -u tool-master-sync@*`。失敗時は CSV のフォーマットや参照整合性（例: `tools.csv` の `name` が `tool_master.csv` に存在するか）を確認します。
+1. **USB の準備**
+   - ext4 などでフォーマットし、必ずラベルを **`TOOLMASTER`** に設定（例: `sudo e2label /dev/sdX1 TOOLMASTER`）。
+   - `master/` ディレクトリを用意し、初回は空でも構いません（Pi が CSV を生成します）。
+2. **Pi での初期設定**
+   - `sudo bash scripts/install_usb_master_sync.sh` を実行し、`/usr/local/bin/tool_master_sync.sh` と `tool-master-sync@.service` / udev ルールを配置。
+   - 設定は 1 度だけで OK。以後は USB を挿すだけで同期が走ります。
+3. **同期の流れ**
+   - USB を挿入 → `/media/tool-master/` に自動マウント → `master/*.csv` を取り込み（USB の更新が新しければ Pi を上書き）。
+   - 取り込み後、Pi 側の最新マスターデータを USB に書き戻し、`meta.json` に更新時刻を記録 → 自動アンマウント。
+   - ログは `journalctl -u tool-master-sync@*`（直近なら `journalctl -u tool-master-sync@$(ls /dev/disk/by-label/TOOLMASTER)` 等）。
+4. **CSV を人手で編集する場合**
+   - `master/tool_master.csv`（工具名マスタ：1列、重複不可）
+   - `master/users.csv`（2列：`uid`,`full_name`）
+   - `master/tools.csv`（2列：`uid`,`name`。`name` は `tool_master.csv` に存在する値）
+   - いずれも UTF-8・ヘッダー付きで保存後、USB を Pi に挿すと取り込み → 最新 CSV に書き戻し。
+   - 編集後は PC で安全な取り外しを行ってから Pi に接続（書き込みキャッシュ破損を防ぐ）。
+5. **トラブルシューティング**
+   - 取り込みエラー時は CSV の列順やヘッダー、参照整合性（`tools.csv` の `name` が `tool_master.csv` に存在するか）を確認。
+   - `meta.json` はスクリプトが管理するので手動で編集しないこと。
+
+> すべての処理がワンショットで完了するため、USB を抜き差しするだけで他拠点へマスターデータを配布できます。履歴（貸出ログ）は含まれない点に注意してください。
 
 ---
 
