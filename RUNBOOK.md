@@ -70,7 +70,8 @@
     curl -fsSL https://get.docker.com -o get-docker.sh
     sudo sh get-docker.sh
     sudo usermod -aG docker $USER
-    # ログアウト→再ログイン、または newgrp docker
+    # ログアウト→再ログイン、または newgrp docker で反映
+    newgrp docker  # 同一セッションで続ける場合
     docker --version
     docker compose version
 
@@ -90,7 +91,11 @@
     docker compose ps
     docker inspect -f '{{.State.Health.Status}}' pg
 
-5) 前面起動テスト（まずは手動）
+5) psql クライアント
+
+    sudo apt install -y postgresql-client
+
+6) 前面起動テスト（まずは手動）
 
     source venv/bin/activate
     python app_flask.py

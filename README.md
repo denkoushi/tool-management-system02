@@ -39,6 +39,7 @@
 
 4. **コンテナ起動（PostgreSQL/Grafana）**
 
+        newgrp docker  # またはログアウト→ログイン後に実行
         docker compose pull
         docker compose up -d
         docker compose ps
@@ -53,6 +54,10 @@
    ブラウザで `http://<RaspberryPiのIP>:8501` にアクセスし画面表示を確認します。`Ctrl+C` で停止後、必要に応じて `setup_auto_start.sh` で systemd 化します。
 
     > **Note**: 安全シャットダウンボタンは Raspberry Pi 本体上で `http://127.0.0.1:8501`（または `http://localhost:8501`）にアクセスしたときのみ動作します。LAN 側の IP から呼び出すと `forbidden` になります。どうしても遠隔から操作する場合は、環境変数 `SHUTDOWN_TOKEN` を設定し、トークンで認証してください。
+
+6. **psql クライアント（USB 同期で利用）**
+
+        sudo apt install -y postgresql-client
 
 requirements.txt（最小構成）:
 - Flask==2.3.3
