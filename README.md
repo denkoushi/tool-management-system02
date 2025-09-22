@@ -5,19 +5,52 @@
 
 ---
 
-## 1) 依存関係
+## 1) 依存関係（セットアップ手順）
 
-Raspberry Pi 側で下記を実行します（PC/SC 読み取りと Python 仮想環境）。
+1. **APT パッケージの更新と基本ツール**
 
-    sudo apt update
-    sudo apt install -y pcscd libpcsclite1 libpcsclite-dev libccid
-    # あると便利（任意・動作確認用）
-    sudo apt install -y pcsc-tools
+        sudo apt update && sudo apt upgrade -y
+        sudo apt install -y git curl python3-venv python3-dev build-essential swig pkg-config
+        sudo apt install -y pcscd pcsc-tools libpcsclite1 libpcsclite-dev libccid
 
-    python3 -m venv venv
-    source venv/bin/activate
-    pip install -U pip
-    pip install -r requirements.txt
+2. **Docker（compose を含む）**
+
+   Raspberry Pi OS のリポジトリでは `docker-compose-plugin` が利用できない場合があるため、公式スクリプトでインストールします。
+
+        cd ~
+        curl -fsSL https://get.docker.com -o get-docker.sh
+        sudo sh get-docker.sh
+        sudo usermod -aG docker $USER
+
+   実行後は一度ログアウトし再ログインするか `newgrp docker` でグループ反映、続いてバージョン確認を行います。
+
+        docker --version
+        docker compose version
+
+3. **リポジトリと Python 仮想環境**
+
+        cd ~
+        git clone https://github.com/denkoushi/tool-management-system02.git
+        cd tool-management-system02
+        python3 -m venv venv
+        source venv/bin/activate
+        pip install -U pip
+        pip install -r requirements.txt
+
+4. **コンテナ起動（PostgreSQL/Grafana）**
+
+        docker compose pull
+        docker compose up -d
+        docker compose ps
+
+   `pg` コンテナが `Up` になれば準備完了です。起動しない場合は `sudo systemctl status docker` や `docker logs pg` で原因を確認してください。
+
+5. **アプリの疎通確認**
+
+        source venv/bin/activate  # 新しいターミナルを開いた場合
+        python app_flask.py
+
+   ブラウザで `http://<RaspberryPiのIP>:8501` にアクセスし画面表示を確認します。`Ctrl+C` で停止後、必要に応じて `setup_auto_start.sh` で systemd 化します。
 
 requirements.txt（最小構成）:
 - Flask==2.3.3
