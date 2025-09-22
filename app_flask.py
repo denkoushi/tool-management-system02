@@ -26,6 +26,7 @@ ALLOWED_SHUTDOWN_ADDRS = {"127.0.0.1", "::1"}
 
 def _discover_local_addresses():
     import socket
+    import subprocess
     addresses = set(ALLOWED_SHUTDOWN_ADDRS)
     try:
         hostname = socket.gethostname()
@@ -44,6 +45,18 @@ def _discover_local_addresses():
             addresses.update(v for v in socket.gethostbyname_ex(hostname)[2] if v)
         except Exception:
             pass
+
+    # hostname -I の結果も併用（複数NICを想定）
+    try:
+        output = subprocess.check_output(["hostname", "-I"], text=True).strip()
+        for addr in output.split():
+            if addr:
+                addresses.add(addr)
+                # IPv4 の場合は ::ffff: プレフィックスでも受け付ける
+                if addr.count('.') == 3:
+                    addresses.add(f"::ffff:{addr}")
+    except Exception:
+        pass
 
     return addresses
 
