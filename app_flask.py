@@ -24,10 +24,35 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 SHUTDOWN_TOKEN = os.getenv("SHUTDOWN_TOKEN")  # 任意。必要なら systemd に環境変数を追加して使う
 ALLOWED_SHUTDOWN_ADDRS = {"127.0.0.1", "::1"}
 
+def _discover_local_addresses():
+    import socket
+    addresses = set(ALLOWED_SHUTDOWN_ADDRS)
+    try:
+        hostname = socket.gethostname()
+    except Exception:
+        hostname = None
+
+    if hostname:
+        try:
+            for info in socket.getaddrinfo(hostname, None):
+                addr = info[4][0]
+                if addr:
+                    addresses.add(addr)
+        except socket.gaierror:
+            pass
+        try:
+            addresses.update(v for v in socket.gethostbyname_ex(hostname)[2] if v)
+        except Exception:
+            pass
+
+    return addresses
+
+LOCAL_SHUTDOWN_ADDRS = _discover_local_addresses()
+
 def _is_local_request():
     try:
         addr = request.remote_addr or ""
-        return addr in ALLOWED_SHUTDOWN_ADDRS
+        return addr in LOCAL_SHUTDOWN_ADDRS
     except Exception:
         return False
 
