@@ -474,6 +474,24 @@ def delete_open_loan_api(loan_id):
     finally:
         conn.close()
 
+@app.route('/api/usb_sync', methods=['POST'])
+def api_usb_sync():
+    device = '/dev/sda1'
+    if request.is_json:
+        device = request.json.get('device', device)
+    try:
+        code, stdout, stderr = run_usb_sync(device)
+        status = "success" if code == 0 else "error"
+        payload = {
+            "status": status,
+            "returncode": code,
+            "stdout": stdout,
+            "stderr": stderr,
+        }
+        return jsonify(payload), (200 if code == 0 else 500)
+    except Exception as e:
+        return jsonify({"status": "error", "stderr": str(e)}), 500
+
 @app.route('/api/scan_tag', methods=['POST'])
 def scan_tag():
     """手動スキャン用API"""
@@ -676,3 +694,7 @@ if __name__ == '__main__':
     print("🌐 http://0.0.0.0:8501 でアクセス可能")
     print("💡 タイムアウトエラーは正常動作（タグ待機中）なので無視してください")
     socketio.run(app, host='0.0.0.0', port=8501, debug=False, allow_unsafe_werkzeug=True)
+def run_usb_sync(device):
+    cmd = ["sudo", "bash", os.path.join(os.path.dirname(__file__), "scripts", "usb_master_sync.sh"), device]
+    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    return proc.returncode, proc.stdout, proc.stderr

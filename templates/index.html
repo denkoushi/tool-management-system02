@@ -208,6 +208,7 @@
     <button class="tab-button active" onclick="showTab('operations')">📲 借用/返却</button>
     <button class="tab-button" onclick="showTab('registration')">🔖 タグ登録</button>
     <button class="tab-button" onclick="showTab('master')">📚 マスタ</button>
+    <button class="tab-button" onclick="showTab('maintenance')">🛠 メンテ</button>
   </div>
 
   <!-- 借用/返却 -->
@@ -338,6 +339,19 @@
         </select>
       </div>
       <button class="btn btn-danger" onclick="deleteToolName()">🗑️ 削除</button>
+  </div>
+</div>
+  
+  <!-- メンテナンス -->
+  <div id="maintenance" class="tab-content">
+    <h2>🛠 メンテナンス</h2>
+    <div style="margin-bottom:20px; padding:16px; background:#f8f9fa; border-radius:8px; border:1px solid #e5e7eb;">
+      <h3>USB 同期（手動）</h3>
+      <p style="color:#6b7280; font-size:14px;">ラベル <code>TOOLMASTER</code> の USB メモリを挿入してから実行すると、マスターデータ（工具名・ユーザー・タグ紐づけ）を同期します。</p>
+      <div class="button-row">
+        <button class="btn btn-primary" onclick="runUsbSync()">USB 同期を実行</button>
+      </div>
+      <pre id="usbSyncOutput" style="background:#1f2937; color:#e5e7eb; padding:12px; border-radius:6px; min-height:120px; overflow:auto; font-size:13px;">(まだ実行していません)</pre>
     </div>
   </div>
 </div>
@@ -353,13 +367,16 @@
   let scanActive = false;
   let currentUserUid = '';
   let currentToolUid = '';
+  let activeTab = 'operations';
 
   // タブ切り替え（借用/返却以外に移動したら UI を停止状態に戻す）
   function showTab(tabName) {
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
-    document.getElementById(tabName).classList.add('active');
-    event.target.classList.add('active');
+    const tabEl = document.getElementById(tabName);
+    if (tabEl) tabEl.classList.add('active');
+    if (event && event.target) event.target.classList.add('active');
+    activeTab = tabName;
 
     // 借用/返却タブ以外に移動したら見た目も停止状態へ（誤解防止）
     if (tabName !== 'operations') {
@@ -369,6 +386,27 @@
 
     if (tabName === 'registration' || tabName === 'master') loadToolNames();
     if (tabName === 'operations')   loadLoansData();
+  }
+
+  async function runUsbSync(){
+    const outputEl = document.getElementById('usbSyncOutput');
+    outputEl.textContent = '同期中...';
+    try{
+      const res = await fetch('/api/usb_sync',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({device:'/dev/sda1'})});
+      const data = await res.json();
+      const header = `status: ${data.status}\nreturncode: ${data.returncode}`;
+      const stdout = data.stdout ? `\n--- stdout ---\n${data.stdout.trim()}` : '';
+      const stderr = data.stderr ? `\n--- stderr ---\n${data.stderr.trim()}` : '';
+      outputEl.textContent = `${header}${stdout}${stderr}`;
+      if (data.status === 'success'){
+        showMessage('transactionResult','USB同期が完了しました','success');
+      } else {
+        showMessage('transactionResult','USB同期でエラーが発生しました','danger');
+      }
+    }catch(err){
+      outputEl.textContent = `error: ${err}`;
+      showMessage('transactionResult','USB同期でエラーが発生しました','danger');
+    }
   }
 
   // スキャン開始/停止：appScan ラッパ経由（loan 文脈）

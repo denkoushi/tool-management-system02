@@ -59,6 +59,17 @@
 
         sudo apt install -y postgresql-client
 
+7. **USB 同期（手動ボタン）**
+
+    画面上の「🛠 メンテナンス」タブに USB 同期ボタンがあります。ラベル `TOOLMASTER` の USB メモリを挿した状態で押すと、`scripts/usb_master_sync.sh` を経由してマスターデータを同期します。ログは画面内の `USB 同期を実行` セクションと、`journalctl -u tool-master-sync@*` で確認できます。
+
+    > 実行権限: UI からの同期では内部で `sudo bash .../scripts/usb_master_sync.sh` を呼び出します。パスワード入力を求められないよう、運用ユーザーに sudoers エントリを追加してください。
+
+        sudo tee /etc/sudoers.d/toolmgmt-usbsync >/dev/null <<'SUDO'
+        tools01 ALL=(root) NOPASSWD: /bin/bash /home/tools01/tool-management-system02/scripts/usb_master_sync.sh
+        SUDO
+        sudo visudo -cf /etc/sudoers.d/toolmgmt-usbsync
+
 requirements.txt（最小構成）:
 - Flask==2.3.3
 - Flask-SocketIO==5.3.6

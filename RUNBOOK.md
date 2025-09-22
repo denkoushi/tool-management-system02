@@ -151,6 +151,13 @@
    - USB を挿入 → `/media/tool-master/` に自動マウント → `master/*.csv` を取り込み（USB の更新が新しければ Pi を上書き）。
    - 取り込み後、Pi 側の最新マスターデータを USB に書き戻し、`meta.json` に更新時刻を記録 → 自動アンマウント。
    - ログは `journalctl -u tool-master-sync@*`（直近なら `journalctl -u tool-master-sync@$(ls /dev/disk/by-label/TOOLMASTER)` 等）。
+   - UI から同期する場合は「🛠 メンテナンス」タブ内の「USB 同期を実行」ボタンを利用。内部的には `scripts/usb_master_sync.sh` を呼び出し、結果は画面のログと journal で確認可能。
+   - sudoers に下記エントリを追加し、パスワード無しでスクリプトを実行できるようにしておくと運用が楽になります（ユーザー名/パスは環境に合わせて変更）。
+
+        sudo tee /etc/sudoers.d/toolmgmt-usbsync >/dev/null <<'SUDO'
+        tools01 ALL=(root) NOPASSWD: /bin/bash /home/tools01/tool-management-system02/scripts/usb_master_sync.sh
+        SUDO
+        sudo visudo -cf /etc/sudoers.d/toolmgmt-usbsync
 4. **CSV を人手で編集する場合**
    - `master/tool_master.csv`（工具名マスタ：1列、重複不可）
    - `master/users.csv`（2列：`uid`,`full_name`）
