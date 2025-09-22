@@ -393,7 +393,15 @@
     outputEl.textContent = '同期中...';
     try{
       const res = await fetch('/api/usb_sync',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({device:'/dev/sda1'})});
-      const data = await res.json();
+      const text = await res.text();
+      let data = null;
+      try {
+        data = JSON.parse(text);
+      } catch (_) {
+        outputEl.textContent = text;
+        showMessage('transactionResult','USB同期でエラーが発生しました','danger');
+        return;
+      }
       const header = `status: ${data.status}\nreturncode: ${data.returncode}`;
       const stdout = data.stdout ? `\n--- stdout ---\n${data.stdout.trim()}` : '';
       const stderr = data.stderr ? `\n--- stderr ---\n${data.stderr.trim()}` : '';

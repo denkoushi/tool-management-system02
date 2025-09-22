@@ -11,6 +11,7 @@ import psycopg2
 from smartcard.CardRequest import CardRequest
 from smartcard.util import toHexString
 import os, subprocess, threading
+from usb_sync import run_usb_sync
 
 
 # =========================
@@ -476,7 +477,6 @@ def delete_open_loan_api(loan_id):
 
 @app.route('/api/usb_sync', methods=['POST'])
 def api_usb_sync():
-    from .usb_sync import run_usb_sync
     device = '/dev/sda1'
     if request.is_json:
         device = request.json.get('device', device)
@@ -695,6 +695,3 @@ if __name__ == '__main__':
     print("🌐 http://0.0.0.0:8501 でアクセス可能")
     print("💡 タイムアウトエラーは正常動作（タグ待機中）なので無視してください")
     socketio.run(app, host='0.0.0.0', port=8501, debug=False, allow_unsafe_werkzeug=True)
-def run_usb_sync(device):
-    from usb_sync import run_usb_sync as _run
-    return _run(device)
