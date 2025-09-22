@@ -57,50 +57,43 @@
 
 1) APT と PC/SC
 
-    sudo apt update
+    sudo apt update && sudo apt upgrade -y
     sudo apt install -y git curl python3-venv python3-dev build-essential swig pkg-config
     sudo apt install -y pcscd pcsc-tools libpcsclite1 libpcsclite-dev libccid
     sudo systemctl enable --now pcscd
     # 認識テスト（表示を確認したら Ctrl+C）
     pcsc_scan
 
-2) リポジトリ取得
+2) Docker / Compose（公式スクリプト）
 
     cd ~
-    git clone https://github.com/denkoushi/tool-management-system02.git
-    cd tool-management-system02
-
-3) Docker / Compose
-
     curl -fsSL https://get.docker.com -o get-docker.sh
     sudo sh get-docker.sh
     sudo usermod -aG docker $USER
-    newgrp docker
+    # ログアウト→再ログイン、または newgrp docker
     docker --version
-    docker compose version || (sudo apt install -y docker-compose-plugin && docker compose version)
+    docker compose version
+
+3) リポジトリ取得と Python 仮想環境
+
+    git clone https://github.com/denkoushi/tool-management-system02.git
+    cd tool-management-system02
+    python3 -m venv venv
+    source venv/bin/activate
+    pip install -U pip setuptools wheel
+    pip install -r requirements.txt
 
 4) Postgres / Grafana 起動
 
     docker compose pull
     docker compose up -d
     docker compose ps
-    # Postgres のヘルス（healthy になるまで数秒）
     docker inspect -f '{{.State.Health.Status}}' pg
 
-5) Python 仮想環境と依存
-
-    python3 -m venv venv
-    source venv/bin/activate
-    pip install -U pip setuptools wheel
-    pip install -r requirements.txt
-    # インポート確認（OK と出ればOK）
-    python -c 'import flask, flask_socketio, smartcard, psycopg2; print("OK")'
-
-6) 前面起動テスト（まずは手動）
+5) 前面起動テスト（まずは手動）
 
     source venv/bin/activate
     python app_flask.py
-    # 別ターミナルで到達性確認（200 OK）
     curl -I http://localhost:8501 | head -n 1
 
 ---
@@ -229,7 +222,7 @@
 
 **概要**  
 - 画面右下に「安全にシャットダウン」ボタンを表示。  
-- **このRaspberry Pi 上のブラウザ（キオスク含む）**からのみ実行可能（127.0.0.1/::1 判定）。  
+- **このRaspberry Pi 上のブラウザ（キオスク含む）**からのみ実行可能（127.0.0.1/::1 および Pi 自身の NIC アドレスを自動判定）。  
 - 必要に応じて、トークン（`SHUTDOWN_TOKEN`）でLAN内からの実行も許可できます。
 
 **前提（sudoers を一度だけ設定）**  
@@ -243,7 +236,7 @@
 **API**  
 - `POST /api/shutdown`  
   - 要求: JSON `{"confirm": true}`  
-  - 許可: ローカル(127.0.0.1/::1) からのみ。もしくは `SHUTDOWN_TOKEN` によるトークン一致時に許可。  
+  - 許可: Pi 自身のIPからのみ（`127.0.0.1`/`::1`/NICのローカルIPを自動発見）。もしくは `SHUTDOWN_TOKEN` によるトークン一致時に許可。  
   - 応答: `{"ok": true, "message": "Shutting down..."}`（応答後、数秒で停止処理へ）
 
 **フロントエンド**  
