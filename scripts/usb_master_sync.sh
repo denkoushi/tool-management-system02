@@ -65,7 +65,7 @@ PY
 
 write_timestamp() {
   local file="$1" ts="$2"
-  python3 - <<PY
+  python3 - "$file" "$ts" <<'PY'
 import json, sys, time
 path = sys.argv[1]
 ts_arg = sys.argv[2]
@@ -108,9 +108,7 @@ import_from_usb() {
   log "USB からマスタデータを取り込み"
   psql_cmd <<SQL
 BEGIN;
-TRUNCATE TABLE tools;
-TRUNCATE TABLE tool_master;
-TRUNCATE TABLE users;
+TRUNCATE TABLE tools, tool_master, users RESTART IDENTITY CASCADE;
 \copy tool_master(name) FROM '$USB_DIR/tool_master.csv' WITH (FORMAT csv, HEADER true);
 \copy users(uid, full_name) FROM '$USB_DIR/users.csv' WITH (FORMAT csv, HEADER true);
 \copy tools(uid, name) FROM '$USB_DIR/tools.csv' WITH (FORMAT csv, HEADER true);
