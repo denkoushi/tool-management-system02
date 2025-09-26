@@ -48,7 +48,86 @@
   }
   .app-layout{display:flex;width:100vw;height:100vh;}
   .container{flex:0 0 50vw;height:100vh;background:var(--surface);display:flex;flex-direction:column;box-shadow:2px 0 12px rgba(15,23,42,.08);}
-  .future-panel{flex:1;background:var(--bg);}
+  .future-panel{
+    flex:1;
+    background:var(--bg);
+    display:flex;
+    flex-direction:column;
+    border-left:1px solid var(--border);
+    position:relative;
+  }
+
+  .doc-viewer-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:var(--space-3);
+    padding: var(--space-4);
+    border-bottom:1px solid var(--border);
+    background:rgba(255,255,255,0.92);
+    backdrop-filter: blur(6px);
+  }
+  .doc-viewer-header h2{font-size:var(--fs-lg); font-weight:700; color:var(--text);}
+  .doc-viewer-header-actions{display:flex; align-items:center; gap:var(--space-3);}
+
+  .doc-viewer-status{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    padding:4px 10px;
+    border-radius:999px;
+    border:1px solid var(--border);
+    font-size:var(--fs-sm);
+    font-weight:700;
+    background:var(--surface-2);
+    color:var(--muted);
+    transition:.2s;
+  }
+  .doc-viewer-status__dot{width:8px;height:8px;border-radius:50%;background:currentColor;display:block;}
+  .doc-viewer-status--online{background:#dcfce7;border-color:#bbf7d0;color:#166534;}
+  .doc-viewer-status--offline{background:#fef2f2;border-color:#fecaca;color:#991b1b;}
+
+  .btn-reload{
+    padding:6px 12px;
+    border-radius:6px;
+    border:1px solid var(--border);
+    background:#fff;
+    color:var(--text);
+    font-size:var(--fs-sm);
+    font-weight:700;
+    cursor:pointer;
+    transition:.15s;
+  }
+  .btn-reload:hover{background:var(--surface-2);}
+
+  .doc-viewer-wrapper{
+    flex:1;
+    position:relative;
+    background:var(--surface-2);
+    overflow:hidden;
+  }
+  #docViewerFrame{
+    width:100%;
+    height:100%;
+    border:0;
+    background:#fff;
+  }
+  .doc-viewer-overlay{
+    position:absolute;
+    inset:12px;
+    border-radius:var(--radius);
+    background:rgba(15,23,42,.72);
+    color:#f8fafc;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    padding:24px;
+    font-size:var(--fs-md);
+    line-height:1.5;
+    box-shadow:0 12px 32px rgba(15,23,42,.35);
+  }
+  .doc-viewer-overlay.is-hidden{display:none;}
 
   /* Tabs */
   .tabs{
@@ -355,7 +434,34 @@
     </div>
   </div>
 </div>
-<div class="future-panel" aria-hidden="true"></div>
+<div class="future-panel" id="docViewerPanel"
+     data-doc-viewer-url="{{ doc_viewer_url|default('', true) }}"
+     data-doc-viewer-online="{{ 'true' if doc_viewer_online else 'false' }}">
+  <div class="doc-viewer-header">
+    <h2>📄 ドキュメントビューア</h2>
+    <div class="doc-viewer-header-actions">
+      <div id="docViewerStatus"
+           class="doc-viewer-status {{ 'doc-viewer-status--online' if doc_viewer_online else 'doc-viewer-status--offline' }}">
+        <span class="doc-viewer-status__dot"></span>
+        <span class="doc-viewer-status__label">{{ '接続済み' if doc_viewer_online else '未接続' }}</span>
+      </div>
+      <button type="button" id="docViewerReloadBtn" class="btn-reload">再読み込み</button>
+    </div>
+  </div>
+  <div class="doc-viewer-wrapper">
+    <iframe id="docViewerFrame" title="Document Viewer"
+            src="{{ doc_viewer_url if doc_viewer_online else '' }}"
+            loading="lazy"></iframe>
+    <div id="docViewerOverlay" class="doc-viewer-overlay">
+      {% if doc_viewer_online %}
+        ドキュメントビューアを読み込み中です…
+      {% else %}
+        DocumentViewer サービスが見つかりませんでした。<br>
+        起動後に「再読み込み」を押してください。
+      {% endif %}
+    </div>
+  </div>
+</div>
 </div>
 
 <!-- ===== メインスクリプト（タブ独立運用 & UI同期） ===== -->
@@ -368,6 +474,78 @@
   let currentUserUid = '';
   let currentToolUid = '';
   let activeTab = 'operations';
+
+  // ドキュメントビューア（右パネル）制御
+  (function setupDocViewer(){
+    const panel = document.getElementById('docViewerPanel');
+    if (!panel) return;
+
+    const frame    = document.getElementById('docViewerFrame');
+    const overlay  = document.getElementById('docViewerOverlay');
+    const statusEl = document.getElementById('docViewerStatus');
+    const statusLbl= statusEl ? statusEl.querySelector('.doc-viewer-status__label') : null;
+    const reloadBtn= document.getElementById('docViewerReloadBtn');
+    const docViewerUrl = (panel.dataset.docViewerUrl || '').trim();
+    const initialOnline = panel.dataset.docViewerOnline === 'true';
+
+    const setStatus = (state, label) => {
+      if (!statusEl) return;
+      statusEl.classList.remove('doc-viewer-status--online', 'doc-viewer-status--offline');
+      statusEl.classList.add(state === 'online' ? 'doc-viewer-status--online' : 'doc-viewer-status--offline');
+      if (statusLbl) statusLbl.textContent = label;
+    };
+
+    const showOverlay = (message) => {
+      if (!overlay) return;
+      overlay.innerHTML = message;
+      overlay.classList.remove('is-hidden');
+    };
+
+    const hideOverlay = () => {
+      if (!overlay) return;
+      overlay.classList.add('is-hidden');
+    };
+
+    const reloadFrame = () => {
+      if (!frame) return;
+      if (!docViewerUrl) {
+        showOverlay('DocumentViewer の URL が設定されていません。<br>環境変数 <code>DOCUMENT_VIEWER_URL</code> を確認してください。');
+        setStatus('offline', '未設定');
+        return;
+      }
+      showOverlay('ドキュメントビューアを読み込み中です…');
+      setStatus('offline', '接続確認中…');
+      const cacheBust = docViewerUrl.includes('?') ? '&' : '?';
+      frame.src = `${docViewerUrl}${cacheBust}v=${Date.now()}`;
+    };
+
+    if (initialOnline && frame && docViewerUrl) {
+      frame.src = docViewerUrl;
+    } else if (!initialOnline) {
+      setStatus('offline', '未接続');
+    }
+
+    if (reloadBtn) {
+      reloadBtn.addEventListener('click', () => {
+        reloadFrame();
+      });
+    }
+
+    if (frame) {
+      frame.addEventListener('load', () => {
+        if (!frame.src) return;
+        setStatus('online', '接続済み');
+        hideOverlay();
+      });
+      frame.addEventListener('error', () => {
+        setStatus('offline', '読み込み失敗');
+        showOverlay('DocumentViewer が応答しません。サービスを起動してから再試行してください。');
+      });
+    }
+
+    // オフライン状態でロード不可だった場合に備えリロードボタンで再試行
+    panel.dataset.docViewerUrl = docViewerUrl;
+  })();
 
   // タブ切り替え（借用/返却以外に移動したら UI を停止状態に戻す）
   function showTab(tabName) {
