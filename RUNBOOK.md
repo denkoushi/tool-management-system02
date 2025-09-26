@@ -170,6 +170,13 @@
 
 > すべての処理がワンショットで完了するため、USB を抜き差しするだけで他拠点へマスターデータを配布できます。履歴（貸出ログ）は含まれない点に注意してください。
 
+### 3.2 キオスク運用（任意）
+
+- `sudo bash setup_auto_start.sh` で Flask アプリを systemd サービス化。
+- `bash scripts/install_kiosk_autostart.sh` を通常ユーザーで実行し、`~/.config/autostart/chromium-kiosk.desktop` を生成。
+- `sudo raspi-config` → System Options → Boot / Auto Login → Desktop Autologin を選択。
+- 再起動すると GUI ログイン直後に Chromium が `http://127.0.0.1:8501` を全画面表示します。停止したい場合は `~/.config/autostart/chromium-kiosk.desktop` を削除し、再ログインしてください。
+
 ---
 
 ## 4. データ保全（バックアップ／リストア）

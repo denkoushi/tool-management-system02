@@ -70,6 +70,14 @@
         SUDO
         sudo visudo -cf /etc/sudoers.d/toolmgmt-usbsync
 
+8. **ブラウザのキオスク自動起動（任意）**
+
+        sudo bash setup_auto_start.sh                # Flask アプリを systemd 管理に
+        bash scripts/install_kiosk_autostart.sh       # Chromium オートスタート設定（sudo 不要）
+        sudo raspi-config  # System Options → Boot / Auto Login → Desktop Autologin
+
+    上記後に再起動すると、GUI ログイン直後に Chromium が `http://127.0.0.1:8501` をキオスクモードで開きます。設定ファイルは `~/.config/autostart/chromium-kiosk.desktop` に作成されます。必要に応じて `sudo systemctl restart toolmgmt.service` でアプリを再起動してください。
+
 requirements.txt（最小構成）:
 - Flask==2.3.3
 - Flask-SocketIO==5.3.6
