@@ -11,6 +11,7 @@ import psycopg2
 from smartcard.CardRequest import CardRequest
 from smartcard.util import toHexString
 import os, subprocess, threading
+import urllib.request
 from usb_sync import run_usb_sync
 
 
@@ -19,6 +20,7 @@ from usb_sync import run_usb_sync
 # =========================
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
+app.config['DOCUMENT_VIEWER_URL'] = os.getenv("DOCUMENT_VIEWER_URL", "http://127.0.0.1:5000")
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 # --- シャットダウンAPI用設定 ---
@@ -82,6 +84,20 @@ scan_state = {
     "last_scan_time": 0,
     "message": ""
 }
+
+
+def check_doc_viewer_health(url: str, timeout: float = 1.0) -> bool:
+    """Return True if DocumentViewer /health endpoint responds."""
+    if not url:
+        return False
+
+    health_url = f"{url.rstrip('/')}/health"
+    try:
+        with urllib.request.urlopen(health_url, timeout=timeout):
+            return True
+    except Exception as exc:
+        print(f"[DocViewer] health check failed: {exc}")
+        return False
 
 # =========================
 # DBユーティリティ
@@ -382,7 +398,13 @@ def scan_monitor():
 # =========================
 @app.route('/')
 def index():
-    return render_template('index.html')
+    doc_viewer_url = app.config.get('DOCUMENT_VIEWER_URL')
+    doc_viewer_online = check_doc_viewer_health(doc_viewer_url)
+    return render_template(
+        'index.html',
+        doc_viewer_url=doc_viewer_url,
+        doc_viewer_online=doc_viewer_online,
+    )
 
 @app.route('/api/start_scan', methods=['POST'])
 def start_scan():
