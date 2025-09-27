@@ -126,22 +126,11 @@
   @keyframes spin{to{transform:rotate(360deg);}}
 
   /* Tabs */
-  .tabs{
-    display:flex; position:sticky; top:0; z-index:10;
-    background: linear-gradient(135deg, var(--brand) 0%, var(--brand-2) 100%);
-    box-shadow: 0 2px 6px rgba(17,24,39,.08);
-  }
-  .tab-button{
-    flex:1; padding: var(--space-4) var(--space-3);
-    background:none; border:none; cursor:pointer;
-    font-size: var(--fs-lg); font-weight:700;
-    color: rgba(255,255,255,.9);
-    border-bottom: 3px solid transparent; transition: .2s;
-    white-space: nowrap;
-  }
-  .tab-button.active{background:rgba(255,255,255,.16); color:#fff; border-bottom-color:#fff;}
+  .tabs{display:flex;background:linear-gradient(135deg,var(--brand) 0%,var(--brand-2) 100%);box-shadow:0 1px 4px rgba(17,24,39,.12);}
+  .tab-button{flex:1;padding:var(--space-3);background:none;border:none;cursor:pointer;font-size:var(--fs-sm);font-weight:600;color:rgba(255,255,255,.85);border-bottom:2px solid transparent;transition:.2s;letter-spacing:.02em;}
+  .tab-button.active{background:rgba(255,255,255,.16);color:#fff;border-bottom-color:#fff;}
 
-  .tab-content{display:none; padding: var(--space-4) var(--space-4); flex:1; overflow-y:auto;}
+  .tab-content{display:none;padding:var(--space-3);flex:1;overflow-y:auto;}
   .tab-content.active{display:flex; flex-direction:column;}
 
   /* Operations (Borrow/Return) */
@@ -156,13 +145,8 @@
   }
 
   /* Buttons: compact */
-  .button-row{display:flex; gap: var(--space-3); margin-bottom: var(--space-3);}
-  .btn{
-    padding: 10px 12px; border:none; border-radius: 6px; cursor:pointer;
-    font-size: 18px; font-weight:700; transition:.15s;
-    display:flex; align-items:center; justify-content:center; gap:6px;
-    min-height: 42px;
-  }
+  .button-row{display:flex;gap:var(--space-2);margin-bottom:var(--space-3);flex-wrap:wrap;}
+  .btn{padding:6px 12px;border:none;border-radius:6px;cursor:pointer;font-size:var(--fs-sm);font-weight:600;transition:.15s;display:flex;align-items:center;justify-content:center;gap:4px;min-height:30px;}
   .btn-primary{background:var(--brand); color:#fff;}
   .btn-primary:active{transform:scale(.98);}
   .btn-secondary{background:#6b7280; color:#fff;}
@@ -204,21 +188,10 @@
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.85}}
 
   /* Scan progress: more compact */
-  .scan-progress{
-    display:flex; gap: var(--space-3);
-    margin: var(--space-4) 0 var(--space-3);
-    background: var(--surface-2); border-radius: var(--radius);
-    padding: var(--space-3);
-    border:1px solid var(--border);
-  }
+  .scan-progress{display:flex;gap:var(--space-2);margin:var(--space-3) 0;background:var(--surface-2);border-radius:var(--radius);padding:var(--space-2);border:1px solid var(--border);}
   .scan-step{flex:1;}
-  .scan-step label{display:block; font-size: var(--fs-sm); color: var(--muted); margin-bottom:4px; font-weight:700;}
-  .scan-display{
-    background:#fff; border:1px solid var(--border); border-radius:6px;
-    padding: 6px 8px;
-    font-size: 20px; min-height: 36px;
-    display:flex; align-items:center; overflow:hidden; text-overflow:ellipsis; word-break:break-all;
-  }
+  .scan-step label{display:block;font-size:var(--fs-xs);color:var(--muted);margin-bottom:3px;font-weight:600;letter-spacing:.01em;}
+  .scan-display{background:#fff;border:1px solid var(--border);border-radius:6px;padding:4px 6px;font-size:var(--fs-md);min-height:28px;display:flex;align-items:center;overflow:hidden;text-overflow:ellipsis;word-break:break-all;}
   .scan-display.active{border-color: var(--brand); background:#eef6ff;}
   .scan-display.completed{border-color:#22c55e; background:#ecfdf5;}
 
@@ -233,17 +206,9 @@
   .section-title{font-size: var(--fs-md); font-weight:700; color:#374151; margin-bottom:8px; display:flex; align-items:center; gap:6px;}
 
   /* Tables: compact/high-density with sticky header */
-  .data-table{width:100%; border-collapse:separate; border-spacing:0; background:#fff; border:1px solid var(--border); border-radius:8px; overflow:hidden; font-size: 13.5px;}
-  .data-table thead th{
-    position: sticky; top: 0; z-index: 1;
-    background:#f8fafc; color:#334155;
-    padding: 6px 8px; text-align:left; font-weight:800; border-bottom:1px solid var(--border);
-  }
-  .data-table tbody td{
-    padding: 4px 8px;
-    border-bottom:1px solid #f1f5f9;
-    line-height: 1.15;
-  }
+  .data-table{width:100%;border-collapse:separate;border-spacing:0;background:#fff;border:1px solid var(--border);border-radius:8px;overflow:hidden;font-size:12px;}
+  .data-table thead th{position:sticky;top:0;z-index:1;background:#f8fafc;color:#334155;padding:5px 6px;text-align:left;font-weight:700;border-bottom:1px solid var(--border);}
+  .data-table tbody td{padding:4px 6px;border-bottom:1px solid #f1f5f9;line-height:1.1;}
   .data-table tbody tr:hover{background:#f9fafb;}
   .table-actions{display:flex; gap:6px; flex-wrap:wrap;}
 
@@ -253,17 +218,14 @@
   .scrollable-section{flex:1; overflow:auto; -webkit-overflow-scrolling:touch;}
 
   /* Forms compact */
-  #registration, #master{padding: 14px; overflow-y:auto;}
-  #registration h2, #master h2{font-size: var(--fs-xl); margin-bottom: 10px; color:#111827;}
-  #registration h3, #master h3{font-size: var(--fs-lg); margin: 12px 0 8px; color:#1f2937;}
+  #registration, #master{padding:10px;overflow-y:auto;}
+  #registration h2, #master h2{font-size:var(--fs-lg);margin-bottom:8px;color:#111827;}
+  #registration h3, #master h3{font-size:var(--fs-md);margin:10px 0 6px;color:#1f2937;}
 
-  .input-row{display:flex; gap:10px; margin-bottom:12px; align-items:end;}
+  .input-row{display:flex;gap:8px;margin-bottom:10px;align-items:end;}
   .input-group{flex:1;}
-  .input-group label{display:block; margin-bottom:5px; font-weight:700; color:#374151; font-size: var(--fs-sm);}
-  .form-control{
-    width:100%; padding: 8px 10px; border:1px solid var(--border); border-radius:6px; font-size: var(--fs-md);
-    transition: border-color .15s, box-shadow .15s;
-  }
+  .input-group label{display:block;margin-bottom:4px;font-weight:600;color:#374151;font-size:var(--fs-xs);}
+  .form-control{width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:var(--fs-sm);transition:border-color .15s,box-shadow .15s;}
   .form-control:focus{outline:none; border-color: var(--brand); box-shadow: 0 0 0 3px rgba(45,108,223,.12);}
 
   @media (orientation:portrait){
