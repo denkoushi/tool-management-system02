@@ -503,13 +503,15 @@ def api_usb_sync():
     if request.is_json:
         device = request.json.get('device', device)
     try:
-        code, stdout, stderr = run_usb_sync(device)
+        result = run_usb_sync(device)
+        code = int(result.get("returncode", 1))
         status = "success" if code == 0 else "error"
         payload = {
             "status": status,
             "returncode": code,
-            "stdout": stdout,
-            "stderr": stderr,
+            "stdout": result.get("stdout", ""),
+            "stderr": result.get("stderr", ""),
+            "steps": result.get("steps", []),
         }
         return jsonify(payload), (200 if code == 0 else 500)
     except Exception as e:

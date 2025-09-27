@@ -61,12 +61,18 @@
 
 7. **USB 同期（手動ボタン）**
 
-    画面上の「🛠 メンテナンス」タブに USB 同期ボタンがあります。ラベル `TOOLMASTER` の USB メモリを挿した状態で押すと、`scripts/usb_master_sync.sh` を経由してマスターデータを同期します。ログは画面内の `USB 同期を実行` セクションと、`journalctl -u tool-master-sync@*` で確認できます。
+    画面上の「🛠 メンテナンス」タブにある `USB 同期を実行` は、工具マスタとドキュメントビューア PDF を **一括** で処理します。ラベル `TOOLMASTER` の USB メモリを挿した状態で押すと、
+
+    1. `scripts/usb_master_sync.sh` が `master/` 配下の CSV を双方向同期
+    2. `../DocumentViewer/scripts/usb-import.sh` が `docviewer/` 配下の PDF を取り込み
+
+    の順に実行します。処理中は画面がロックされるので USB を抜かず完了メッセージを待ってください。ログは画面内の結果表示に加えて、`journalctl -u tool-master-sync@*` と `/var/log/document-viewer/import.log` で確認できます。
 
     > 実行権限: UI からの同期では内部で `sudo bash .../scripts/usb_master_sync.sh` を呼び出します。パスワード入力を求められないよう、運用ユーザーに sudoers エントリを追加してください。
 
         sudo tee /etc/sudoers.d/toolmgmt-usbsync >/dev/null <<'SUDO'
         tools01 ALL=(root) NOPASSWD: /bin/bash /home/tools01/tool-management-system02/scripts/usb_master_sync.sh
+        tools01 ALL=(root) NOPASSWD: /bin/bash /home/tools01/DocumentViewer/scripts/usb-import.sh
         SUDO
         sudo visudo -cf /etc/sudoers.d/toolmgmt-usbsync
 
@@ -150,19 +156,31 @@ UI は `templates/index.html`、静的ファイルは `static/` 配下から提�
 
 ## 6) USB マスターデータ同期
 
-複数拠点で同じマスターデータを使い回すため、USB メモリ（ラベル: `TOOLMASTER`）を挿すだけで CSV を同期できる仕組みを用意しています。USB を準備するとき、空にする必要はありませんが、`master/` ディレクトリ配下はマスターデータ専用にしてください。
+複数拠点で同じマスターデータと PDF を使い回すため、USB メモリ（ラベル: `TOOLMASTER`）を挿すだけで同期できる仕組みを用意しています。USB を準備するとき、空にする必要はありませんが、`master/` と `docviewer/` は以下の用途で管理してください。
+
+    ```
+    TOOLMASTER/
+    ├── master/      # tool-management-system02 用 CSV
+    │   ├── tool_master.csv
+    │   ├── tools.csv
+    │   └── users.csv
+    ├── docviewer/   # DocumentViewer 用 PDF
+    │   ├── meta.json         # {"updated_at": <UNIX 時刻>}
+    │   └── *.pdf
+    └── meta.json    # 工具マスタ同期の最終更新時刻
+    ```
 
 1. **初期セットアップ**
    1. USB メモリを ext4 等でフォーマットし、ラベルを `TOOLMASTER` に設定します。例: `sudo e2label /dev/sdX1 TOOLMASTER`
    2. Pi 上で `sudo bash scripts/install_usb_master_sync.sh` を実行し、`/usr/local/bin/tool_master_sync.sh` と udev/systemd 連携を導入します。
 2. **通常運用**
    1. USB を挿すと自動で `/media/tool-master/` にマウントされます。
-   2. `master/tool_master.csv` / `master/users.csv` / `master/tools.csv` が存在し、USB 側の更新が Pi 側より新しければ **Pi に取り込み**。
+   2. `master/` と `docviewer/` の `meta.json`（およびファイル更新日時）を比較し、USB 側が新しければ **Pi に取り込み**。
    3. 取り込み後は Pi 側の最新マスターデータを CSV に **書き戻してアンマウント**（安全に取り外せる状態）します。
    4. ログは `journalctl -u tool-master-sync@*` で確認できます。失敗時は CSV の列順・ヘッダー・文字コード（UTF-8）を点検してください。
 3. **大量登録 / 手作業更新**
    - `master/tool_master.csv`（工具名マスタ）、`master/users.csv`（UID と氏名）、`master/tools.csv`（工具タグと工具名の紐づけ）を任意の PC で編集 → 上書き保存 → Pi に挿すだけで反映されます。
-   - USB 内には `meta.json`（最終更新時刻）が自動で生成されます。手動編集時は触らず、そのまま残してください。
+   - `master/meta.json` と `docviewer/meta.json` はスクリプトが自動生成します。手動編集した場合も削除せずそのまま残してください。
    - 編集後は USB を Pi へ挿す前に確実に保存・安全な取り外しを行ってください。
 
 > **補足**: 既存の CSV が無い状態で挿しても、Pi 側の最新マスターデータが自動で書き出されます。別の Pi へ持ち込むときは何もせず挿すだけでマスターデータが取り込まれます。

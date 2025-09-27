@@ -46,6 +46,7 @@
     background: var(--bg); color: var(--text);
     display:flex; justify-content:flex-start; align-items:stretch;
   }
+  body.modal-locked{overflow:hidden;}
   .app-layout{display:flex;width:100vw;height:100vh;}
   .container{flex:0 0 50vw;height:100vh;background:var(--surface);display:flex;flex-direction:column;box-shadow:2px 0 12px rgba(15,23,42,.08);}
   .future-panel{
@@ -128,6 +129,41 @@
     box-shadow:0 12px 32px rgba(15,23,42,.35);
   }
   .doc-viewer-overlay.is-hidden{display:none;}
+
+  .modal-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(15,23,42,0.62);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:9999;
+  }
+  .modal-overlay.is-visible{display:flex;}
+  .modal-body{
+    background:#0f172a;
+    color:#e2e8f0;
+    padding:32px 40px;
+    border-radius:12px;
+    box-shadow:0 24px 48px rgba(15,23,42,.45);
+    width:min(420px, 90vw);
+    text-align:center;
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+  }
+  .modal-body h3{font-size:18px; margin:0; font-weight:700;}
+  .modal-body p{margin:0; font-size:14px; color:#cbd5f5;}
+  .modal-spinner{
+    width:42px;
+    height:42px;
+    border-radius:50%;
+    border:4px solid rgba(226,232,240,0.25);
+    border-top-color:#38bdf8;
+    margin:0 auto;
+    animation:spin 1s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
 
   /* Tabs */
   .tabs{
@@ -464,6 +500,14 @@
 </div>
 </div>
 
+<div id="usbSyncOverlay" class="modal-overlay" aria-hidden="true">
+  <div class="modal-body">
+    <div class="modal-spinner" aria-hidden="true"></div>
+    <h3>USB 同期中...</h3>
+    <p id="usbSyncOverlayMessage">処理が完了するまで USB メモリを抜かないでください。</p>
+  </div>
+</div>
+
 <!-- ===== メインスクリプト（タブ独立運用 & UI同期） ===== -->
 <script>
   // WebSocket
@@ -566,24 +610,48 @@
     if (tabName === 'operations')   loadLoansData();
   }
 
+  const usbOverlay = document.getElementById('usbSyncOverlay');
+  const usbOverlayMessage = document.getElementById('usbSyncOverlayMessage');
+
+  function showUsbOverlay(message){
+    if (!usbOverlay) return;
+    if (message && usbOverlayMessage) usbOverlayMessage.textContent = message;
+    usbOverlay.classList.add('is-visible');
+    document.body.classList.add('modal-locked');
+  }
+
+  function hideUsbOverlay(){
+    if (!usbOverlay) return;
+    usbOverlay.classList.remove('is-visible');
+    document.body.classList.remove('modal-locked');
+  }
+
+  function formatUsbSyncSteps(data){
+    if (!data || !Array.isArray(data.steps)){
+      return (data && data.stdout) ? data.stdout : '(結果データがありません)';
+    }
+    const blocks = data.steps.map(step => {
+      const title = step.title || step.name || '処理';
+      const code = Number(step.returncode || 0);
+      let statusLabel = code === 0 ? '成功' : '失敗';
+      if (code === 127) statusLabel = '未実施';
+      const lines = [`【${title}】 ${statusLabel} (code=${code})`];
+      if (step.stdout) lines.push(`stdout:\n${step.stdout.trim()}`);
+      if (step.stderr) lines.push(`stderr:\n${step.stderr.trim()}`);
+      return lines.join('\n\n');
+    });
+    return blocks.join('\n\n');
+  }
+
   async function runUsbSync(){
     const outputEl = document.getElementById('usbSyncOutput');
+    showUsbOverlay('工具マスタとドキュメントを同期しています...');
     outputEl.textContent = '同期中...';
     try{
       const res = await fetch('/api/usb_sync',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({device:'/dev/sda1'})});
-      const text = await res.text();
-      let data = null;
-      try {
-        data = JSON.parse(text);
-      } catch (_) {
-        outputEl.textContent = text;
-        showMessage('transactionResult','USB同期でエラーが発生しました','danger');
-        return;
-      }
-      const header = `status: ${data.status}\nreturncode: ${data.returncode}`;
-      const stdout = data.stdout ? `\n--- stdout ---\n${data.stdout.trim()}` : '';
-      const stderr = data.stderr ? `\n--- stderr ---\n${data.stderr.trim()}` : '';
-      outputEl.textContent = `${header}${stdout}${stderr}`;
+      const data = await res.json();
+      const summary = formatUsbSyncSteps(data);
+      outputEl.textContent = summary;
       if (data.status === 'success'){
         showMessage('transactionResult','USB同期が完了しました','success');
       } else {
@@ -592,6 +660,8 @@
     }catch(err){
       outputEl.textContent = `error: ${err}`;
       showMessage('transactionResult','USB同期でエラーが発生しました','danger');
+    } finally {
+      hideUsbOverlay();
     }
   }
 

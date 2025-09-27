@@ -26,9 +26,10 @@
 4. **TMS API・設定追加**
    - Flask の設定値に DV のベース URL を注入（`app.config` / `.env` / 設定ファイル）。
    - 将来的な API 連携（例えば貸出操作後に DV をリフレッシュ）を想定し、共通ユーティリティを検討。
-5. **ドキュメント整備**
-   - README / RUNBOOK に DV サービスの導入手順、同期運用フロー、トラブルシュートを追記。
-   - USB マスタ同期やキオスク起動との連携手順（順序、確認項目、ロールバック方法）を明文化。
+5. **USB 共有運用の整備**（実施中）
+   - `usb_master_sync.sh` と DocumentViewer の importer を直列実行するラッパを追加（UI ボタンから利用できるよう改修）。
+   - USB 内のフォルダ構成（`master/`, `docviewer/`）と `meta.json` 運用ルールを明確化。
+   - README / RUNBOOK / DocumentViewer docs を更新し、手順と sudoers 設定、ログ確認方法を追記。
 6. **システムテスト**
    - 両サービス同時起動の動作検証（起動スクリプト、systemd、キオスク自動起動）。
    - 左右 UI のキーボード操作・スキャン動作が干渉しないことを確認。
