@@ -150,7 +150,7 @@
 3. **同期の流れ**
    - USB を挿入 → `/media/tool-master/` に自動マウント → `master/*.csv` を取り込み（USB の更新が新しければ Pi を上書き）。
    - 取り込み後、Pi 側の最新マスターデータを USB に書き戻し、`meta.json` に更新時刻を記録。
-   - 続けて `../DocumentViewer/scripts/usb-import.sh` を呼び出し、`docviewer/*.pdf` を取り込み（USB 側が新しい場合）。完了後に自動アンマウント。
+   - 続けて `../DocumentViewer/scripts/usb-import.sh` を呼び出し、`docviewer/*.pdf` を取り込み（USB 側が新しい場合）。完了後に自動アンマウント。`docviewer.service` が起動していることが前提。
    - ログは `journalctl -u tool-master-sync@*`（直近なら `journalctl -u tool-master-sync@$(ls /dev/disk/by-label/TOOLMASTER)` 等）および `/var/log/document-viewer/import.log` を参照。
    - UI から同期する場合は「🛠 メンテナンス」タブ内の「USB 同期を実行」ボタンを利用。内部的に上記 2 ステップを直列で実行し、結果は画面のログに整形して表示されます。
    - sudoers に下記エントリを追加し、パスワード無しでスクリプトを実行できるようにしておくと運用が楽になります（ユーザー名/パスは環境に合わせて変更）。

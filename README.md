@@ -64,7 +64,7 @@
     画面上の「🛠 メンテナンス」タブにある `USB 同期を実行` は、工具マスタとドキュメントビューア PDF を **一括** で処理します。ラベル `TOOLMASTER` の USB メモリを挿した状態で押すと、
 
     1. `scripts/usb_master_sync.sh` が `master/` 配下の CSV を双方向同期
-    2. `../DocumentViewer/scripts/usb-import.sh` が `docviewer/` 配下の PDF を取り込み
+    2. `../DocumentViewer/scripts/usb-import.sh` が `docviewer/` 配下の PDF を取り込み（`docviewer.service` が稼働している前提）
 
     の順に実行します。処理中は画面がロックされるので USB を抜かず完了メッセージを待ってください。ログは画面内の結果表示に加えて、`journalctl -u tool-master-sync@*` と `/var/log/document-viewer/import.log` で確認できます。
 
@@ -76,10 +76,11 @@
         SUDO
         sudo visudo -cf /etc/sudoers.d/toolmgmt-usbsync
 
-8. **ブラウザのキオスク自動起動（任意）**
+8. **DocumentViewer 常駐化 + ブラウザのキオスク自動起動**
 
-        sudo bash setup_auto_start.sh                # Flask アプリを systemd 管理に
-        bash scripts/install_kiosk_autostart.sh       # Chromium オートスタート設定（sudo 不要）
+        sudo bash setup_auto_start.sh                        # toolmgmt.service を設定
+        sudo ~/DocumentViewer/scripts/install_docviewer_service.sh  # docviewer.service を設定
+        bash scripts/install_kiosk_autostart.sh               # Chromium オートスタート設定（sudo 不要）
         sudo raspi-config  # System Options → Boot / Auto Login → Desktop Autologin
 
     上記後に再起動すると、GUI ログイン直後に Chromium が `http://127.0.0.1:8501` をキオスクモードで開きます。設定ファイルは `~/.config/autostart/chromium-kiosk.desktop` に作成されます。必要に応じて `sudo systemctl restart toolmgmt.service` でアプリを再起動してください。
