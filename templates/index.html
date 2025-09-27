@@ -62,10 +62,9 @@
     overflow:hidden;
   }
 
-  .doc-viewer-header{display:flex;align-items:center;justify-content:space-between;gap:var(--space-2);padding:var(--space-3);background:rgba(15,23,42,.82);color:#e2e8f0;border-bottom:1px solid rgba(148,163,184,.18);}
-  .doc-viewer-header h2{font-size:15px;font-weight:600;color:#f8fafc;letter-spacing:.04em;}
+  .doc-viewer-header{display:flex;align-items:center;justify-content:space-between;padding:6px 12px;background:rgba(15,23,42,.82);border-bottom:1px solid rgba(148,163,184,.18);}
   .doc-viewer-header-actions{display:flex;align-items:center;gap:var(--space-2);}
-  .doc-viewer-status{padding:2px 10px;border-radius:999px;border:1px solid rgba(148,163,184,.35);font-size:12px;font-weight:600;color:#cbd5f5;background:rgba(148,163,184,.12);display:inline-flex;align-items:center;gap:6px;}
+  .doc-viewer-status{padding:2px 12px;border-radius:999px;border:1px solid rgba(148,163,184,.35);font-size:13px;font-weight:600;color:#f8fafc;background:rgba(148,163,184,.12);display:inline-flex;align-items:center;gap:6px;letter-spacing:.04em;}
   .doc-viewer-status__dot{width:6px;height:6px;border-radius:50%;background:currentColor;display:block;}
   .doc-viewer-status--online{color:#bbf7d0;border-color:rgba(34,197,94,.45);background:rgba(34,197,94,.18);}
   .doc-viewer-status--offline{color:#fecaca;border-color:rgba(248,113,113,.45);background:rgba(248,113,113,.18);}
@@ -73,21 +72,7 @@
   .btn-reload:hover{background:rgba(148,163,184,.18);border-color:rgba(148,163,184,.55);}
   .doc-viewer-wrapper{flex:1;position:relative;}
   #docViewerFrame{width:100%;height:100%;border:0;background:#0f172a;}
-  .doc-viewer-overlay{
-    position:absolute;
-    inset:12px;
-    border-radius:var(--radius);
-    background:rgba(15,23,42,.72);
-    color:#f8fafc;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    text-align:center;
-    padding:24px;
-    font-size:var(--fs-md);
-    line-height:1.5;
-    box-shadow:0 12px 32px rgba(15,23,42,.35);
-  }
+  .doc-viewer-overlay{position:absolute;inset:6px;border-radius:var(--radius);background:rgba(15,23,42,.72);color:#f8fafc;display:flex;align-items:center;justify-content:center;text-align:center;padding:12px;font-size:var(--fs-sm);line-height:1.4;box-shadow:0 12px 32px rgba(15,23,42,.35);}
   .doc-viewer-overlay.is-hidden{display:none;}
 
   .modal-overlay{
@@ -399,13 +384,12 @@
      data-doc-viewer-url="{{ doc_viewer_url|default('', true) }}"
      data-doc-viewer-online="{{ 'true' if doc_viewer_online else 'false' }}">
   <div class="doc-viewer-header">
-    <h2>📄 ドキュメントビューア</h2>
+    <div id="docViewerStatus"
+         class="doc-viewer-status {{ 'doc-viewer-status--online' if doc_viewer_online else 'doc-viewer-status--offline' }}">
+      <span class="doc-viewer-status__dot"></span>
+      <span class="doc-viewer-status__label">{{ '接続済み' if doc_viewer_online else '未接続' }}</span>
+    </div>
     <div class="doc-viewer-header-actions">
-      <div id="docViewerStatus"
-           class="doc-viewer-status {{ 'doc-viewer-status--online' if doc_viewer_online else 'doc-viewer-status--offline' }}">
-        <span class="doc-viewer-status__dot"></span>
-        <span class="doc-viewer-status__label">{{ '接続済み' if doc_viewer_online else '未接続' }}</span>
-      </div>
       <button type="button" id="docViewerReloadBtn" class="btn-reload">再読み込み</button>
     </div>
   </div>
@@ -415,9 +399,9 @@
             loading="lazy"></iframe>
     <div id="docViewerOverlay" class="doc-viewer-overlay">
       {% if doc_viewer_online %}
-        ドキュメントビューアを読み込み中です…
+        読み込み中…
       {% else %}
-        DocumentViewer サービスが見つかりませんでした。<br>
+        DocumentViewer サービスが見つかりません。<br>
         起動後に「再読み込み」を押してください。
       {% endif %}
     </div>
