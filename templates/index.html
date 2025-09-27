@@ -49,9 +49,9 @@
   body.modal-locked{overflow:hidden;}
   .app-layout{display:flex;width:100vw;height:100vh;background:var(--bg);}
   .left-pane{flex:0 0 50vw;height:100vh;display:flex;flex-direction:column;padding:var(--space-4);gap:var(--space-4);}
-  .operation-shelf{flex:0 0 50%;display:flex;flex-direction:column;gap:var(--space-4);background:var(--surface);border-radius:var(--radius);box-shadow:0 10px 30px rgba(15,23,42,.12);padding:var(--space-4);overflow:hidden;}
-  .operation-shelf .tab-content{background:transparent;padding:var(--space-4) 0 var(--space-4);}
-  .operation-shelf .tabs{margin-bottom:var(--space-4);}
+  .operation-shelf{flex:0 0 58%;display:flex;flex-direction:column;gap:var(--space-3);background:var(--surface);border-radius:var(--radius);box-shadow:0 10px 30px rgba(15,23,42,.12);padding:var(--space-3);overflow:hidden;}
+  .operation-shelf .tab-content{background:transparent;padding:var(--space-2);}
+  .operation-shelf .tabs{margin-bottom:var(--space-2);}
   .future-reserve{flex:1;background:rgba(15,23,42,.08);border:1px dashed rgba(148,163,184,.6);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;color:rgba(71,85,105,.9);font-weight:600;letter-spacing:.06em;text-transform:uppercase;font-size:13px;}
   .future-panel{
     flex:1;
@@ -123,11 +123,16 @@
   #operations h2{font-size: var(--fs-lg); font-weight:700; color: var(--text);}
 
   .operation-header{
-    display:flex; align-items:center; justify-content:space-between;
-    margin-bottom: var(--space-4);
-    padding-bottom: var(--space-3);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:var(--space-3);
+    padding-bottom:var(--space-2);
     border-bottom:1px solid var(--border);
+    margin-bottom:var(--space-3);
   }
+  .operation-header h2{margin:0;font-size:var(--fs-md);letter-spacing:.02em;}
+  .operation-controls{display:flex;align-items:center;gap:var(--space-2);flex-shrink:0;}
 
   /* Buttons: compact */
   .button-row{display:flex;gap:var(--space-2);margin-bottom:var(--space-3);flex-wrap:wrap;}
@@ -239,13 +244,14 @@
   <div id="operations" class="tab-content active">
     <div class="operation-header">
       <h2>①ユーザー → ②アイテム の順にスキャン</h2>
-      <span id="scanStatus" class="status-indicator status-inactive">● 停止中</span>
-    </div>
-
-    <div class="button-row">
-      <button class="btn btn-primary" id="startScanBtn" onclick="startScan()">スキャン開始</button>
-      <button class="btn btn-secondary" id="stopScanBtn" onclick="stopScan()" disabled>停止</button>
-      <button class="btn btn-danger" onclick="resetState()">リセット</button>
+      <div class="operation-controls">
+        <div class="button-row" style="margin:0;">
+          <button class="btn btn-primary" id="startScanBtn" onclick="startScan()">スキャン開始</button>
+          <button class="btn btn-secondary" id="stopScanBtn" onclick="stopScan()" disabled>停止</button>
+          <button class="btn btn-danger" onclick="resetState()">リセット</button>
+        </div>
+        <span id="scanStatus" class="status-indicator status-inactive">● 停止中</span>
+      </div>
     </div>
 
     <div class="scan-progress">
@@ -290,27 +296,27 @@
   <div id="registration" class="tab-content">
     <h2>🔖 タグ登録</h2>
 
-    <div style="margin-bottom:30px; padding:20px; background:#f8f9fa; border-radius:8px; border-left:4px solid #17a2b8;">
+    <div style="margin-bottom:16px; padding:12px 14px; background:#f0f4ff; border-radius:8px; border-left:3px solid #17a2b8;">
       <h3>🔍 タグ情報確認</h3>
-      <p style="margin-bottom:15px; color:#6c757d; font-size:14px;">NFCタグをスキャンして、現在の登録状況を確認できます</p>
-      <div class="input-group" style="margin-bottom:15px;">
+      <p style="margin-bottom:8px; color:#64748b; font-size:12px;">NFCタグをスキャンして、現在の登録状況を確認できます</p>
+      <div class="input-group" style="margin-bottom:8px;">
         <button class="btn btn-primary" onclick="checkTagInfo()" style="background:#17a2b8; border-color:#17a2b8;">🔍 タグ情報を確認</button>
       </div>
       <div id="tagCheckResult"></div>
     </div>
 
-    <div style="display:flex; gap:30px; flex-wrap:wrap;">
+    <div style="display:flex; gap:18px; flex-wrap:wrap; align-items:flex-start;">
       <!-- ユーザー登録 -->
-      <div style="flex:1; min-width:300px;">
+      <div style="flex:1; min-width:240px;">
         <h3>👤 ユーザー登録</h3>
-        <div class="input-group" style="margin-bottom:15px;">
+        <div class="input-group" style="margin-bottom:10px;">
           <button class="btn btn-primary" onclick="scanForUser()">スキャンしてUID取得</button>
         </div>
-        <div class="input-group" style="margin-bottom:15px;">
+        <div class="input-group" style="margin-bottom:10px;">
           <label>UID（自動入力）</label>
           <input type="text" id="userUidInput" class="form-control" readonly>
         </div>
-        <div class="input-group" style="margin-bottom:15px;">
+        <div class="input-group" style="margin-bottom:10px;">
           <label>氏名（例：山田太郎）</label>
           <input type="text" id="userNameInput" class="form-control" placeholder="山田太郎">
         </div>
@@ -319,16 +325,16 @@
       </div>
 
       <!-- アイテム登録 -->
-      <div style="flex:1; min-width:300px;">
+      <div style="flex:1; min-width:240px;">
         <h3>📦 アイテム登録</h3>
-        <div class="input-group" style="margin-bottom:15px;">
+        <div class="input-group" style="margin-bottom:10px;">
           <button class="btn btn-primary" onclick="scanForTool()">スキャンしてUID取得</button>
         </div>
-        <div class="input-group" style="margin-bottom:15px;">
+        <div class="input-group" style="margin-bottom:10px;">
           <label>UID（自動入力）</label>
           <input type="text" id="toolUidInput" class="form-control" readonly>
         </div>
-        <div class="input-group" style="margin-bottom:15px;">
+        <div class="input-group" style="margin-bottom:10px;">
           <label>アイテム名（マスタから選択）</label>
           <select id="toolNameSelect" class="form-control">
             <option value="">（選択してください）</option>
