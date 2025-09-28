@@ -159,6 +159,16 @@
      3. 別 PC で USB を開き、ログに載ったファイルを削除または正しい形式に修正（例: `.csv`/.`pdf` 以外を削除）。
      4. USB を安全に取り外し、ラズパイへ再接続した上で再度同期を実行。
      5. 正常に完了したかをログで再確認。疑わしいファイルが原因であれば、USB を初期化して正規データのみコピーし直す。
+   - **ウイルス検知時の対応（exit=3）**
+     1. ログに `ClamAV が脅威を検知` が出た場合は、その USB を隔離し業務で使用しない。
+     2. 安全な PC で USB 内の感染ファイルを削除するか、USB 全体を再フォーマット。
+     3. 定義ファイルを最新化した別 USB で再スキャンし、脅威がないことを確認してから再配布する。
+     4. 必要であれば情シスへ報告し、他端末への影響が無いか確認する。
+   - **ウイルススキャンエラー時の対応（exit=4）**
+     1. ログに `ウイルススキャンエラーのため手動確認が必要です` が出た場合、`clamscan` 実行環境を確認。
+     2. `which clamscan` でコマンド有無、`clamscan --version` で動作確認。
+     3. 定義ファイルが壊れている可能性があるため後述の更新手順で `main.cvd` などを入れ直す。
+     4. 解決後に USB を再スキャンし、正常終了することを確認。
    - UI から同期する場合は「🛠 メンテナンス」タブ内の「USB 同期を実行」ボタンを利用。内部的に上記 2 ステップを直列で実行し、結果は画面のログに整形して表示されます。
    - sudoers に下記エントリを追加し、パスワード無しでスクリプトを実行できるようにしておくと運用が楽になります（ユーザー名/パスは環境に合わせて変更）。
 
@@ -179,6 +189,22 @@
    - `meta.json` はスクリプトが管理するので手動で編集しないこと。
 
 > すべての処理がワンショットで完了するため、USB を抜き差しするだけで他拠点へマスターデータを配布できます。履歴（貸出ログ）は含まれない点に注意してください。
+
+#### ClamAV 定義ファイルのオフライン更新手順
+
+1. インターネットに接続できる PC で [ClamAV Signature Database](https://www.clamav.net/downloads) から `main.cvd`, `daily.cvd`, `bytecode.cvd` をダウンロード。
+2. USB メモリなどで `/var/lib/clamav/` にコピー。例：
+
+    ```bash
+    sudo cp /media/USB/main.cvd /var/lib/clamav/
+    sudo cp /media/USB/daily.cvd /var/lib/clamav/
+    sudo cp /media/USB/bytecode.cvd /var/lib/clamav/
+    sudo chown clamav:clamav /var/lib/clamav/*.cvd
+    ```
+
+3. 既存の定義ファイルが壊れている場合は `sudo rm /var/lib/clamav/*.cvd` で削除してからコピー。
+4. 反映後に `sudo systemctl restart clamav-freshclam.service 2>/dev/null || true` を実行し、`clamscan --version` でエラーがないか確認。
+5. USB を再スキャンして正常に完了することを確認。
 
 ### 3.2 キオスク運用（任意）
 
