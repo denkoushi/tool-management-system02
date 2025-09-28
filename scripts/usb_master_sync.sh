@@ -7,6 +7,7 @@ MOUNT_POINT="/media/tool-master"
 USB_DIR="${MOUNT_POINT}/master"
 LOCAL_META="/var/lib/toolmgmt/master_sync/meta.json"
 LOG_TAG="tool-master-sync"
+LOG_FILE="/var/log/toolmgmt/usbsync.log"
 
 DB_NAME="sensordb"
 DB_USER="app"
@@ -19,8 +20,17 @@ if [[ -z "${DEVICE}" ]]; then
 fi
 
 log() {
-  logger -t "$LOG_TAG" "$1"
-  echo "[$LOG_TAG] $1"
+  local message="$1"
+  local level="${2:-info}"
+  local timestamp
+
+  timestamp=$(date '+%Y-%m-%dT%H:%M:%S%z')
+  logger -p "user.${level}" -t "$LOG_TAG" "$message"
+  echo "[$LOG_TAG] $message"
+
+  {
+    printf '%s [%s] %s\n' "$timestamp" "${level^^}" "$message"
+  } >> "$LOG_FILE" 2>/dev/null || true
 }
 
 cleanup() {
@@ -33,6 +43,9 @@ trap cleanup EXIT
 
 mkdir -p "$MOUNT_POINT"
 mkdir -p "$(dirname "$LOCAL_META")"
+mkdir -p "$(dirname "$LOG_FILE")"
+touch "$LOG_FILE"
+chmod 640 "$LOG_FILE" || true
 
 log "USB デバイス $DEVICE を $MOUNT_POINT にマウント"
 mount "$DEVICE" "$MOUNT_POINT"
@@ -86,10 +99,118 @@ max_csv_mtime() {
   echo "$latest"
 }
 
+validate_file_mime() {
+  local path="$1"
+  local kind="$2"
+  local base
+  local ext
+  local mime
+  local allowed=0
+  local allowed_mimes=()
+
+  base=$(basename "$path")
+  ext="${base##*.}"
+
+  case "$kind" in
+    csv)
+      if [[ "$ext" != "csv" ]]; then
+        log "${base} の拡張子が .csv ではありません" warning
+        return 1
+      fi
+      allowed_mimes=("text/csv" "text/plain" "application/vnd.ms-excel" "application/octet-stream" "inode/x-empty")
+      ;;
+    json)
+      if [[ "$ext" != "json" ]]; then
+        log "${base} の拡張子が .json ではありません" warning
+        return 1
+      fi
+      allowed_mimes=("application/json" "text/plain" "inode/x-empty")
+      ;;
+    *)
+      log "${base} の MIME チェック対象種別 ${kind} は未対応です" warning
+      return 1
+      ;;
+  esac
+
+  mime=$(file --brief --mime-type "$path" 2>/dev/null || echo "unknown")
+
+  for allowed_mime in "${allowed_mimes[@]}"; do
+    if [[ "$mime" == "$allowed_mime" ]]; then
+      allowed=1
+      break
+    fi
+  done
+
+  if [[ $allowed -eq 0 ]]; then
+    log "${base} の MIME タイプ ${mime} は許可されていません" warning
+    return 1
+  fi
+
+  return 0
+}
+
+validate_usb_payload() {
+  local blocked=0
+  local base
+  local allowed_names=("tool_master.csv" "users.csv" "tools.csv" "meta.json")
+
+  if ! command -v file >/dev/null 2>&1; then
+    log "file コマンドが見つからないため USB ファイルの MIME チェックに失敗" warning
+    return 1
+  fi
+
+  shopt -s nullglob dotglob
+  local entries=("$USB_DIR"/*)
+  shopt -u nullglob dotglob
+
+  for path in "${entries[@]}"; do
+    [[ -e "$path" ]] || continue
+    base=$(basename "$path")
+
+    if [[ -d "$path" ]]; then
+      log "USB 内にディレクトリ ${base} を検出しました (同期対象外)" warning
+      blocked=1
+      continue
+    fi
+
+    local allowed=0
+    for name in "${allowed_names[@]}"; do
+      if [[ "$base" == "$name" ]]; then
+        allowed=1
+        break
+      fi
+    done
+
+    if [[ $allowed -eq 0 ]]; then
+      log "USB 内に未許可ファイル ${base} を検出しました" warning
+      blocked=1
+      continue
+    fi
+
+    if [[ "$base" == "meta.json" ]]; then
+      validate_file_mime "$path" json || blocked=1
+    else
+      validate_file_mime "$path" csv || blocked=1
+    fi
+  done
+
+  if (( blocked == 0 )); then
+    log "USB ファイル検証を完了 (問題なし)"
+  fi
+
+  return $blocked
+}
+
 usb_ts=$(read_timestamp "$meta_file_usb")
 csv_ts=$(max_csv_mtime "$USB_DIR")
 (( csv_ts > usb_ts )) && usb_ts=$csv_ts
 local_ts=$(read_timestamp "$LOCAL_META")
+
+validation_failed=0
+if ! validate_usb_payload; then
+  log "USB ファイル検証に失敗したため取り込みをスキップします" warning
+  validation_failed=1
+fi
 
 psql_cmd() {
   PGPASSWORD="${PGPASSWORD:-app}" psql -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" -v ON_ERROR_STOP=1 "$@"
@@ -126,17 +247,22 @@ export_to_usb() {
 SQL
 }
 
-if (( usb_ts > local_ts )); then
-  log "USB データが新しいため取り込みを実施 (usb_ts=$usb_ts, local_ts=$local_ts)"
-  import_from_usb
-  local_ts=$usb_ts
+if (( validation_failed == 0 )); then
+  if (( usb_ts > local_ts )); then
+    log "USB データが新しいため取り込みを実施 (usb_ts=$usb_ts, local_ts=$local_ts)"
+    import_from_usb
+    local_ts=$usb_ts
+  else
+    log "USB データは最新ではないため取り込みをスキップ (usb_ts=$usb_ts, local_ts=$local_ts)"
+  fi
+
+  export_to_usb
+  new_ts=$(date +%s)
+  write_timestamp "$meta_file_usb" "$new_ts"
+  write_timestamp "$LOCAL_META" "$new_ts"
+
+  log "USB 同期完了"
 else
-  log "USB データは最新ではないため取り込みをスキップ (usb_ts=$usb_ts, local_ts=$local_ts)"
+  log "ファイル検証エラーのためマスタ同期処理を中断しました" warning
+  exit 2
 fi
-
-export_to_usb
-new_ts=$(date +%s)
-write_timestamp "$meta_file_usb" "$new_ts"
-write_timestamp "$LOCAL_META" "$new_ts"
-
-log "USB 同期完了"
