@@ -589,6 +589,8 @@
     historySection.style.display = historySection.style.display === 'none' ? 'flex' : 'none';
   }
 
+  window.toggleHistory = toggleHistory;
+
   // スキャン開始/停止：appScan ラッパ経由（loan 文脈）
   function startScan() {
     appScan.start('loan')
