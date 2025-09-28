@@ -466,6 +466,7 @@
       statusEl.classList.remove('doc-viewer-status--online', 'doc-viewer-status--offline');
       statusEl.classList.add(state === 'online' ? 'doc-viewer-status--online' : 'doc-viewer-status--offline');
       if (statusLbl) statusLbl.textContent = label;
+      statusEl.dataset.state = state;
     };
 
     const showOverlay = (message) => {
@@ -505,7 +506,7 @@
     if (returnBtn) {
       returnBtn.addEventListener('click', () => {
         if (frame && frame.contentWindow) {
-          frame.contentWindow.postMessage({type:'viewer-return'}, '*');
+          frame.contentWindow.postMessage({ type: 'viewer-return' }, '*');
         }
       });
     }
@@ -525,18 +526,34 @@
     // オフライン状態でロード不可だった場合に備えリロードボタンで再試行
     panel.dataset.docViewerUrl = docViewerUrl;
 
+    const stateLabel = {
+      idle: '状態: 待機中',
+      viewer: '状態: 表示中',
+      searching: '状態: 検索中…',
+      error: '状態: エラー'
+    };
+
+    const updateStateChips = (payload) => {
+      if (stateChip && payload.state) {
+        stateChip.textContent = stateLabel[payload.state] || '状態: -';
+        stateChip.dataset.state = payload.state;
+      }
+      if (partChip) {
+        if (payload.part) {
+          partChip.textContent = `部品番号: ${payload.part}`;
+          partChip.dataset.empty = 'false';
+        } else {
+          partChip.textContent = '部品番号: -';
+          partChip.dataset.empty = 'true';
+        }
+      }
+    };
+
     window.addEventListener('message', (event) => {
       const data = event.data;
       if (!data || typeof data !== 'object') return;
       if (data.type === 'viewer-state') {
-        if (stateChip) {
-          const label = data.state === 'viewer' ? '表示中' : data.state === 'searching' ? '検索中…' : '待機中';
-          stateChip.textContent = label;
-        }
-        if (partChip) {
-          const part = data.part ? `部品番号: ${data.part}` : '部品番号: -';
-          partChip.textContent = part;
-        }
+        updateStateChips(data);
       }
     });
   })();
