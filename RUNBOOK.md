@@ -153,6 +153,12 @@
    - 取り込み後、Pi 側の最新マスターデータを USB に書き戻し、`meta.json` に更新時刻を記録。
    - 続けて `../DocumentViewer/scripts/usb-import.sh` を呼び出し、`docviewer/*.pdf` を取り込み（USB 側が新しい場合）。完了後に自動アンマウント。`docviewer.service` が起動していることが前提。
    - ログは `journalctl -u tool-master-sync@*`（直近なら `journalctl -u tool-master-sync@$(ls /dev/disk/by-label/TOOLMASTER)` 等）および `/var/log/toolmgmt/usbsync.log`、DocumentViewer 側は `/var/log/document-viewer/import.log` を参照。
+   - **バリデーション警告が出たときの確認手順**
+     1. 画面やログに `USB ファイル検証に失敗` / `unexpected file 'xxx'` が出たら USB を抜かずに置く。
+     2. `tail -n 20 /var/log/toolmgmt/usbsync.log` で対象ファイル名を確認。DocumentViewer 側の警告は `tail -n 20 /var/log/document-viewer/import.log` で確認。
+     3. 別 PC で USB を開き、ログに載ったファイルを削除または正しい形式に修正（例: `.csv`/.`pdf` 以外を削除）。
+     4. USB を安全に取り外し、ラズパイへ再接続した上で再度同期を実行。
+     5. 正常に完了したかをログで再確認。疑わしいファイルが原因であれば、USB を初期化して正規データのみコピーし直す。
    - UI から同期する場合は「🛠 メンテナンス」タブ内の「USB 同期を実行」ボタンを利用。内部的に上記 2 ステップを直列で実行し、結果は画面のログに整形して表示されます。
    - sudoers に下記エントリを追加し、パスワード無しでスクリプトを実行できるようにしておくと運用が楽になります（ユーザー名/パスは環境に合わせて変更）。
 
