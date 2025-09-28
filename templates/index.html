@@ -112,7 +112,8 @@
 
   /* Tabs */
   .tabs{display:flex;background:linear-gradient(135deg,var(--brand) 0%,var(--brand-2) 100%);box-shadow:0 1px 4px rgba(17,24,39,.12);}
-  .tab-button{flex:1;padding:var(--space-3);background:none;border:none;cursor:pointer;font-size:var(--fs-sm);font-weight:600;color:rgba(255,255,255,.85);border-bottom:2px solid transparent;transition:.2s;letter-spacing:.02em;}
+  .tab-button{flex:1;padding:var(--space-3);background:none;border:none;cursor:pointer;font-size:var(--fs-sm);font-weight:600;color:rgba(255,255,255,.85);border-bottom:2px solid transparent;transition:.2s;letter-spacing:.02em;min-width:0;}
+  .tab-toggle-history{flex:0 0 88px;}
   .tab-button.active{background:rgba(255,255,255,.16);color:#fff;border-bottom-color:#fff;}
 
   .tab-content{display:none;padding:var(--space-3);flex:1;overflow-y:auto;}
@@ -234,10 +235,11 @@
     <div class="future-reserve" aria-hidden="true">右上スペースは今後の用途に予約されています</div>
     <div class="operation-shelf">
   <div class="tabs">
-    <button class="tab-button active" onclick="showTab('operations')">📲 借用/返却</button>
-    <button class="tab-button" onclick="showTab('registration')">🔖 タグ登録</button>
-    <button class="tab-button" onclick="showTab('master')">📚 マスタ</button>
-    <button class="tab-button" onclick="showTab('maintenance')">🛠 メンテ</button>
+    <button class="tab-button active" onclick="showTab('operations')">借用/返却</button>
+    <button class="tab-button" onclick="showTab('registration')">タグ登録</button>
+    <button class="tab-button" onclick="showTab('master')">マスタ</button>
+    <button class="tab-button" onclick="showTab('maintenance')">メンテ</button>
+    <button class="tab-button tab-toggle-history" onclick="toggleHistory()">履歴</button>
   </div>
 
   <!-- 借用/返却 -->
@@ -280,8 +282,8 @@
           </table>
         </div>
       </div>
-      <div class="table-section" style="margin-top:min(10px,2vh);">
-        <div class="section-title">🕒 履歴</div>
+      <div class="table-section" id="historySection" style="margin-top:min(10px,2vh);display:none;">
+        <div class="section-title">履歴</div>
         <div class="scrollable-section">
           <table class="data-table" id="historyTable">
             <thead><tr><th>区分</th><th>アイテム</th><th>ユーザー</th><th>日時</th></tr></thead>
@@ -558,6 +560,8 @@
     return blocks.join('\n\n');
   }
 
+  const historySection = document.getElementById('historySection');
+
   async function runUsbSync(){
     const outputEl = document.getElementById('usbSyncOutput');
     showUsbOverlay('工具マスタとドキュメントを同期しています...');
@@ -578,6 +582,11 @@
     } finally {
       hideUsbOverlay();
     }
+  }
+
+  function toggleHistory(){
+    if(!historySection) return;
+    historySection.style.display = historySection.style.display === 'none' ? 'flex' : 'none';
   }
 
   // スキャン開始/停止：appScan ラッパ経由（loan 文脈）
