@@ -8,6 +8,7 @@ USB_DIR="${MOUNT_POINT}/master"
 LOCAL_META="/var/lib/toolmgmt/master_sync/meta.json"
 LOG_TAG="tool-master-sync"
 LOG_FILE="/var/log/toolmgmt/usbsync.log"
+CLAMAV_SCAN="${CLAMAV_SCAN:-clamscan}"
 
 DB_NAME="sensordb"
 DB_USER="app"
@@ -201,6 +202,33 @@ validate_usb_payload() {
   return $blocked
 }
 
+run_clamav_scan() {
+  if ! command -v "$CLAMAV_SCAN" >/dev/null 2>&1; then
+    log "ClamAV (clamscan) が見つからないためウイルススキャンをスキップしました" warning
+    return 0
+  fi
+
+  local output
+  output=$("$CLAMAV_SCAN" -r --infected --no-summary "$MOUNT_POINT" 2>&1)
+  local rc=$?
+
+  if (( rc == 0 )); then
+    log "ClamAV スキャン完了 (脅威なし)"
+    return 0
+  fi
+
+  local compact_output
+  compact_output=$(echo "$output" | tr '\n' ';')
+
+  if (( rc == 1 )); then
+    log "ClamAV が脅威を検知: ${compact_output}" warning
+    return 1
+  fi
+
+  log "ClamAV スキャンに失敗しました (rc=$rc): ${compact_output}" warning
+  return 2
+}
+
 usb_ts=$(read_timestamp "$meta_file_usb")
 csv_ts=$(max_csv_mtime "$USB_DIR")
 (( csv_ts > usb_ts )) && usb_ts=$csv_ts
@@ -210,6 +238,22 @@ validation_failed=0
 if ! validate_usb_payload; then
   log "USB ファイル検証に失敗したため取り込みをスキップします" warning
   validation_failed=1
+fi
+
+clamav_result=0
+if (( validation_failed == 0 )); then
+  set +e
+  run_clamav_scan
+  clamav_result=$?
+  set -e
+
+  if (( clamav_result == 1 )); then
+    log "ウイルス検知のためマスタ同期処理を中断しました" warning
+    exit 3
+  elif (( clamav_result == 2 )); then
+    log "ウイルススキャンエラーのため手動確認が必要です" warning
+    exit 4
+  fi
 fi
 
 psql_cmd() {
