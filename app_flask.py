@@ -5,12 +5,16 @@ import time
 import threading
 import json
 from datetime import datetime
-from flask import Flask, render_template, request, jsonify
+from functools import wraps
+import logging
+from pathlib import Path
+from flask import Flask, render_template, request, jsonify, has_request_context
 from flask_socketio import SocketIO, emit
 import psycopg2
 from smartcard.CardRequest import CardRequest
 from smartcard.util import toHexString
-import os, subprocess, threading
+import os
+import subprocess
 import urllib.request
 from usb_sync import run_usb_sync
 
@@ -22,6 +26,22 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
 app.config['DOCUMENT_VIEWER_URL'] = os.getenv("DOCUMENT_VIEWER_URL", "http://127.0.0.1:5000")
 socketio = SocketIO(app, cors_allowed_origins="*")
+
+# --- API 認証/監査設定 ---
+API_AUTH_TOKEN = os.getenv("API_AUTH_TOKEN")
+API_TOKEN_HEADER = os.getenv("API_TOKEN_HEADER", "X-API-Token")
+LOG_PATH = Path(os.getenv(
+    "API_AUDIT_LOG",
+    str((Path(__file__).resolve().parent / "logs" / "api_actions.log").resolve())
+))
+LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+audit_logger = logging.getLogger("api_audit")
+if not audit_logger.handlers:
+    handler = logging.FileHandler(LOG_PATH, encoding="utf-8")
+    handler.setFormatter(logging.Formatter('%(asctime)s\t%(message)s'))
+    audit_logger.addHandler(handler)
+    audit_logger.setLevel(logging.INFO)
 
 # --- シャットダウンAPI用設定 ---
 SHUTDOWN_TOKEN = os.getenv("SHUTDOWN_TOKEN")  # 任意。必要なら systemd に環境変数を追加して使う
@@ -71,6 +91,56 @@ def _is_local_request():
         return addr in LOCAL_SHUTDOWN_ADDRS
     except Exception:
         return False
+
+
+def log_api_action(action: str, status: str = "success", detail=None) -> None:
+    if not audit_logger.handlers:
+        return
+
+    payload = {
+        "action": action,
+        "status": status,
+    }
+    if has_request_context():
+        payload["remote_addr"] = request.remote_addr
+        user_agent = request.headers.get("User-Agent")
+        if user_agent:
+            payload["user_agent"] = user_agent
+    if detail not in (None, ""):
+        payload["detail"] = detail
+
+    try:
+        audit_logger.info(json.dumps(payload, ensure_ascii=False, default=str))
+    except Exception:
+        # ログ出力で例外が出ても本体処理を止めない
+        audit_logger.warning("ログ出力に失敗しました", exc_info=True)
+
+
+def _extract_provided_token() -> str:
+    header_token = request.headers.get(API_TOKEN_HEADER)
+    if header_token:
+        return header_token
+    json_payload = request.get_json(silent=True) or {}
+    token = json_payload.get("token")
+    if token:
+        return token
+    return request.args.get("token")
+
+
+def require_api_token(action_name: str):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            if API_AUTH_TOKEN:
+                provided = _extract_provided_token()
+                if not provided or provided != API_AUTH_TOKEN:
+                    log_api_action(action_name, status="denied", detail="missing_or_invalid_token")
+                    return jsonify({"error": "unauthorized"}), 401
+            return func(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
 
 DB = dict(host="127.0.0.1", port=5432, dbname="sensordb", user="app", password="app")
 GET_UID = [0xFF, 0xCA, 0x00, 0x00, 0x00]  # PC/SC: GET DATA (UID/IDm)
@@ -404,9 +474,12 @@ def index():
         'index.html',
         doc_viewer_url=doc_viewer_url,
         doc_viewer_online=doc_viewer_online,
+        api_token_required=bool(API_AUTH_TOKEN),
+        api_token_header=API_TOKEN_HEADER,
     )
 
 @app.route('/api/start_scan', methods=['POST'])
+@require_api_token("start_scan")
 def start_scan():
     global scan_state
     scan_state["active"] = True
@@ -414,23 +487,28 @@ def start_scan():
     scan_state["tool_uid"] = ""
     scan_state["message"] = "📡 スキャン待機中... ユーザータグをかざしてください"
     print("🟢 自動スキャン開始")
+    log_api_action("start_scan", detail={"message": scan_state["message"]})
     return jsonify({"status": "started", "message": scan_state["message"]})
 
 @app.route('/api/stop_scan', methods=['POST'])
+@require_api_token("stop_scan")
 def stop_scan():
     global scan_state
     scan_state["active"] = False
     scan_state["message"] = "⏹️ スキャン停止"
     print("🔴 自動スキャン停止")
+    log_api_action("stop_scan", detail={"message": scan_state["message"]})
     return jsonify({"status": "stopped", "message": scan_state["message"]})
 
 @app.route('/api/reset', methods=['POST'])
+@require_api_token("reset_state")
 def reset_state():
     global scan_state
     scan_state["user_uid"] = ""
     scan_state["tool_uid"] = ""
     scan_state["message"] = "🔄 リセット完了"
     print("🧹 状態リセット")
+    log_api_action("reset_state")
     return jsonify({"status": "reset"})
 
 @app.route('/api/loans')
@@ -458,12 +536,14 @@ def get_loans():
         conn.close()
 
 @app.route('/api/loans/<int:loan_id>/manual_return', methods=['POST'])
+@require_api_token("manual_return")
 def manual_return_loan(loan_id):
     conn = get_conn()
     try:
         try:
             tool_uid, borrower_uid = complete_loan_manually(conn, loan_id)
         except RuntimeError as e:
+            log_api_action("manual_return", status="error", detail={"loan_id": loan_id, "error": str(e)})
             return jsonify({"error": str(e)}), 404
         tool_name = name_of_tool(conn, tool_uid)
         borrower_name = name_of_user(conn, borrower_uid)
@@ -476,28 +556,35 @@ def manual_return_loan(loan_id):
             'message': message,
             'action': 'return'
         })
+        log_api_action("manual_return", detail={"loan_id": loan_id, "tool_uid": tool_uid, "borrower_uid": borrower_uid})
         return jsonify({"status": "success", "message": message})
     except Exception as e:
+        log_api_action("manual_return", status="error", detail={"loan_id": loan_id, "error": str(e)})
         return jsonify({"error": str(e)}), 500
     finally:
         conn.close()
 
 @app.route('/api/loans/<int:loan_id>', methods=['DELETE'])
+@require_api_token("delete_open_loan")
 def delete_open_loan_api(loan_id):
     conn = get_conn()
     try:
         try:
             tool_uid, tool_name = delete_open_loan(conn, loan_id)
         except RuntimeError as e:
+            log_api_action("delete_open_loan", status="error", detail={"loan_id": loan_id, "error": str(e)})
             return jsonify({"error": str(e)}), 404
         message = f"🗑️ 貸出記録を削除しました: {tool_name} ({tool_uid})"
+        log_api_action("delete_open_loan", detail={"loan_id": loan_id, "tool_uid": tool_uid})
         return jsonify({"status": "success", "message": message, "tool_uid": tool_uid})
     except Exception as e:
+        log_api_action("delete_open_loan", status="error", detail={"loan_id": loan_id, "error": str(e)})
         return jsonify({"error": str(e)}), 500
     finally:
         conn.close()
 
 @app.route('/api/usb_sync', methods=['POST'])
+@require_api_token("usb_sync")
 def api_usb_sync():
     device = '/dev/sda1'
     if request.is_json:
@@ -513,29 +600,36 @@ def api_usb_sync():
             "stderr": result.get("stderr", ""),
             "steps": result.get("steps", []),
         }
+        log_api_action("usb_sync", status=status, detail={"device": device, "returncode": code})
         return jsonify(payload), (200 if code == 0 else 500)
     except Exception as e:
+        log_api_action("usb_sync", status="error", detail={"device": device, "error": str(e)})
         return jsonify({"status": "error", "stderr": str(e)}), 500
 
 @app.route('/api/scan_tag', methods=['POST'])
+@require_api_token("scan_tag")
 def scan_tag():
     """手動スキャン用API"""
     print("📡 手動スキャン実行中...")
     uid = read_one_uid(timeout=5)
     if uid:
         print(f"✅ 手動スキャン成功: {uid}")
+        log_api_action("scan_tag", detail={"status": "success", "uid": uid})
         return jsonify({"uid": uid, "status": "success"})
     else:
         print("❌ 手動スキャン タイムアウト")
+        log_api_action("scan_tag", status="error", detail={"status": "timeout"})
         return jsonify({"uid": None, "status": "timeout"})
 
 @app.route('/api/register_user', methods=['POST'])
+@require_api_token("register_user")
 def register_user():
     data = request.json
     uid = data.get('uid')
     name = data.get('name')
     
     if not uid or not name:
+        log_api_action("register_user", status="error", detail="missing_uid_or_name")
         return jsonify({"error": "UID と 氏名 は必須です"}), 400
     
     conn = get_conn()
@@ -547,20 +641,24 @@ def register_user():
               ON CONFLICT(uid) DO UPDATE SET full_name=EXCLUDED.full_name
             """, (uid, name.strip()))
         print(f"👤 ユーザー登録: {name} ({uid})")
+        log_api_action("register_user", detail={"uid": uid, "name": name})
         return jsonify({"status": "success", "message": "ユーザーを登録/更新しました"})
     except Exception as e:
         print(f"❌ ユーザー登録エラー: {e}")
+        log_api_action("register_user", status="error", detail={"uid": uid, "error": str(e)})
         return jsonify({"error": str(e)}), 500
     finally:
         conn.close()
 
 @app.route('/api/register_tool', methods=['POST'])
+@require_api_token("register_tool")
 def register_tool():
     data = request.json
     uid = data.get('uid')
     name = data.get('name')
     
     if not uid or not name:
+        log_api_action("register_tool", status="error", detail="missing_uid_or_name")
         return jsonify({"error": "UID と 工具名 は必須です"}), 400
     
     conn = get_conn()
@@ -572,9 +670,11 @@ def register_tool():
               ON CONFLICT(uid) DO UPDATE SET name=EXCLUDED.name
             """, (uid, name))
         print(f"🛠️ 工具登録: {name} ({uid})")
+        log_api_action("register_tool", detail={"uid": uid, "name": name})
         return jsonify({"status": "success", "message": "工具を登録/更新しました"})
     except Exception as e:
         print(f"❌ 工具登録エラー: {e}")
+        log_api_action("register_tool", status="error", detail={"uid": uid, "error": str(e)})
         return jsonify({"error": str(e)}), 500
     finally:
         conn.close()
@@ -591,44 +691,53 @@ def get_tool_names():
         conn.close()
 
 @app.route('/api/add_tool_name', methods=['POST'])
+@require_api_token("add_tool_name")
 def add_tool_name_api():
     data = request.json
     name = data.get('name')
     
     if not name:
+        log_api_action("add_tool_name", status="error", detail="missing_name")
         return jsonify({"error": "工具名を入力してください"}), 400
     
     conn = get_conn()
     try:
         add_tool_name(conn, name.strip())
         print(f"📚 工具名追加: {name}")
+        log_api_action("add_tool_name", detail={"name": name})
         return jsonify({"status": "success", "message": "追加しました"})
     except Exception as e:
         print(f"❌ 工具名追加エラー: {e}")
+        log_api_action("add_tool_name", status="error", detail={"name": name, "error": str(e)})
         return jsonify({"error": str(e)}), 500
     finally:
         conn.close()
 
 @app.route('/api/delete_tool_name', methods=['POST'])
+@require_api_token("delete_tool_name")
 def delete_tool_name_api():
     data = request.json
     name = data.get('name')
     
     if not name:
+        log_api_action("delete_tool_name", status="error", detail="missing_name")
         return jsonify({"error": "工具名を指定してください"}), 400
     
     conn = get_conn()
     try:
         delete_tool_name(conn, name)
         print(f"🗑️ 工具名削除: {name}")
+        log_api_action("delete_tool_name", detail={"name": name})
         return jsonify({"status": "success", "message": "削除しました"})
     except Exception as e:
         print(f"❌ 工具名削除エラー: {e}")
+        log_api_action("delete_tool_name", status="error", detail={"name": name, "error": str(e)})
         return jsonify({"error": str(e)}), 500
     finally:
         conn.close()
 
 @app.route('/api/check_tag', methods=['POST'])
+@require_api_token("check_tag")
 def check_tag():
     """タグ情報確認用API"""
     print("📡 タグ情報確認スキャン実行中...")
@@ -660,15 +769,17 @@ def check_tag():
                 result["type"] = "unregistered"
                 result["name"] = ""
                 result["message"] = "❓ 未登録のタグです"
-                
+            log_api_action("check_tag", detail=result)
             return jsonify(result)
         finally:
             conn.close()
     else:
         print("❌ タグ情報確認 タイムアウト")
+        log_api_action("check_tag", status="error", detail={"status": "timeout"})
         return jsonify({"uid": None, "status": "timeout"})
 
 @app.route("/api/shutdown", methods=["POST"])
+@require_api_token("shutdown")
 def api_shutdown():
     """
     ローカル操作（127.0.0.1/::1）または有効なトークンでのみ受け付ける安全シャットダウン。
@@ -683,9 +794,11 @@ def api_shutdown():
                  or (request.headers.get("Authorization", "").replace("Bearer ", "")))
 
         if not confirmed:
+            log_api_action("shutdown", status="error", detail="confirm_missing")
             return jsonify({"ok": False, "error": "confirm_required"}), 400
 
         if not (_is_local_request() or (SHUTDOWN_TOKEN and token == SHUTDOWN_TOKEN)):
+            log_api_action("shutdown", status="denied", detail={"remote": request.remote_addr})
             return jsonify({"ok": False, "error": "forbidden"}), 403
 
         def do_shutdown():
@@ -699,8 +812,10 @@ def api_shutdown():
                 print(f"[shutdown] failed: {e}", flush=True)
 
         threading.Timer(1.0, do_shutdown).start()
+        log_api_action("shutdown", detail={"remote": request.remote_addr})
         return jsonify({"ok": True, "message": "Shutting down..."})
     except Exception as e:
+        log_api_action("shutdown", status="error", detail=str(e))
         return jsonify({"ok": False, "error": str(e)}), 500
 
 
