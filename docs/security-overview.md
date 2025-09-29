@@ -23,6 +23,9 @@
 - **リスク**: SSH や Web サービスの脆弱性を突かれ内部侵入。感染後に LAN 内の他システムへ攻撃が横展開。
 - **対策パッケージ**:
   1. **OS レベルの遮蔽**: `ufw` で不要ポートを閉じ、SSH は鍵認証＋限定 IP からのみ許可。`fail2ban` 等で連続ログインをブロック。
+      - `scripts/configure_ufw.sh` で SSH 許可 CIDR を指定しつつ一括設定できるようにし、現場で CIDR を確認後 `ufw enable` を実行する。
+      - `/etc/ssh/sshd_config` では `PermitRootLogin no`, `PasswordAuthentication no`, `AllowUsers tools01` を明示し、失敗時に `sudo sshd -t` で構文をチェックする運用を徹底。
+      - `fail2ban` を導入し `sshd` jail を有効化、最大 5 回までで 10 分間の BAN を標準とする。
   2. **アプリ権限の最小化**: Flask/DocumentViewer を専用ユーザー（`tools01`）で起動し、sudo 権限は `NOPASSWD` で必要コマンドのみに限定。
   3. **ネットワーク分離**: 工場ライン用 VLAN と事務 LAN を分け、ラズパイから社内主要サーバへの通信を遮断。HTTP アクセスも必要先に限定。
   4. **定期アップデート**: `apt upgrade`, `pip-audit` を定期実施し、脆弱性パッチを適用。RUNBOOK に更新手順と承認フローを明記。
