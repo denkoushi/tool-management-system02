@@ -6,6 +6,45 @@
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>アイテム管理システム</title>
   <script src="/static/js/socket.io.js"></script>
+  <script>
+    (function(){
+      const tokenRequired = {{ 'true' if api_token_required else 'false' }};
+      const tokenHeader = {{ api_token_header|tojson }};
+      if (!tokenRequired){
+        return;
+      }
+      const originalFetch = window.fetch.bind(window);
+
+      function obtainToken(){
+        let token = sessionStorage.getItem('apiToken');
+        if (!token){
+          token = window.prompt('管理用パスコードを入力してください');
+          if (token){
+            sessionStorage.setItem('apiToken', token);
+          }
+        }
+        return token;
+      }
+
+      window.fetch = function(url, options){
+        const opts = options ? {...options} : {};
+        const headers = new Headers(options && options.headers ? options.headers : undefined);
+        const token = obtainToken();
+        if (!token){
+          return Promise.reject(new Error('APIトークンが設定されていません'));
+        }
+        headers.set(tokenHeader, token);
+        opts.headers = headers;
+        return originalFetch(url, opts).then(response => {
+          if (response.status === 401){
+            sessionStorage.removeItem('apiToken');
+            alert('APIトークンが無効です。再入力してください。');
+          }
+          return response;
+        });
+      };
+    })();
+  </script>
   
 
   <style>
