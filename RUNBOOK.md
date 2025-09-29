@@ -213,6 +213,53 @@
 - `sudo raspi-config` → System Options → Boot / Auto Login → Desktop Autologin を選択。
 - 再起動すると GUI ログイン直後に Chromium が `http://127.0.0.1:8501` を全画面表示します。停止したい場合は `~/.config/autostart/chromium-kiosk.desktop` を削除し、再ログインしてください。
 
+### 3.3 OS レベル防御（Firewall / SSH）
+
+1. **事前調査**
+   - 現在のネットワークを把握：`ip -4 addr show` や `hostname -I` で管理端末の IP を確認。
+   - 管理端末からの接続テスト：`ssh tools01@<ラズパイIP>` が鍵認証で成功すること。
+
+2. **UFW の設定**
+   - スクリプトを利用：
+
+        cd ~/tool-management-system02
+        sudo ./scripts/configure_ufw.sh <許可したいCIDR> [追加CIDR...] --no-enable
+
+     - 例：`sudo ./scripts/configure_ufw.sh 192.168.10.0/24 --no-enable`
+     - 現場でネットワークを確認後、`sudo ufw enable` を実行して有効化。
+     - 別端末からの疎通確認後、`sudo ufw status numbered` を記録。
+
+3. **SSH 設定強化**
+   - `/etc/ssh/sshd_config` に以下を明示的に追加（既存行があれば上書き）：
+
+        PermitRootLogin no
+        PasswordAuthentication no
+        PubkeyAuthentication yes
+        AllowUsers tools01
+
+   - 編集後に構文確認：`sudo sshd -t`
+   - 反映：`sudo systemctl restart ssh`
+   - 別セッションで鍵認証ログインできるか確認。
+
+4. **fail2ban**（ブルートフォース対策）
+   - インストール：`sudo apt install fail2ban`
+   - `/etc/fail2ban/jail.local` を作成し、以下を追記：
+
+        [sshd]
+        enabled = true
+        maxretry = 5
+        bantime = 600
+
+   - 有効化：`sudo systemctl enable --now fail2ban`
+   - 状態確認：`sudo fail2ban-client status sshd`
+
+5. **ロールバック手順**
+   - UFW を一時停止：`sudo ufw disable`
+   - SSH を元に戻す場合はバックアップしておいた `sshd_config` を復旧してから `sudo systemctl restart ssh`
+   - fail2ban を停止：`sudo systemctl disable --now fail2ban`
+
+> **注意**: UFW を有効化する前に必ず現地ネットワークからログイン操作を行い、想定外の遮断が発生していないか確認してください。
+
 ---
 
 ## 4. データ保全（バックアップ／リストア）
