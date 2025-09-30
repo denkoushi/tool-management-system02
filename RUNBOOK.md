@@ -409,6 +409,20 @@
     docker exec -it pg psql -U app -d sensordb -c "\dt"
     docker exec -it pg psql -U app -d sensordb -P pager=off -c "SELECT id, tool_uid, borrower_uid, loaned_at, return_user_uid, returned_at FROM loans ORDER BY id DESC LIMIT 5;"
 
+- RealVNC での接続（Mac 例）：
+
+    # Mac 側で IP を確認
+    ipconfig getifaddr en1
+
+    # ラズパイ側で VNC (5900/tcp) を許可
+    sudo ufw allow from <MacのIP> to any port 5900 proto tcp
+
+    # ルールを確認
+    sudo ufw status numbered
+
+    # VNC サーバーの稼働確認
+    systemctl status vncserver-x11-serviced --no-pager
+
 ---
 
 ## 7. トラブルシューティング
