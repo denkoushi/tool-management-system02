@@ -284,6 +284,18 @@
    - ログに 401 が連続する場合は不正アクセスまたはトークン入力ミスの可能性があるため、`fail2ban` の結果と併せて確認する。
    - トークンを変更したい場合は、`systemctl restart toolmgmt.service` 後にブラウザの `sessionStorage` をクリアする。
 
+### 3.5 ログローテーション（toolmgmt/document-viewer）
+
+1. 初回セットアップ：
+
+        cd ~/tool-management-system02
+        ./scripts/install_logrotate_toolmgmt.sh
+
+   - `/etc/logrotate.d/toolmgmt` が作成され、`usbsync.log` / `api_actions.log` / `import.log` が 14 日保持で圧縮される。
+2. 反映確認：`sudo logrotate --debug /etc/logrotate.d/toolmgmt | head -n 20`
+3. ルール追加後は `sudo systemctl status cron`（または `anacron`）を確認し、デフォルトの logrotate が有効であることを確認する。
+4. ローテーション後のログは `/var/log/toolmgmt/*.log.*.gz` へ保存されるため、保管ポリシーに従って外部媒体へコピーする。
+
 ---
 
 ## 4. データ保全（バックアップ／リストア）
@@ -329,6 +341,20 @@
 - 片付け（任意）：
 
     docker exec -i pg psql -U app -d postgres -c "DROP DATABASE sensordb_verify;"
+
+### 4.3 バックアップ点検（週次推奨）
+
+1. 最新バックアップの健全性チェック：
+
+        cd ~/tool-management-system02
+        ./scripts/check_backup_status.sh            # 24時間以内を確認
+
+   - しきい値を変更したい場合は `./scripts/check_backup_status.sh 48` のように時間を指定。
+   - 結果に `WARNING` や `ERROR` が出た場合は、バックアップパスを再確認し、`journalctl -u backup_db.service -n 20` で失敗原因を追う。
+
+2. `systemctl status backup_db.timer` でタイマーが `active (running)` か確認。
+3. `backups/` ディレクトリを週次で外部媒体にコピーする（USB 等）。
+4. 点検結果は運用ノート（例：Google Sheets）に日付・担当者・判定を記録する。
 
 ---
 
