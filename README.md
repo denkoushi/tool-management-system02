@@ -127,7 +127,15 @@
     - LAN 上の共有を参照したい場合は `PLAN_REMOTE_BASE_URL=file:///path/to/share` 形式で `file://` を指定。
     - 取得状況は標準出力に `[plan-cache] ...` として記録されます。
 
-11. **DocumentViewer 常駐化 + ブラウザのキオスク自動起動**
+11. **テスト（pytest）**
+
+        make test
+
+    `PLAN_REMOTE_BASE_URL` などの環境変数を与えたい場合は `PLAN_REMOTE_BASE_URL=... make test` のように実行します。簡易動作確認であれば `make test-smoke` を利用してください（現状 `make test` と同じです）。
+
+    開発環境で pytest を利用する際は `pip install -r requirements-dev.txt` を実行してください。
+
+12. **DocumentViewer 常駐化 + ブラウザのキオスク自動起動**
 
         sudo bash setup_auto_start.sh                        # toolmgmt.service を設定
         sudo ~/DocumentViewer/scripts/install_docviewer_service.sh  # docviewer.service を設定
