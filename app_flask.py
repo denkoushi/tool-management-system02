@@ -192,29 +192,41 @@ def build_production_view() -> dict:
     plan_data = load_plan_dataset("production_plan")
     standard_data = load_plan_dataset("standard_times")
 
-    standard_index = {}
-    for row in standard_data["rows"]:
-        key = (row["部品番号"], row["工程名"])
-        standard_index[key] = row
-
-    entries = []
+    plan_entries = []
     for row in plan_data["rows"]:
         record = dict(row)
-        std = standard_index.get((row["部品番号"], row["工程名"]))
-        record["標準工数"] = std.get("機械標準工数") if std else "—"
-        record["標準工数_製造オーダー"] = std.get("製造オーダー番号") if std else ""
         record["_sort_due"] = _parse_due_date(row.get("納期"))
-        entries.append(record)
+        plan_entries.append(record)
 
-    entries.sort(key=lambda item: (
+    plan_entries.sort(key=lambda item: (
         item["_sort_due"] if item["_sort_due"] else datetime.max,
         item.get("製番", ""),
     ))
-    for item in entries:
+    for item in plan_entries:
         item.pop("_sort_due", None)
 
+    standard_entries = []
+    for row in standard_data["rows"]:
+        record = dict(row)
+        record["_sort_key"] = (
+            record.get("部品番号", ""),
+            record.get("工程名", ""),
+        )
+        standard_entries.append(record)
+
+    standard_entries.sort(
+        key=lambda item: (
+            item["_sort_key"][0] or "",
+            item["_sort_key"][1] or "",
+        )
+    )
+    for item in standard_entries:
+        item.pop("_sort_key", None)
+
     return {
-        "entries": entries,
+        "entries": plan_entries,
+        "plan_entries": plan_entries,
+        "standard_entries": standard_entries,
         "plan_error": plan_data["error"],
         "standard_error": standard_data["error"],
         "plan_updated_at": plan_data["updated_at"],
