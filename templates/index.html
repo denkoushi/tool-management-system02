@@ -14,13 +14,39 @@
         return;
       }
       const originalFetch = window.fetch.bind(window);
+      const storageKey = 'apiToken';
+
+      const tokenStorage = {
+        get(){
+          try {
+            return localStorage.getItem(storageKey) || sessionStorage.getItem(storageKey);
+          } catch (_) {
+            return sessionStorage.getItem(storageKey);
+          }
+        },
+        set(value){
+          try {
+            localStorage.setItem(storageKey, value);
+          } catch (_) {
+            sessionStorage.setItem(storageKey, value);
+          }
+        },
+        clear(){
+          try { localStorage.removeItem(storageKey); } catch (_) {}
+          sessionStorage.removeItem(storageKey);
+        }
+      };
+
+      window.clearStoredApiToken = () => {
+        tokenStorage.clear();
+      };
 
       function obtainToken(){
-        let token = sessionStorage.getItem('apiToken');
+        let token = tokenStorage.get();
         if (!token){
           token = window.prompt('管理用パスコードを入力してください');
           if (token){
-            sessionStorage.setItem('apiToken', token);
+            tokenStorage.set(token);
           }
         }
         return token;
@@ -37,7 +63,7 @@
         opts.headers = headers;
         return originalFetch(url, opts).then(response => {
           if (response.status === 401){
-            sessionStorage.removeItem('apiToken');
+            tokenStorage.clear();
             alert('APIトークンが無効です。再入力してください。');
           }
           return response;
@@ -603,6 +629,9 @@
       {% if api_token_error %}
         <div class="dashboard-alert">API トークンの読み込みでエラーが発生しています: {{ api_token_error }}</div>
       {% endif %}
+      <div class="button-row" style="margin-top:6px;">
+        <button class="btn btn-secondary" onclick="clearStoredTokenAndNotify()">トークンをクリア</button>
+      </div>
     </div>
   </div>
     </div>
@@ -711,6 +740,15 @@
     const panel = document.getElementById('docViewerPanel');
     if (panel){
       panel.dataset.stationProcess = stationConfig.process || '';
+    }
+  }
+
+  function clearStoredTokenAndNotify(){
+    if (typeof window.clearStoredApiToken === 'function'){
+      window.clearStoredApiToken();
+      showStationMessage('info', '保存済みの API トークンをクリアしました。再読み込み後に再入力してください。');
+    } else {
+      showStationMessage('warning', 'API トークンのクリア機能が利用できませんでした');
     }
   }
 
