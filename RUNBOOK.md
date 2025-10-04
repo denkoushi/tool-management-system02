@@ -356,6 +356,10 @@ USB メモリ経由で生産計画と標準工数の CSV を配布し、左上�
 4. **トラブルシュート**
    - station.json が破損している場合: CLI で `set` を実行するかファイルを削除すると再生成される。
    - UI でエラー表示が出る場合: 書き込み権限、ディスク容量、API トークンの有効性を確認。
+   - 初回にディレクトリが存在しない場合:  
+        sudo mkdir -p /var/lib/toolmgmt  
+        sudo chown tools01:tools01 /var/lib/toolmgmt  
+        sudo chmod 755 /var/lib/toolmgmt
 
 ---
 
