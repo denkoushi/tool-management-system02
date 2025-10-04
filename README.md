@@ -140,8 +140,14 @@
 
     `PLAN_REMOTE_BASE_URL` などの環境変数を与えたい場合は `PLAN_REMOTE_BASE_URL=... make test` のように実行します。簡易動作確認であれば `make test-smoke` を利用してください（現状 `make test` と同じです）。
 
-    開発環境で pytest を利用する際は `pip install -r requirements-dev.txt` を実行してください。
-        Pi 側のシステム Python は PEP 668 により `pip install` が制限されています。必ず `python3 -m venv venv` で仮想環境を作成し、`source venv/bin/activate` → `pip install -r requirements-dev.txt` → `pytest -q` の順に実行してください。
+    仮想環境上で次を実行してください（Pi ではシステム Python への `pip install` が禁止されているため）。
+
+        python3 -m venv venv
+        source venv/bin/activate
+        pip install -r requirements.txt -r requirements-dev.txt
+        pytest -q
+
+    ※ `make test` でも同じ処理を行います。
 
 12. **DocumentViewer 常駐化 + ブラウザのキオスク自動起動**
 
