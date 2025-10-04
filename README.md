@@ -77,17 +77,24 @@
 
    管理 API にアクセスするときは `X-API-Token` ヘッダでトークンを付与する必要があります。既定では `/etc/toolmgmt/api_token.json` を参照します。
 
-   トークン発行（既存ファイルを上書きし、新しいトークン文字列を出力）:
-
-        python scripts/manage_api_token.py issue --station-id CUTTING-01
-
-   既存設定の確認（トークン文字列はマスク表示、`--reveal` で全表示）:
+   一覧表示（マスク表示。`--reveal` で全表示）:
 
         python scripts/manage_api_token.py show
 
-   トークンの失効（ファイル削除）:
+   トークン発行（既存を無効化して新規発行。`--keep-existing` で並存させる）:
 
-        python scripts/manage_api_token.py revoke
+        python scripts/manage_api_token.py issue --station-id CUTTING-01
+
+   トークン再発行（station_id を省略すると既存の station_id を引き継ぎ）:
+
+        python scripts/manage_api_token.py rotate --station-id CUTTING-01
+
+   トークンの無効化:
+
+        python scripts/manage_api_token.py revoke --token <発行したトークン文字列>
+        python scripts/manage_api_token.py revoke --station-id CUTTING-01
+        python scripts/manage_api_token.py revoke --all   # すべて無効化
+        python scripts/manage_api_token.py revoke --file  # ファイルごと削除
 
    初回は `/etc/toolmgmt` が存在しない場合があるため、次のコマンドでディレクトリを作成し書き込み権限を与えてください。
 
