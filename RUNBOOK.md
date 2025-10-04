@@ -264,6 +264,7 @@
 
 1. **API トークンの設定**
    - 既定では `/etc/toolmgmt/api_token.json` に `{ "token": "...", "station_id": "CUTTING-01", "issued_at": "..." }` 形式で保存する。
+   - メンテナンス → API トークン管理 から一覧・発行・無効化が可能。発行時に表示されるトークンは必ず控えておく。
    - 確認：`python scripts/manage_api_token.py show`（`--reveal` で全表示）
    - 発行：`python scripts/manage_api_token.py issue --station-id CUTTING-01`
    - 再発行：`python scripts/manage_api_token.py rotate --station-id CUTTING-01`
