@@ -20,7 +20,15 @@ import subprocess
 import urllib.request
 from usb_sync import run_usb_sync
 from station_config import load_station_config, save_station_config
-from api_token_store import get_token_info, get_active_tokens, API_TOKEN_HEADER
+from api_token_store import (
+    get_token_info,
+    get_active_tokens,
+    list_tokens,
+    issue_token,
+    revoke_token,
+    API_TOKEN_FILE,
+    API_TOKEN_HEADER,
+)
 from plan_cache import maybe_refresh_plan_cache
 
 
@@ -726,6 +734,81 @@ def api_station_config_update():
         "available": config.get("available"),
     })
     return jsonify(config)
+
+
+@app.route('/api/tokens', methods=['GET'])
+@require_api_token("list_tokens")
+def api_tokens_list():
+    reveal = request.args.get('reveal') == '1'
+    tokens = list_tokens(with_token=reveal)
+    summary = get_token_info()
+    if not reveal and summary.get("token"):
+        summary = dict(summary)
+        summary["token"] = summary.get("token_preview", "***")
+    log_api_action("list_tokens", detail={"count": len(tokens)})
+    return jsonify({
+        "tokens": tokens,
+        "summary": summary,
+        "file": str(API_TOKEN_FILE),
+    })
+
+
+@app.route('/api/tokens', methods=['POST'])
+@require_api_token("issue_token")
+def api_tokens_issue():
+    payload = request.get_json(silent=True) or {}
+    station_id = (payload.get("station_id") or "").strip()
+    keep_existing = bool(payload.get("keep_existing"))
+    note = payload.get("note")
+
+    if not station_id:
+        return jsonify({"error": "station_id を指定してください"}), 400
+
+    try:
+        entry = issue_token(station_id=station_id, token=None, note=note, keep_existing=keep_existing)
+    except Exception as exc:  # pylint: disable=broad-except
+        log_api_action("issue_token", status="error", detail=str(exc))
+        return jsonify({"error": str(exc)}), 500
+
+    log_api_action("issue_token", detail={
+        "station_id": station_id,
+        "note": note,
+        "keep_existing": keep_existing,
+    })
+
+    response = {
+        "token": entry.get("token"),
+        "station_id": entry.get("station_id"),
+        "issued_at": entry.get("issued_at"),
+        "note": entry.get("note"),
+    }
+    return jsonify(response)
+
+
+@app.route('/api/tokens/revoke', methods=['POST'])
+@require_api_token("revoke_token")
+def api_tokens_revoke():
+    payload = request.get_json(silent=True) or {}
+    token = payload.get("token")
+    station_id = payload.get("station_id")
+    revoke_all = bool(payload.get("all"))
+
+    if not (token or station_id or revoke_all):
+        return jsonify({"error": "token / station_id / all のいずれかを指定してください"}), 400
+
+    try:
+        count = revoke_token(token=token, station_id=station_id, all_tokens=revoke_all)
+    except Exception as exc:  # pylint: disable=broad-except
+        log_api_action("revoke_token", status="error", detail=str(exc))
+        return jsonify({"error": str(exc)}), 500
+
+    log_api_action("revoke_token", detail={
+        "token": token,
+        "station_id": station_id,
+        "all": revoke_all,
+        "updated": count,
+    })
+    return jsonify({"updated": count})
 
 @app.route('/api/loans/<int:loan_id>/manual_return', methods=['POST'])
 @require_api_token("manual_return")
