@@ -624,6 +624,70 @@
         <button class="btn btn-secondary" onclick="clearStoredTokenAndNotify()">トークンをクリア</button>
       </div>
     </div>
+
+    <div class="maintenance-card">
+      <h3>API トークン管理</h3>
+      <p style="color:#6b7280; font-size:14px;">ステーションごとの API トークンを発行・一覧・無効化できます。新しいトークンは即座に有効になります（古いトークンは無効化してください）。</p>
+
+      <div class="button-row" style="margin-bottom:6px;">
+        <button class="btn btn-secondary" onclick="loadApiTokens()">一覧を更新</button>
+      </div>
+
+      <div class="scrollable" style="max-height:200px; overflow:auto; border:1px solid #e2e8f0; border-radius:8px;">
+        <table class="production-dashboard__table" id="apiTokenTable">
+          <thead>
+            <tr>
+              <th style="width:100px;">ステーション</th>
+              <th style="width:120px;">発行日時</th>
+              <th style="width:120px;">無効化</th>
+              <th>メモ</th>
+              <th style="width:70px;">状態</th>
+              <th style="width:130px;">トークン</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div id="apiTokenMessage" style="margin-top:8px;"></div>
+
+      <h4 style="margin-top:12px;">新しいトークンを発行</h4>
+      <div class="input-row">
+        <div class="input-group">
+          <label>station_id</label>
+          <input type="text" id="apiTokenStationInput" class="form-control" placeholder="例: CUTTING-01">
+        </div>
+        <div class="input-group">
+          <label>メモ（任意）</label>
+          <input type="text" id="apiTokenNoteInput" class="form-control" placeholder="端末の設置場所など">
+        </div>
+      </div>
+      <div class="input-row" style="align-items:center;">
+        <label style="display:flex;align-items:center;gap:6px;">
+          <input type="checkbox" id="apiTokenKeepExisting"> 既存トークンを無効化せず追加する
+        </label>
+        <button class="btn btn-primary" onclick="issueApiToken()">新しいトークンを発行</button>
+      </div>
+      <pre id="apiTokenIssued" style="display:none;background:#1f2937;color:#f8fafc;padding:10px;border-radius:8px;font-size:12px;overflow:auto;"></pre>
+
+      <h4 style="margin-top:12px;">トークンを無効化</h4>
+      <div class="input-row">
+        <div class="input-group">
+          <label>トークン文字列で無効化</label>
+          <input type="text" id="apiTokenRevokeTokenInput" class="form-control" placeholder="発行したトークン文字列（任意）">
+        </div>
+        <div class="input-group">
+          <label>station_id で無効化</label>
+          <input type="text" id="apiTokenRevokeStationInput" class="form-control" placeholder="例: CUTTING-01">
+        </div>
+      </div>
+      <div class="input-row" style="align-items:center;">
+        <label style="display:flex;align-items:center;gap:6px;">
+          <input type="checkbox" id="apiTokenRevokeAll"> すべてのトークンを無効化する
+        </label>
+        <button class="btn btn-danger" onclick="revokeApiToken()">無効化を実行</button>
+      </div>
+    </div>
   </div>
     </div>
   </div>
@@ -740,6 +804,125 @@
       showStationMessage('info', '保存済みの API トークンをクリアしました。再読み込み後に再入力してください。');
     } else {
       showStationMessage('warning', 'API トークンのクリア機能が利用できませんでした');
+    }
+  }
+
+  function showApiTokenMessage(type, msg){
+    const el = document.getElementById('apiTokenMessage');
+    if(!el) return;
+    el.innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
+    setTimeout(()=>{ if(el.innerHTML.includes(msg)){ el.innerHTML=''; } }, 6000);
+  }
+
+  async function loadApiTokens(){
+    const tableBody = document.querySelector('#apiTokenTable tbody');
+    if(tableBody) tableBody.innerHTML = '';
+    try{
+      const res = await fetch('/api/tokens');
+      const data = await res.json();
+      if(!res.ok){
+        showApiTokenMessage('danger', data.error || 'トークン一覧の取得に失敗しました');
+        return;
+      }
+      if(tableBody){
+        const tokens = data.tokens || [];
+        tokens.forEach(entry => {
+          const tr = tableBody.insertRow();
+          tr.insertCell(0).textContent = entry.station_id || '-';
+          tr.insertCell(1).textContent = entry.issued_at || '-';
+          tr.insertCell(2).textContent = entry.revoked_at || '-';
+          tr.insertCell(3).textContent = entry.note || '';
+          tr.insertCell(4).textContent = entry.revoked_at ? '無効' : '有効';
+          tr.insertCell(5).textContent = entry.token || '';
+        });
+        if(tokens.length === 0){
+          const tr = tableBody.insertRow();
+          const td = tr.insertCell(0);
+          td.colSpan = 6;
+          td.style.textAlign = 'center';
+          td.style.color = '#64748b';
+          td.textContent = '登録されているトークンはありません';
+        }
+      }
+    }catch(err){
+      showApiTokenMessage('danger', `トークン一覧の取得でエラー: ${err}`);
+    }
+  }
+
+  let apiTokenIssuedTimer = null;
+
+  async function issueApiToken(){
+    const stationInput = document.getElementById('apiTokenStationInput');
+    const noteInput = document.getElementById('apiTokenNoteInput');
+    const keepExisting = document.getElementById('apiTokenKeepExisting').checked;
+    const payload = {
+      station_id: stationInput.value.trim(),
+      note: noteInput.value.trim() || null,
+      keep_existing: keepExisting,
+    };
+    if(!payload.station_id){
+      showApiTokenMessage('warning', 'station_id を入力してください');
+      return;
+    }
+    try{
+      const res = await fetch('/api/tokens', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if(!res.ok){
+        showApiTokenMessage('danger', data.error || 'トークン発行に失敗しました');
+        return;
+      }
+      const pre = document.getElementById('apiTokenIssued');
+      if(pre){
+        pre.style.display = 'block';
+        pre.textContent = `station_id: ${data.station_id}\nissued_at: ${data.issued_at}\nnote: ${data.note || ''}\n\n下記トークンを安全な場所に保管してください:\n${data.token}`;
+        if(apiTokenIssuedTimer) clearTimeout(apiTokenIssuedTimer);
+        apiTokenIssuedTimer = setTimeout(()=>{ pre.style.display='none'; pre.textContent=''; }, 60000);
+      }
+      showApiTokenMessage('success', 'トークンを発行しました。表示されたトークンを保管してください。');
+      stationInput.value='';
+      noteInput.value='';
+      document.getElementById('apiTokenKeepExisting').checked = false;
+      loadApiTokens();
+    }catch(err){
+      showApiTokenMessage('danger', `トークン発行でエラー: ${err}`);
+    }
+  }
+
+  async function revokeApiToken(){
+    const tokenInput = document.getElementById('apiTokenRevokeTokenInput');
+    const stationInput = document.getElementById('apiTokenRevokeStationInput');
+    const revokeAll = document.getElementById('apiTokenRevokeAll').checked;
+    const payload = {
+      token: (tokenInput.value || '').trim() || null,
+      station_id: (stationInput.value || '').trim() || null,
+      all: revokeAll,
+    };
+    if(!payload.token && !payload.station_id && !revokeAll){
+      showApiTokenMessage('warning', 'トークン文字列、station_id、または「すべて」を指定してください');
+      return;
+    }
+    try{
+      const res = await fetch('/api/tokens/revoke', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if(!res.ok){
+        showApiTokenMessage('danger', data.error || 'トークンの無効化に失敗しました');
+        return;
+      }
+      showApiTokenMessage('success', `${data.updated || 0} 件のトークンを無効化しました`);
+      tokenInput.value='';
+      stationInput.value='';
+      document.getElementById('apiTokenRevokeAll').checked = false;
+      loadApiTokens();
+    }catch(err){
+      showApiTokenMessage('danger', `トークン無効化でエラー: ${err}`);
     }
   }
 
@@ -1382,6 +1565,7 @@
     refreshStationUI(stationConfigInitial);
     fetchStationConfig();
     attachProductionRowHandlers();
+    loadApiTokens();
   });
 </script>
 
