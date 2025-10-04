@@ -263,9 +263,12 @@
 ### 3.4 管理 API の認証と監査ログ
 
 1. **API トークンの設定**
-   - 環境変数 `API_AUTH_TOKEN` を設定してから Flask アプリを起動する（systemd ユニットの場合は `Environment=API_AUTH_TOKEN=<token>` を追記）。
-   - UI で操作を行う際は、初回アクセス時にトークン入力のダイアログが表示され、`sessionStorage` に保存される。
-   - 401 が返った場合はトークンが無効化されるため、ダイアログで再入力する。
+   - 既定では `/etc/toolmgmt/api_token.json` に `{ "token": "...", "station_id": "CUTTING-01", "issued_at": "..." }` 形式で保存する。
+   - 発行例：`python scripts/manage_api_token.py issue --station-id CUTTING-01`
+   - 確認例：`python scripts/manage_api_token.py show`（`--reveal` で全表示）
+   - 失効：`python scripts/manage_api_token.py revoke`
+   - `/etc/toolmgmt` が存在しない場合は `sudo mkdir -p /etc/toolmgmt && sudo chown tools01:tools01 /etc/toolmgmt && sudo chmod 755 /etc/toolmgmt`
+   - 旧来どおり環境変数 `API_AUTH_TOKEN` を設定した場合はフォールバックとして利用される。
 
 2. **ヘッダ仕様**
    - 既定では `X-API-Token` ヘッダを使用。必要なら `API_TOKEN_HEADER` で名称を変更可能。
@@ -282,7 +285,7 @@
 
 5. **運用メモ**
    - ログに 401 が連続する場合は不正アクセスまたはトークン入力ミスの可能性があるため、`fail2ban` の結果と併せて確認する。
-   - トークンを変更したい場合は、`systemctl restart toolmgmt.service` 後にブラウザの `sessionStorage` をクリアする。
+   - トークンを再発行した場合は、発行コマンドの出力に表示される新しいトークンを利用者に周知し、ブラウザの `sessionStorage` をクリアして再入力を促す。
 
 ### 3.5 ログローテーション（toolmgmt/document-viewer）
 
@@ -385,9 +388,9 @@ USB メモリ経由で生産計画と標準工数の CSV を配布し、左上�
 ---
 
 4. **API トークン運用（ステーション単位）**  
-   - **方針**: 各ラズパイ/ステーションごとに API トークンを個別発行し、`/etc/toolmgmt/api_token` に格納して認証する。初期段階では CLI ツールでトークンを発行・失効させ、システムが安定したら管理 UI からの発行/無効化も検討する。  
-   - **運用**: `scripts/manage_token.py` で station_id を指定して発行し、`apply_station_token.sh` で端末へ適用。発行・失効ログを保管し、`/var/log/toolmgmt/api_actions.log` には station_id を記録する。トークン一覧や更新手順は README/RUNBOOK に追記。  
-   - **TODO**: トークン管理スクリプトの実装、初期セットアップ手順への組み込み、監査ログのフォーマット整備、将来の GUI 管理に備えた API 設計。
+   - **方針**: 各ラズパイ/ステーションごとに API トークンを個別発行し、`/etc/toolmgmt/api_token.json` に保存して認証する。初期段階では CLI ツールで発行・失効を行い、将来的に管理 UI からも発行できるようにする。  
+   - **運用**: `scripts/manage_api_token.py issue --station-id CUTTING-01` で発行し、出力されたトークンを利用者に共有。`show` で現在値確認、`revoke` で削除。監査ログ（`logs/api_actions.log`）には station_id が記録される。  
+   - **TODO**: トークン管理スクリプトの高度化（複数トークン対応や履歴管理）、初期セットアップ手順への組み込み、GUI 連携を見据えた API 設計。
 
 ---
 
