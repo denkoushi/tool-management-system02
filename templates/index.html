@@ -98,6 +98,11 @@
   .production-dashboard__meta strong{font-weight:600;color:#fff;}
   .production-dashboard__body{flex:1;display:flex;flex-direction:column;padding:12px 16px;gap:var(--space-3);overflow:hidden;}
   .production-dashboard__alerts{display:flex;flex-direction:column;gap:var(--space-2);}
+  .production-dashboard__sections{display:flex;flex-direction:column;gap:var(--space-4);overflow:auto;padding-right:4px;}
+  .production-dashboard__section{display:flex;flex-direction:column;gap:var(--space-2);}
+  .production-dashboard__section-header{display:flex;align-items:center;justify-content:space-between;gap:var(--space-2);}
+  .production-dashboard__section-title{margin:0;font-size:var(--fs-sm);font-weight:600;color:#0f172a;}
+  .production-dashboard__section-meta{font-size:var(--fs-xs);color:var(--muted);}
   .dashboard-alert{padding:10px 12px;border-radius:6px;font-size:var(--fs-sm);line-height:1.5;border:1px solid rgba(248,113,113,.35);background:rgba(248,113,113,.12);color:#7f1d1d;}
   .dashboard-note{padding:8px 12px;border-radius:6px;font-size:var(--fs-xs);background:rgba(14,165,233,.12);color:#0369a1;border:1px solid rgba(56,189,248,.3);}
   .production-dashboard__table-wrapper{flex:1;overflow:auto;border:1px solid rgba(148,163,184,.25);border-radius:8px;background:#fff;}
@@ -314,43 +319,86 @@
             <div class="dashboard-alert">{{ production_view.standard_error }}</div>
           {% endif %}
           {% if not production_view.plan_error and not production_view.standard_error %}
-            <div class="dashboard-note">USB 同期で <code>production_plan.csv</code> と <code>standard_times.csv</code> を配置すると、最新の計画が表示されます。</div>
+            <div class="dashboard-note">USB 同期で <code>production_plan.csv</code> と <code>standard_times.csv</code> を配置すると、生産計画と標準工数の最新データが表示されます。</div>
           {% endif %}
         </div>
-        {% if production_view.entries %}
-          <div class="production-dashboard__table-wrapper">
-            <table class="production-dashboard__table">
-              <thead>
-                <tr>
-                  <th style="width:120px;">納期</th>
-                  <th style="width:90px;">製番</th>
-                  <th style="width:110px;">部品番号</th>
-                  <th>部品名</th>
-                  <th style="width:90px;">工程名</th>
-                  <th style="width:70px;">個数</th>
-                  <th style="width:100px;">標準工数</th>
-                  <th style="width:130px;">工数参照オーダー</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for row in production_view.entries %}
-                  <tr>
-                    <td class="is-primary">{{ row['納期'] }}</td>
-                    <td>{{ row['製番'] }}</td>
-                    <td>{{ row['部品番号'] }}</td>
-                    <td>{{ row['部品名'] }}</td>
-                    <td>{{ row['工程名'] }}</td>
-                    <td style="text-align:right;">{{ row['個数'] }}</td>
-                    <td style="text-align:right;">{{ row['標準工数'] }}</td>
-                    <td>{{ row['標準工数_製造オーダー'] }}</td>
-                  </tr>
-                {% endfor %}
-              </tbody>
-            </table>
+        <div class="production-dashboard__sections">
+          <div class="production-dashboard__section">
+            <div class="production-dashboard__section-header">
+              <h3 class="production-dashboard__section-title">生産計画</h3>
+              {% if production_view.plan_updated_at %}
+                <span class="production-dashboard__section-meta">更新: {{ production_view.plan_updated_at }}</span>
+              {% endif %}
+            </div>
+            {% if production_view.plan_entries %}
+              <div class="production-dashboard__table-wrapper">
+                <table class="production-dashboard__table">
+                  <thead>
+                    <tr>
+                      <th style="width:120px;">納期</th>
+                      <th style="width:90px;">製番</th>
+                      <th style="width:110px;">部品番号</th>
+                      <th>部品名</th>
+                      <th style="width:90px;">工程名</th>
+                      <th style="width:70px;">個数</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for row in production_view.plan_entries %}
+                      <tr>
+                        <td class="is-primary">{{ row['納期'] }}</td>
+                        <td>{{ row['製番'] }}</td>
+                        <td>{{ row['部品番号'] }}</td>
+                        <td>{{ row['部品名'] }}</td>
+                        <td>{{ row['工程名'] }}</td>
+                        <td style="text-align:right;">{{ row['個数'] }}</td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% elif not production_view.plan_error %}
+              <div class="production-dashboard__empty">生産計画のデータがありません。USB に CSV を配置して同期してください。</div>
+            {% endif %}
           </div>
-        {% else %}
-          <div class="production-dashboard__empty">生産計画のデータがありません。USB に CSV を配置して同期してください。</div>
-        {% endif %}
+
+          <div class="production-dashboard__section">
+            <div class="production-dashboard__section-header">
+              <h3 class="production-dashboard__section-title">標準工数</h3>
+              {% if production_view.standard_updated_at %}
+                <span class="production-dashboard__section-meta">更新: {{ production_view.standard_updated_at }}</span>
+              {% endif %}
+            </div>
+            {% if production_view.standard_entries %}
+              <div class="production-dashboard__table-wrapper">
+                <table class="production-dashboard__table">
+                  <thead>
+                    <tr>
+                      <th style="width:140px;">部品名</th>
+                      <th style="width:110px;">部品番号</th>
+                      <th style="width:100px;">工程名</th>
+                      <th style="width:110px;">機械標準工数</th>
+                      <th style="width:140px;">製造オーダー番号</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for row in production_view.standard_entries %}
+                      <tr>
+                        <td>{{ row['部品名'] }}</td>
+                        <td>{{ row['部品番号'] }}</td>
+                        <td>{{ row['工程名'] }}</td>
+                        <td style="text-align:right;">{{ row['機械標準工数'] }}</td>
+                        <td>{{ row['製造オーダー番号'] }}</td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% elif not production_view.standard_error %}
+              <div class="production-dashboard__empty">標準工数のデータがありません。USB に CSV を配置して同期してください。</div>
+            {% endif %}
+          </div>
+        </div>
       </div>
     </section>
     <div class="operation-shelf">
