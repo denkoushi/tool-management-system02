@@ -327,6 +327,38 @@ USB メモリ経由で生産計画と標準工数の CSV を配布し、左上�
 
 ---
 
+### 3.7 工程設定（station.json）
+
+1. **設定ファイルとフォーマット**
+   - 既定パス: `/var/lib/toolmgmt/station.json`（`STATION_CONFIG_PATH` で変更可）
+   - 例:
+
+        {
+          "process": "切削",
+          "available": ["切削", "研磨"],
+          "updated_at": "2025-10-05T12:34:56"
+        }
+
+   - ファイルが存在しない場合は環境変数 `STATION_PROCESS` をフォールバックとして採用し、UI 上では「未設定」表示になる。
+
+2. **UI 操作手順（推奨）**
+   - 画面「🛠 メンテナンス」タブ → 「工程設定」で候補追加・削除と現在の工程の保存が可能。
+   - 保存成功時は station.json が即座に更新され、DocumentViewer の表示と生産計画ハイライトに反映される。
+
+3. **CLI 操作手順**
+
+        python scripts/manage_station_config.py show
+        python scripts/manage_station_config.py add 切削
+        python scripts/manage_station_config.py set --process 切削 --available 切削,研磨
+
+   - `remove` サブコマンドで候補から除外できる（現在の工程を削除した場合は「未設定」へ戻る）。
+
+4. **トラブルシュート**
+   - station.json が破損している場合: CLI で `set` を実行するかファイルを削除すると再生成される。
+   - UI でエラー表示が出る場合: 書き込み権限、ディスク容量、API トークンの有効性を確認。
+
+---
+
 ### 決定記録 (Decision Log)
 
 1. **DocumentViewer 工程設定の保持方法**  
