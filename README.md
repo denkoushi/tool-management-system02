@@ -67,6 +67,12 @@
 
    JSON の保存先は `STATION_CONFIG_PATH` 環境変数でも上書き可能です。
 
+   > 初回のみ: `/var/lib/toolmgmt/` が存在しない場合は次を実行して権限を与えてください。
+
+        sudo mkdir -p /var/lib/toolmgmt
+        sudo chown tools01:tools01 /var/lib/toolmgmt
+        sudo chmod 755 /var/lib/toolmgmt
+
 7. **psql クライアント（USB 同期で利用）**
 
         sudo apt install -y postgresql-client
