@@ -96,6 +96,7 @@
         sudo chmod 755 /etc/toolmgmt
 
    ブラウザの管理画面にアクセスすると、初回のみトークン入力を求められます。入力した値はキオスクブラウザの `localStorage` に保存されるため、通常は再起動後も再入力は不要です。メンテナンス → 工程設定カードにある「トークンをクリア」ボタンで保存済みトークンを削除できます。
+   トークンは「この端末が正規か」を識別する鍵で、ステーション単位で発行しておくと監査ログに station_id が残ります。端末を入れ替える際は `revoke` → 再発行 → 新しいトークンを入力するだけでアクセスを切り替えられます。
 
 8. **psql クライアント（USB 同期で利用）**
 
@@ -118,7 +119,15 @@
         SUDO
         sudo visudo -cf /etc/sudoers.d/toolmgmt-usbsync
 
-10. **DocumentViewer 常駐化 + ブラウザのキオスク自動起動**
+10. **リモート配布（任意）**
+
+    USB の代わりにサーバー上の CSV を取得したい場合は、環境変数 `PLAN_REMOTE_BASE_URL` を設定してください。例：`https://example.com/toolmgmt/plan` に `production_plan.csv` / `standard_times.csv` を配置しておくと、アプリ起動時にダウンロードされ `/var/lib/toolmgmt/plan/` が上書きされます。既定では 600 秒ごとに更新確認を行い（`PLAN_REMOTE_REFRESH_SECONDS` で調整）、失敗した場合はローカルの最終データを使います。
+
+    - 認証が必要な場合は `PLAN_REMOTE_TOKEN` に Bearer トークンを指定。
+    - LAN 上の共有を参照したい場合は `PLAN_REMOTE_BASE_URL=file:///path/to/share` 形式で `file://` を指定。
+    - 取得状況は標準出力に `[plan-cache] ...` として記録されます。
+
+11. **DocumentViewer 常駐化 + ブラウザのキオスク自動起動**
 
         sudo bash setup_auto_start.sh                        # toolmgmt.service を設定
         sudo ~/DocumentViewer/scripts/install_docviewer_service.sh  # docviewer.service を設定
