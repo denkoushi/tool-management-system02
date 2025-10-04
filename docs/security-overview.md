@@ -8,12 +8,18 @@
    - 取り込み対象をホワイトリスト化し、許可外ファイルや MIME タイプの不一致を検出すると同期を中断。  
    - `clamscan` を組み込んでおり、ウイルス検知時は即座に処理を停止し、ログに警告を残す。
 2. **ログと復旧の整備**  
-   - `/var/log/toolmgmt/usbsync.log` と `/var/log/document-viewer/import.log` に詳細なログを残し、RUNBOOK に確認手順と復旧手順を記載。  
-   - オフライン環境でも ClamAV 定義ファイルを更新できるよう、USB 経由の更新手順を用意。
-3. **OS レベル防御（進行中）**  
-   - UFW 用の設定スクリプト `scripts/configure_ufw.sh` を追加し、現場ネットワークに合わせた SSH 許可範囲を簡単に適用できるよう整備。  
-   - `sshd_config` で root ログイン禁止、パスワード認証無効化、公開鍵認証強制、`AllowUsers tools01` を明示済み。  
-   - `fail2ban` と UFW 有効化はこの後に適用し、RUNBOOK の手順と整合させる予定。
+   - `/var/log/toolmgmt/usbsync.log` と `/var/log/document-viewer/import.log` に詳細なログを残し、RUNBOOK に確認・復旧手順を記載。  
+   - オフライン環境でも ClamAV 定義ファイルを更新できるよう、USB 経由の更新手順と点検フローを用意。
+3. **OS レベル防御**  
+   - UFW 用の設定スクリプト `scripts/configure_ufw.sh` を整備し、現場ネットワークに合わせた SSH 許可範囲を簡単に適用可能。  
+   - `sshd_config` で root ログイン禁止、パスワード認証無効化、公開鍵認証強制、`AllowUsers tools01` を明示。  
+   - `fail2ban` を導入し `sshd` jail を標準化。RUNBOOK 3.3 に手順をまとめた。
+
+## 参考ドキュメント
+
+- 運用手順書（RUNBOOK）：ネットワーク/OS 設定 … [3.3-3.5](../RUNBOOK.md#33-os-レベル防御firewall--ssh) / バックアップ手順 … [4.1-4.3](../RUNBOOK.md#41-日次バックアップ保持-14-日)
+- 背景資料（本書）：リスク別対策および運用ポリシー
+- セキュリティ要求への回答：`docs/security-requirements-response.md`
 
 以下では、これらの対策を背景となるリスクごとに詳しく説明する。
 
