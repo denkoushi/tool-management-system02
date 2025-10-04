@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import importlib
+import sys
 import pytest
 
 
@@ -16,6 +17,7 @@ def test_load_plan_dataset(tmp_path, monkeypatch):
         (tmp_plan_dir / file_name).write_text(data, encoding="utf-8")
 
     monkeypatch.setenv("PLAN_DATA_DIR", str(tmp_plan_dir))
+    sys.path.insert(0, str(repo_root))
 
     if "app_flask" in importlib.sys.modules:
         importlib.reload(importlib.sys.modules["app_flask"])
