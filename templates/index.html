@@ -114,6 +114,14 @@
   .production-dashboard__table tbody tr:hover{background:rgba(148,163,184,.12);}
   .production-dashboard__table .is-primary{font-weight:600;color:var(--brand);}
   .production-dashboard__empty{padding:24px;border:1px dashed rgba(148,163,184,.5);border-radius:8px;text-align:center;font-size:var(--fs-sm);color:var(--muted);background:rgba(148,163,184,.08);}
+  .production-dashboard__table tr.is-highlight{background:rgba(14,165,233,.18) !important;box-shadow:inset 3px 0 0 var(--brand);}
+  .production-dashboard__table tr.is-candidate{background:rgba(250,204,21,.18) !important;}
+  .maintenance-card{margin-bottom:20px;padding:16px;background:#f8f9fa;border-radius:8px;border:1px solid #e5e7eb;}
+  .station-chip-list{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}
+  .station-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;background:rgba(37,99,235,.12);color:#1d4ed8;border:1px solid rgba(37,99,235,.2);border-radius:999px;font-size:var(--fs-xs);}
+  .station-chip button{background:none;border:0;color:inherit;font-size:12px;cursor:pointer;padding:0 4px;line-height:1;}
+  .station-chip button:hover{color:#dc2626;}
+  .station-meta{margin-top:6px;font-size:var(--fs-xs);color:var(--muted);}
   .future-panel{
     flex:1;
     background:#0f172a;
@@ -321,6 +329,7 @@
           {% if not production_view.plan_error and not production_view.standard_error %}
             <div class="dashboard-note">USB 同期で <code>production_plan.csv</code> と <code>standard_times.csv</code> を配置すると、生産計画と標準工数の最新データが表示されます。</div>
           {% endif %}
+          <div id="productionHighlightMessage" class="dashboard-note" style="display:none;"></div>
         </div>
         <div class="production-dashboard__sections">
           <div class="production-dashboard__section">
@@ -331,26 +340,26 @@
               {% endif %}
             </div>
             {% if production_view.plan_entries %}
-              <div class="production-dashboard__table-wrapper">
-                <table class="production-dashboard__table">
-                  <thead>
-                    <tr>
-                      <th style="width:120px;">納期</th>
-                      <th style="width:90px;">製番</th>
-                      <th style="width:110px;">部品番号</th>
+          <div class="production-dashboard__table-wrapper">
+            <table class="production-dashboard__table" id="productionPlanTable">
+              <thead>
+                <tr>
+                  <th style="width:120px;">納期</th>
+                  <th style="width:90px;">製番</th>
+                  <th style="width:110px;">部品番号</th>
                       <th>部品名</th>
                       <th style="width:90px;">工程名</th>
                       <th style="width:70px;">個数</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {% for row in production_view.plan_entries %}
-                      <tr>
-                        <td class="is-primary">{{ row['納期'] }}</td>
-                        <td>{{ row['製番'] }}</td>
-                        <td>{{ row['部品番号'] }}</td>
-                        <td>{{ row['部品名'] }}</td>
-                        <td>{{ row['工程名'] }}</td>
+                  {% for row in production_view.plan_entries %}
+                    <tr data-part="{{ row['部品番号'] }}" data-order="{{ row['標準工数_製造オーダー']|default('', true) }}" data-process="{{ row['工程名'] }}">
+                      <td class="is-primary">{{ row['納期'] }}</td>
+                      <td>{{ row['製番'] }}</td>
+                      <td>{{ row['部品番号'] }}</td>
+                      <td>{{ row['部品名'] }}</td>
+                      <td>{{ row['工程名'] }}</td>
                         <td style="text-align:right;">{{ row['個数'] }}</td>
                       </tr>
                     {% endfor %}
@@ -545,7 +554,7 @@
   <!-- メンテナンス -->
   <div id="maintenance" class="tab-content">
     <h2>🛠 メンテナンス</h2>
-    <div style="margin-bottom:20px; padding:16px; background:#f8f9fa; border-radius:8px; border:1px solid #e5e7eb;">
+    <div class="maintenance-card">
       <h3>USB 同期（手動）</h3>
       <p style="color:#6b7280; font-size:14px;">ラベル <code>TOOLMASTER</code> の USB メモリを挿入してから実行すると、マスターデータ（工具名・ユーザー・タグ紐づけ）を同期します。</p>
       <div class="button-row">
@@ -553,12 +562,49 @@
       </div>
       <pre id="usbSyncOutput" style="background:#1f2937; color:#e5e7eb; padding:12px; border-radius:6px; min-height:120px; overflow:auto; font-size:13px;">(まだ実行していません)</pre>
     </div>
+
+    <div class="maintenance-card">
+      <h3>工程設定</h3>
+      <p style="color:#6b7280; font-size:14px;">ラズパイが属する工程を設定します。変更すると DocumentViewer や生産計画の候補表示に反映されます。</p>
+      <div class="input-row">
+        <div class="input-group">
+          <label>現在の工程</label>
+          <select id="stationProcessSelect" class="form-control">
+            <option value="">（未設定）</option>
+            {% for name in station_config.available %}
+              <option value="{{ name }}" {% if station_config.process == name %}selected{% endif %}>{{ name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button class="btn btn-primary" onclick="saveStationProcess()">💾 保存</button>
+      </div>
+
+      <div class="input-row">
+        <div class="input-group">
+          <label>工程候補を追加</label>
+          <input type="text" id="stationNewProcessInput" class="form-control" placeholder="例：研磨">
+        </div>
+        <button class="btn btn-secondary" onclick="addStationProcess()">候補に追加</button>
+      </div>
+
+      <div class="station-chip-list" id="stationAvailableList"></div>
+      <div class="station-meta" id="stationConfigMeta">
+        {% if station_config.updated_at %}
+          最終更新: {{ station_config.updated_at }}
+        {% else %}
+          station.json はまだ保存されていません（環境変数または未設定）
+        {% endif %}
+        <br>設定ファイル: {{ station_config.path }}
+      </div>
+      <div id="stationConfigMessage"></div>
+    </div>
   </div>
     </div>
   </div>
   <div class="future-panel" id="docViewerPanel"
      data-doc-viewer-url="{{ doc_viewer_url|default('', true) }}"
-     data-doc-viewer-online="{{ 'true' if doc_viewer_online else 'false' }}">
+     data-doc-viewer-online="{{ 'true' if doc_viewer_online else 'false' }}"
+     data-station-process="{{ station_config.process|default('', true) }}">
   <div class="doc-viewer-header">
     <div class="doc-viewer-status-group">
       <div id="docViewerStatus"
@@ -602,6 +648,157 @@
 <script>
   // WebSocket
   const socket = io();
+
+  const stationConfigInitial = {{ station_config|tojson }};
+  let stationConfig = stationConfigInitial;
+
+  function showStationMessage(type, msg){
+    const el = document.getElementById('stationConfigMessage');
+    if (!el) return;
+    el.innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
+    setTimeout(()=>{ if (el.innerHTML.includes(msg)) el.innerHTML=''; }, 5000);
+  }
+
+  function refreshStationUI(config){
+    stationConfig = config || stationConfig;
+    const select = document.getElementById('stationProcessSelect');
+    if (select){
+      const current = stationConfig.process || '';
+      const options = ['<option value="">（未設定）</option>'];
+      (stationConfig.available || []).forEach(name => {
+        options.push(`<option value="${name}">${name}</option>`);
+      });
+      select.innerHTML = options.join('');
+      select.value = current;
+    }
+
+    const listEl = document.getElementById('stationAvailableList');
+    if (listEl){
+      listEl.innerHTML = '';
+      (stationConfig.available || []).forEach(name => {
+        const chip = document.createElement('span');
+        chip.className = 'station-chip';
+        chip.textContent = name;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = '×';
+        btn.title = `${name} を候補から削除`;
+        btn.addEventListener('click', ()=>removeStationProcess(name));
+        chip.appendChild(btn);
+        listEl.appendChild(chip);
+      });
+      if (!stationConfig.available || stationConfig.available.length === 0){
+        const empty = document.createElement('span');
+        empty.className = 'station-meta';
+        empty.textContent = '工程候補が登録されていません。追加してください。';
+        listEl.appendChild(empty);
+      }
+    }
+
+    const meta = document.getElementById('stationConfigMeta');
+    if (meta){
+      const updated = stationConfig.updated_at ? `最終更新: ${stationConfig.updated_at}` : 'station.json はまだ保存されていません（環境変数または未設定）';
+      const path = stationConfig.path ? `設定ファイル: ${stationConfig.path}` : '';
+      meta.innerHTML = `${updated}${path ? '<br>' + path : ''}`;
+    }
+
+    const panel = document.getElementById('docViewerPanel');
+    if (panel){
+      panel.dataset.stationProcess = stationConfig.process || '';
+    }
+  }
+
+  async function fetchStationConfig(){
+    try{
+      const res = await fetch('/api/station_config');
+      const data = await res.json();
+      if(res.ok){
+        refreshStationUI(data);
+      } else {
+        showStationMessage('warning', data.error || '工程設定の取得に失敗しました');
+      }
+    }catch(err){
+      showStationMessage('warning', `工程設定の取得でエラー: ${err}`);
+    }
+  }
+
+  async function saveStationProcess(){
+    const select = document.getElementById('stationProcessSelect');
+    if(!select) return;
+    const process = select.value;
+    const payload = {
+      process: process,
+      available: stationConfig.available || []
+    };
+    try{
+      const res = await fetch('/api/station_config', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if(res.ok){
+        refreshStationUI(data);
+        showStationMessage('success', '工程設定を保存しました');
+      } else {
+        showStationMessage('danger', data.error || '工程設定の保存に失敗しました');
+      }
+    }catch(err){
+      showStationMessage('danger', `工程設定の保存でエラー: ${err}`);
+    }
+  }
+
+  async function addStationProcess(){
+    const input = document.getElementById('stationNewProcessInput');
+    if(!input) return;
+    const name = input.value.trim();
+    if(!name){
+      showStationMessage('warning', '追加する工程名を入力してください');
+      return;
+    }
+    const available = stationConfig.available ? [...stationConfig.available] : [];
+    if(!available.includes(name)){
+      available.push(name);
+    }
+    try{
+      const res = await fetch('/api/station_config', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({process: stationConfig.process || '', available})
+      });
+      const data = await res.json();
+      if(res.ok){
+        input.value='';
+        refreshStationUI(data);
+        showStationMessage('success', `工程候補「${name}」を追加しました`);
+      }else{
+        showStationMessage('danger', data.error || '工程候補の追加に失敗しました');
+      }
+    }catch(err){
+      showStationMessage('danger', `工程候補の追加でエラー: ${err}`);
+    }
+  }
+
+  async function removeStationProcess(name){
+    const available = (stationConfig.available || []).filter(item => item !== name);
+    const process = stationConfig.process === name ? '' : stationConfig.process || '';
+    try{
+      const res = await fetch('/api/station_config', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({process, available})
+      });
+      const data = await res.json();
+      if(res.ok){
+        refreshStationUI(data);
+        showStationMessage('success', `工程候補「${name}」を削除しました`);
+      } else {
+        showStationMessage('danger', data.error || '工程候補の削除に失敗しました');
+      }
+    }catch(err){
+      showStationMessage('danger', `工程候補の削除でエラー: ${err}`);
+    }
+  }
 
   // 状態
   let scanActive = false;
@@ -723,6 +920,8 @@
       if (!data || typeof data !== 'object') return;
       if (data.type === 'viewer-state') {
         updateStateChips(data);
+      } else if (data.type === 'dv-barcode') {
+        handleViewerBarcode(data);
       }
     });
   })();
@@ -854,6 +1053,89 @@
     const el = document.getElementById(id);
     el.innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
     setTimeout(()=>{ el.innerHTML=''; }, 5000);
+  }
+
+  const productionHighlightState = { part: null, order: null };
+
+  function highlightProductionRows(part, order){
+    const tableBody = document.querySelector('#productionPlanTable tbody');
+    const messageEl = document.getElementById('productionHighlightMessage');
+    productionHighlightState.part = part || null;
+    productionHighlightState.order = order || null;
+
+    if (!tableBody){
+      if (messageEl){ messageEl.style.display = 'none'; messageEl.textContent = ''; }
+      return;
+    }
+
+    const rows = tableBody.querySelectorAll('tr');
+    let matchCount = 0;
+    let exactCount = 0;
+    rows.forEach(row => {
+      row.classList.remove('is-highlight', 'is-candidate');
+      const rowPart = row.dataset.part || '';
+      const rowOrder = row.dataset.order || '';
+      if (part && rowPart === part){
+        matchCount += 1;
+        if (order && rowOrder === order){
+          row.classList.add('is-highlight');
+          exactCount += 1;
+        } else if (!order){
+          row.classList.add('is-highlight');
+        } else {
+          row.classList.add('is-candidate');
+        }
+      }
+    });
+
+    if (!messageEl){
+      return;
+    }
+
+    if (!part){
+      messageEl.style.display = 'none';
+      messageEl.textContent = '';
+      return;
+    }
+
+    let modeClass = 'dashboard-note';
+    let text = '';
+    if (matchCount === 0){
+      modeClass = 'dashboard-alert';
+      text = `部品番号「${part}」に一致する生産計画が見つかりませんでした。`;
+    } else if (order){
+      if (exactCount > 0){
+        text = `部品番号「${part}」、製造オーダー「${order}」に一致する行を強調表示しました。`;
+      } else {
+        modeClass = 'dashboard-alert';
+        text = `部品番号「${part}」は ${matchCount} 件ありますが、製造オーダー「${order}」に一致する行はありません。候補行を確認してください。`;
+      }
+    } else {
+      text = `部品番号「${part}」の候補を ${matchCount} 件ハイライトしました。製造オーダー番号をスキャンして確定してください。`;
+    }
+
+    messageEl.className = modeClass;
+    messageEl.textContent = text;
+    messageEl.style.display = 'block';
+  }
+
+  function handleViewerBarcode(payload){
+    if (!payload || typeof payload !== 'object') return;
+    const part = payload.part || payload.part_number || payload.partNumber || '';
+    const order = payload.order || payload.order_number || payload.orderNumber || '';
+    highlightProductionRows(part, order);
+  }
+
+  function attachProductionRowHandlers(){
+    const tbody = document.querySelector('#productionPlanTable tbody');
+    if(!tbody) return;
+    tbody.addEventListener('click', (event)=>{
+      const row = event.target.closest('tr');
+      if(!row) return;
+      const part = row.dataset.part || '';
+      const order = row.dataset.order || '';
+      highlightProductionRows(part, order);
+    });
   }
 
   // 一覧
@@ -1036,7 +1318,13 @@
   }
 
   // 初期化
-  document.addEventListener('DOMContentLoaded', function(){ loadLoansData(); loadToolNames(); });
+  document.addEventListener('DOMContentLoaded', function(){
+    loadLoansData();
+    loadToolNames();
+    refreshStationUI(stationConfigInitial);
+    fetchStationConfig();
+    attachProductionRowHandlers();
+  });
 </script>
 
 <!-- ===== 安全シャットダウン（動的・右下固定） ===== -->
