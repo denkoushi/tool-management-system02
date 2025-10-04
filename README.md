@@ -95,6 +95,8 @@
         sudo chown tools01:tools01 /etc/toolmgmt
         sudo chmod 755 /etc/toolmgmt
 
+   ブラウザの管理画面にアクセスすると、初回のみトークン入力を求められます。入力した値はキオスクブラウザの `localStorage` に保存されるため、通常は再起動後も再入力は不要です。メンテナンス → 工程設定カードにある「トークンをクリア」ボタンで保存済みトークンを削除できます。
+
 8. **psql クライアント（USB 同期で利用）**
 
         sudo apt install -y postgresql-client
