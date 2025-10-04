@@ -270,8 +270,12 @@
    - `/etc/toolmgmt` が存在しない場合は `sudo mkdir -p /etc/toolmgmt && sudo chown tools01:tools01 /etc/toolmgmt && sudo chmod 755 /etc/toolmgmt`
    - 旧来どおり環境変数 `API_AUTH_TOKEN` を設定した場合はフォールバックとして利用される。
    - キオスクブラウザではトークンを `localStorage` に保存するため、毎朝再入力する必要はない。端末入れ替え時や漏洩懸念がある場合は「トークンをクリア」ボタンで削除し、再発行・再入力する。
+   - **設置の目的**:
+     1. **正当な端末の識別** … トークンを保持する端末だけが API を叩けるため、同一ネットワーク内に不審な端末があっても操作できない。
+     2. **ステーション単位の監査** … station_id とひも付いてログに残るので、どの工程の端末が操作したか追跡できる。
+     3. **容易な無効化** … 端末の入れ替え・紛失時は `revoke` + 再発行で即座にアクセスを止められる。
 
-   > **補足（目的）**: トークンは「この端末が正規かどうか」を識別する鍵であり、ステーション単位で発行することで監査ログに station_id を残せる。物理的に端末が管理されている前提では `localStorage` に保存しておく運用が現実的で、鍵を差したままにするイメージ。ただし紛失時は `revoke` + 再発行で即座に無効化できる。
+     > **運用イメージ**: 物理的に管理されたキオスク端末で鍵を差したまま使うイメージです。トークンは `localStorage` に保存されるため毎朝の入力は不要ですが、鍵を抜きたいとき（端末移設・漏洩疑い）は「トークンをクリア」→ 再発行するだけでリセットできます。
 
 2. **ヘッダ仕様**
    - 既定では `X-API-Token` ヘッダを使用。必要なら `API_TOKEN_HEADER` で名称を変更可能。
@@ -366,6 +370,15 @@ USB メモリ経由で生産計画と標準工数の CSV を配布し、左上�
         sudo mkdir -p /var/lib/toolmgmt  
         sudo chown tools01:tools01 /var/lib/toolmgmt  
         sudo chmod 755 /var/lib/toolmgmt
+
+---
+
+### 3.8 リモート配布（任意）
+
+- 環境変数 `PLAN_REMOTE_BASE_URL` を設定すると、`/var/lib/toolmgmt/plan/` を自動更新する。例: `https://example.com/toolmgmt/plan` 配下に `production_plan.csv`, `standard_times.csv` を配置。
+- 600 秒ごと（`PLAN_REMOTE_REFRESH_SECONDS`）に更新を確認。`PLAN_REMOTE_TOKEN` を設定すると Bearer トークンとして送信する。
+- `file://` スキームも利用可能（例: `PLAN_REMOTE_BASE_URL=file:///mnt/share`）。
+- 取得に失敗した場合はログに `[plan-cache]` が出力され、ローカルの前回データをそのまま使う。
 
 ---
 
