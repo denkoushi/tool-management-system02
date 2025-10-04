@@ -73,11 +73,33 @@
         sudo chown tools01:tools01 /var/lib/toolmgmt
         sudo chmod 755 /var/lib/toolmgmt
 
-7. **psql クライアント（USB 同期で利用）**
+7. **管理 API トークンの発行**
+
+   管理 API にアクセスするときは `X-API-Token` ヘッダでトークンを付与する必要があります。既定では `/etc/toolmgmt/api_token.json` を参照します。
+
+   トークン発行（既存ファイルを上書きし、新しいトークン文字列を出力）:
+
+        python scripts/manage_api_token.py issue --station-id CUTTING-01
+
+   既存設定の確認（トークン文字列はマスク表示、`--reveal` で全表示）:
+
+        python scripts/manage_api_token.py show
+
+   トークンの失効（ファイル削除）:
+
+        python scripts/manage_api_token.py revoke
+
+   初回は `/etc/toolmgmt` が存在しない場合があるため、次のコマンドでディレクトリを作成し書き込み権限を与えてください。
+
+        sudo mkdir -p /etc/toolmgmt
+        sudo chown tools01:tools01 /etc/toolmgmt
+        sudo chmod 755 /etc/toolmgmt
+
+8. **psql クライアント（USB 同期で利用）**
 
         sudo apt install -y postgresql-client
 
-8. **USB 同期（手動ボタン）**
+9. **USB 同期（手動ボタン）**
 
     画面上の「🛠 メンテナンス」タブにある `USB 同期を実行` は、工具マスタとドキュメントビューア PDF を **一括** で処理します。ラベル `TOOLMASTER` の USB メモリを挿した状態で押すと、
 
@@ -94,7 +116,7 @@
         SUDO
         sudo visudo -cf /etc/sudoers.d/toolmgmt-usbsync
 
-9. **DocumentViewer 常駐化 + ブラウザのキオスク自動起動**
+10. **DocumentViewer 常駐化 + ブラウザのキオスク自動起動**
 
         sudo bash setup_auto_start.sh                        # toolmgmt.service を設定
         sudo ~/DocumentViewer/scripts/install_docviewer_service.sh  # docviewer.service を設定
