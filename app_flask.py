@@ -20,7 +20,7 @@ import subprocess
 import urllib.request
 from usb_sync import run_usb_sync
 from station_config import load_station_config, save_station_config
-from api_token_store import get_token_info, API_TOKEN_HEADER
+from api_token_store import get_token_info, get_active_tokens, API_TOKEN_HEADER
 from plan_cache import maybe_refresh_plan_cache
 
 
@@ -257,23 +257,27 @@ def require_api_token(action_name: str):
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
-            token_info = get_token_info()
-            expected = token_info.get("token", "")
-            station_id = token_info.get("station_id")
-
-            if expected:
+            active_tokens = get_active_tokens()
+            if active_tokens:
                 provided = _extract_provided_token()
-                if not provided or provided != expected:
+                if not provided:
                     log_api_action(
                         action_name,
                         status="denied",
-                        detail={
-                            "reason": "missing_or_invalid_token",
-                            "station_id": station_id,
-                        },
+                        detail="missing_token",
                     )
                     return jsonify({"error": "unauthorized"}), 401
-                # 正常時も station_id を記録
+
+                matched = next((t for t in active_tokens if t.get("token") == provided), None)
+                if not matched:
+                    log_api_action(
+                        action_name,
+                        status="denied",
+                        detail={"reason": "invalid_token"},
+                    )
+                    return jsonify({"error": "unauthorized"}), 401
+
+                station_id = matched.get("station_id")
                 if station_id:
                     request.environ["api_station_id"] = station_id
             return func(*args, **kwargs)
