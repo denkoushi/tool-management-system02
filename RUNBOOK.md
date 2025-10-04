@@ -269,6 +269,9 @@
    - 失効：`python scripts/manage_api_token.py revoke`
    - `/etc/toolmgmt` が存在しない場合は `sudo mkdir -p /etc/toolmgmt && sudo chown tools01:tools01 /etc/toolmgmt && sudo chmod 755 /etc/toolmgmt`
    - 旧来どおり環境変数 `API_AUTH_TOKEN` を設定した場合はフォールバックとして利用される。
+   - キオスクブラウザではトークンを `localStorage` に保存するため、毎朝再入力する必要はない。端末入れ替え時や漏洩懸念がある場合は「トークンをクリア」ボタンで削除し、再発行・再入力する。
+
+   > **補足（目的）**: トークンは「この端末が正規かどうか」を識別する鍵であり、ステーション単位で発行することで監査ログに station_id を残せる。物理的に端末が管理されている前提では `localStorage` に保存しておく運用が現実的で、鍵を差したままにするイメージ。ただし紛失時は `revoke` + 再発行で即座に無効化できる。
 
 2. **ヘッダ仕様**
    - 既定では `X-API-Token` ヘッダを使用。必要なら `API_TOKEN_HEADER` で名称を変更可能。
