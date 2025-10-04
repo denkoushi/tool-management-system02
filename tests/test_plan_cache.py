@@ -1,5 +1,6 @@
 import importlib
 import os
+import sys
 from pathlib import Path
 
 
@@ -10,6 +11,7 @@ def test_maybe_refresh_plan_cache(tmp_path, monkeypatch):
     monkeypatch.setenv("PLAN_REMOTE_BASE_URL", f"file://{sample_dir}")
     monkeypatch.setenv("PLAN_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("PLAN_REMOTE_REFRESH_SECONDS", "1")
+    sys.path.insert(0, str(repo_root))
 
     if "plan_cache" in os.sys.modules:
         importlib.reload(os.sys.modules["plan_cache"])
