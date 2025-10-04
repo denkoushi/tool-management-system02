@@ -55,11 +55,23 @@
 
     > **Note**: 安全シャットダウンボタンは Raspberry Pi 本体上で `http://127.0.0.1:8501`（または `http://localhost:8501`）にアクセスしたときのみ動作します。LAN 側の IP から呼び出すと `forbidden` になります。どうしても遠隔から操作する場合は、環境変数 `SHUTDOWN_TOKEN` を設定し、トークンで認証してください。
 
-6. **psql クライアント（USB 同期で利用）**
+6. **工程設定（station.json）**
+
+   画面左の「🛠 メンテナンス」タブに「工程設定」カードが追加されています。工程候補を追加し、現在の工程を選択して保存すると `/var/lib/toolmgmt/station.json` に設定が反映され、DocumentViewer や生産計画ビューが対象工程で動作するようになります。初回は候補が空なので、実際の工程名（例: `切削`, `研磨` 等）を追加してから保存してください。
+
+   CLI から設定したい場合は次のスクリプトを利用できます。
+
+        python scripts/manage_station_config.py show
+        python scripts/manage_station_config.py add 切削
+        python scripts/manage_station_config.py set --process 切削
+
+   JSON の保存先は `STATION_CONFIG_PATH` 環境変数でも上書き可能です。
+
+7. **psql クライアント（USB 同期で利用）**
 
         sudo apt install -y postgresql-client
 
-7. **USB 同期（手動ボタン）**
+8. **USB 同期（手動ボタン）**
 
     画面上の「🛠 メンテナンス」タブにある `USB 同期を実行` は、工具マスタとドキュメントビューア PDF を **一括** で処理します。ラベル `TOOLMASTER` の USB メモリを挿した状態で押すと、
 
@@ -76,7 +88,7 @@
         SUDO
         sudo visudo -cf /etc/sudoers.d/toolmgmt-usbsync
 
-8. **DocumentViewer 常駐化 + ブラウザのキオスク自動起動**
+9. **DocumentViewer 常駐化 + ブラウザのキオスク自動起動**
 
         sudo bash setup_auto_start.sh                        # toolmgmt.service を設定
         sudo ~/DocumentViewer/scripts/install_docviewer_service.sh  # docviewer.service を設定
