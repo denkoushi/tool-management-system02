@@ -595,8 +595,14 @@
           station.json はまだ保存されていません（環境変数または未設定）
         {% endif %}
         <br>設定ファイル: {{ station_config.path }}
+        {% if api_station_id %}
+          <br>APIトークン station_id: {{ api_station_id }}
+        {% endif %}
       </div>
       <div id="stationConfigMessage"></div>
+      {% if api_token_error %}
+        <div class="dashboard-alert">API トークンの読み込みでエラーが発生しています: {{ api_token_error }}</div>
+      {% endif %}
     </div>
   </div>
     </div>
