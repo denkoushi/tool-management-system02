@@ -4,7 +4,9 @@
 import time
 import threading
 import json
+import csv
 from datetime import datetime
+from typing import Optional
 from functools import wraps
 import logging
 from pathlib import Path
@@ -42,6 +44,21 @@ if not audit_logger.handlers:
     handler.setFormatter(logging.Formatter('%(asctime)s\t%(message)s'))
     audit_logger.addHandler(handler)
     audit_logger.setLevel(logging.INFO)
+
+# --- 生産計画/標準工数データ設定 ---
+PLAN_DATA_DIR = Path(os.getenv("PLAN_DATA_DIR", "/var/lib/toolmgmt/plan"))
+PLAN_DATASETS = {
+    "production_plan": {
+        "filename": "production_plan.csv",
+        "columns": ["納期", "個数", "部品番号", "部品名", "製番", "工程名"],
+        "label": "生産計画"
+    },
+    "standard_times": {
+        "filename": "standard_times.csv",
+        "columns": ["部品名", "機械標準工数", "製造オーダー番号", "部品番号", "工程名"],
+        "label": "標準工数"
+    },
+}
 
 # --- シャットダウンAPI用設定 ---
 SHUTDOWN_TOKEN = os.getenv("SHUTDOWN_TOKEN")  # 任意。必要なら systemd に環境変数を追加して使う
@@ -114,6 +131,95 @@ def log_api_action(action: str, status: str = "success", detail=None) -> None:
     except Exception:
         # ログ出力で例外が出ても本体処理を止めない
         audit_logger.warning("ログ出力に失敗しました", exc_info=True)
+
+
+
+def _parse_due_date(value: str) -> Optional[datetime]:
+    if not value:
+        return None
+    for fmt in ("%Y-%m-%d", "%Y/%m/%d"):
+        try:
+            return datetime.strptime(value, fmt)
+        except ValueError:
+            continue
+    return None
+
+
+def load_plan_dataset(key: str) -> dict:
+    cfg = PLAN_DATASETS[key]
+    path = PLAN_DATA_DIR / cfg["filename"]
+    result = {
+        "rows": [],
+        "error": None,
+        "updated_at": None,
+        "path": str(path),
+        "label": cfg["label"],
+    }
+
+    if not path.exists():
+        result["error"] = f"{cfg['label']}ファイルが見つかりません ({path})"
+        return result
+
+    try:
+        with path.open("r", encoding="utf-8-sig", newline="") as fh:
+            reader = csv.DictReader(fh)
+            headers = reader.fieldnames or []
+            if headers != cfg["columns"]:
+                result["error"] = (
+                    f"{cfg['label']}のヘッダーが想定と異なります: {headers}"
+                )
+                return result
+            rows = []
+            for row in reader:
+                normalized = {column: row.get(column, "") for column in cfg["columns"]}
+                rows.append(normalized)
+    except FileNotFoundError:
+        result["error"] = f"{cfg['label']}ファイルが見つかりません ({path})"
+        return result
+    except Exception as exc:  # pylint: disable=broad-except
+        result["error"] = f"{cfg['label']}の読み込みに失敗しました: {exc}"
+        return result
+
+    result["rows"] = rows
+    try:
+        result["updated_at"] = datetime.fromtimestamp(path.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
+    except Exception:  # pylint: disable=broad-except
+        result["updated_at"] = None
+    return result
+
+
+def build_production_view() -> dict:
+    plan_data = load_plan_dataset("production_plan")
+    standard_data = load_plan_dataset("standard_times")
+
+    standard_index = {}
+    for row in standard_data["rows"]:
+        key = (row["部品番号"], row["工程名"])
+        standard_index[key] = row
+
+    entries = []
+    for row in plan_data["rows"]:
+        record = dict(row)
+        std = standard_index.get((row["部品番号"], row["工程名"]))
+        record["標準工数"] = std.get("機械標準工数") if std else "—"
+        record["標準工数_製造オーダー"] = std.get("製造オーダー番号") if std else ""
+        record["_sort_due"] = _parse_due_date(row.get("納期"))
+        entries.append(record)
+
+    entries.sort(key=lambda item: (
+        item["_sort_due"] if item["_sort_due"] else datetime.max,
+        item.get("製番", ""),
+    ))
+    for item in entries:
+        item.pop("_sort_due", None)
+
+    return {
+        "entries": entries,
+        "plan_error": plan_data["error"],
+        "standard_error": standard_data["error"],
+        "plan_updated_at": plan_data["updated_at"],
+        "standard_updated_at": standard_data["updated_at"],
+    }
 
 
 def _extract_provided_token() -> str:
@@ -470,12 +576,14 @@ def scan_monitor():
 def index():
     doc_viewer_url = app.config.get('DOCUMENT_VIEWER_URL')
     doc_viewer_online = check_doc_viewer_health(doc_viewer_url)
+    production_view = build_production_view()
     return render_template(
         'index.html',
         doc_viewer_url=doc_viewer_url,
         doc_viewer_online=doc_viewer_online,
         api_token_required=bool(API_AUTH_TOKEN),
         api_token_header=API_TOKEN_HEADER,
+        production_view=production_view,
     )
 
 @app.route('/api/start_scan', methods=['POST'])

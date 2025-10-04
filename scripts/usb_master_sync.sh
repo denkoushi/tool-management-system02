@@ -153,7 +153,14 @@ validate_file_mime() {
 validate_usb_payload() {
   local blocked=0
   local base
-  local allowed_names=("tool_master.csv" "users.csv" "tools.csv" "meta.json")
+  local allowed_names=(
+    "tool_master.csv"
+    "users.csv"
+    "tools.csv"
+    "meta.json"
+    "production_plan.csv"
+    "standard_times.csv"
+  )
 
   if ! command -v file >/dev/null 2>&1; then
     log "file コマンドが見つからないため USB ファイルの MIME チェックに失敗" warning
@@ -229,6 +236,81 @@ run_clamav_scan() {
   return 2
 }
 
+PLAN_LOCAL_DIR="/var/lib/toolmgmt/plan"
+PLAN_OWNER="${PLAN_OWNER:-tools01}"
+PLAN_GROUP="${PLAN_GROUP:-tools01}"
+
+validate_plan_header() {
+  local file_path="$1"
+  shift
+  python3 - "$file_path" "$@" <<'PY'
+import csv, sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+expected = sys.argv[2].split(',')
+try:
+    with path.open('r', encoding='utf-8-sig', newline='') as fh:
+        reader = csv.reader(fh)
+        headers = next(reader, [])
+except Exception as exc:
+    print(f"header read error: {exc}")
+    sys.exit(1)
+
+if headers != expected:
+    print(f"expected {','.join(expected)} but found {','.join(headers)}")
+    sys.exit(1)
+PY
+}
+
+sync_plan_files() {
+  local status=0
+  local plan_files=(
+    "production_plan.csv"
+    "standard_times.csv"
+  )
+
+  mkdir -p "$PLAN_LOCAL_DIR"
+  chown "$PLAN_OWNER:$PLAN_GROUP" "$PLAN_LOCAL_DIR" || true
+
+  for name in "${plan_files[@]}"; do
+    local src="$USB_DIR/$name"
+    local dest="$PLAN_LOCAL_DIR/$name"
+
+    if [[ ! -f "$src" ]]; then
+      log "$name が USB 内に見つかりません (任意項目のためスキップします)"
+      continue
+    fi
+
+    local expected_header=""
+    case "$name" in
+      production_plan.csv)
+        expected_header="納期,個数,部品番号,部品名,製番,工程名"
+        ;;
+      standard_times.csv)
+        expected_header="部品名,機械標準工数,製造オーダー番号,部品番号,工程名"
+        ;;
+    esac
+
+    if [[ -n "$expected_header" ]]; then
+      if ! validate_plan_header "$src" "$expected_header" >/dev/null 2>&1; then
+        log "$name のヘッダー検証に失敗しました (フォーマットを確認してください)" warning
+        status=1
+        continue
+      fi
+    fi
+
+    if install -m 640 -o "$PLAN_OWNER" -g "$PLAN_GROUP" "$src" "$dest"; then
+      log "$name を計画ディレクトリへ更新しました"
+    else
+      log "$name のコピーに失敗しました" warning
+      status=1
+    fi
+  done
+
+  return $status
+}
+
 usb_ts=$(read_timestamp "$meta_file_usb")
 csv_ts=$(max_csv_mtime "$USB_DIR")
 (( csv_ts > usb_ts )) && usb_ts=$csv_ts
@@ -298,6 +380,10 @@ if (( validation_failed == 0 )); then
     local_ts=$usb_ts
   else
     log "USB データは最新ではないため取り込みをスキップ (usb_ts=$usb_ts, local_ts=$local_ts)"
+  fi
+
+  if ! sync_plan_files; then
+    log "生産計画 CSV の取り込みで一部警告が発生しました (ログを確認してください)" warning
   fi
 
   export_to_usb
