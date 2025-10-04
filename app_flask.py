@@ -19,6 +19,7 @@ import os
 import subprocess
 import urllib.request
 from usb_sync import run_usb_sync
+from station_config import load_station_config, save_station_config
 
 
 # =========================
@@ -589,6 +590,7 @@ def index():
     doc_viewer_url = app.config.get('DOCUMENT_VIEWER_URL')
     doc_viewer_online = check_doc_viewer_health(doc_viewer_url)
     production_view = build_production_view()
+    station_config = load_station_config()
     return render_template(
         'index.html',
         doc_viewer_url=doc_viewer_url,
@@ -596,6 +598,7 @@ def index():
         api_token_required=bool(API_AUTH_TOKEN),
         api_token_header=API_TOKEN_HEADER,
         production_view=production_view,
+        station_config=station_config,
     )
 
 @app.route('/api/start_scan', methods=['POST'])
@@ -654,6 +657,47 @@ def get_loans():
         })
     finally:
         conn.close()
+
+
+@app.route('/api/station_config', methods=['GET'])
+@require_api_token("station_config_get")
+def api_station_config_get():
+    config = load_station_config()
+    log_api_action("station_config_get", detail={"process": config.get("process"), "source": config.get("source")})
+    return jsonify(config)
+
+
+@app.route('/api/station_config', methods=['POST'])
+@require_api_token("station_config_update")
+def api_station_config_update():
+    payload = request.get_json(silent=True) or {}
+    process = payload.get("process", None)
+    available = payload.get("available", None)
+
+    if process is not None and not isinstance(process, str):
+        return jsonify({"error": "process は文字列で指定してください"}), 400
+
+    if available is not None:
+        if not isinstance(available, (list, tuple)):
+            return jsonify({"error": "available は文字列のリストで指定してください"}), 400
+        normalized = []
+        for item in available:
+            if not isinstance(item, str):
+                return jsonify({"error": "available には文字列のみ指定できます"}), 400
+            normalized.append(item)
+        available = normalized
+
+    try:
+        config = save_station_config(process=process, available=available)
+    except Exception as exc:  # pylint: disable=broad-except
+        log_api_action("station_config_update", status="error", detail=str(exc))
+        return jsonify({"error": str(exc)}), 500
+
+    log_api_action("station_config_update", detail={
+        "process": config.get("process"),
+        "available": config.get("available"),
+    })
+    return jsonify(config)
 
 @app.route('/api/loans/<int:loan_id>/manual_return', methods=['POST'])
 @require_api_token("manual_return")
