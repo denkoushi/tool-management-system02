@@ -117,29 +117,26 @@
   .operation-shelf{flex:0 0 58%;display:flex;flex-direction:column;gap:var(--space-3);background:var(--surface);border-radius:var(--radius);box-shadow:0 10px 30px rgba(15,23,42,.12);padding:var(--space-3);overflow:hidden;}
   .operation-shelf .tab-content{background:transparent;padding:var(--space-2);}
   .operation-shelf .tabs{margin-bottom:var(--space-2);}
-  .production-dashboard{flex:1;display:flex;flex-direction:column;background:var(--surface);border-radius:var(--radius);box-shadow:0 10px 28px rgba(15,23,42,.14);overflow:hidden;border:1px solid rgba(148,163,184,.22);}
-  .production-dashboard__header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);background:linear-gradient(135deg,#0f172a 0%,#1f2937 100%);color:#f8fafc;gap:var(--space-3);}
-  .production-dashboard__title{margin:0;font-size:var(--fs-md);letter-spacing:.02em;font-weight:700;}
-  .production-dashboard__meta{display:flex;flex-direction:column;align-items:flex-end;font-size:var(--fs-xs);color:rgba(226,232,240,.76);gap:2px;text-align:right;}
-  .production-dashboard__meta strong{font-weight:600;color:#fff;}
-  .production-dashboard__body{flex:1;display:flex;flex-direction:column;padding:12px 16px;gap:var(--space-3);overflow:hidden;}
-  .production-dashboard__alerts{display:flex;flex-direction:column;gap:var(--space-2);}
-  .production-dashboard__sections{display:flex;flex-direction:column;gap:var(--space-4);overflow:auto;padding-right:4px;}
-  .production-dashboard__section{display:flex;flex-direction:column;gap:var(--space-2);}
-  .production-dashboard__section-header{display:flex;align-items:center;justify-content:space-between;gap:var(--space-2);}
-  .production-dashboard__section-title{margin:0;font-size:var(--fs-sm);font-weight:600;color:#0f172a;}
-  .production-dashboard__section-meta{font-size:var(--fs-xs);color:var(--muted);}
+  .production-dashboard{flex:1;display:flex;flex-direction:column;background:var(--surface);border-radius:12px;box-shadow:0 10px 28px rgba(15,23,42,.14);overflow:hidden;border:1px solid rgba(148,163,184,.22);}
+  .production-dashboard__header{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--border);background:#111827;color:#f8fafc;gap:8px;}
+  .production-dashboard__title{margin:0;font-size:13px;letter-spacing:.06em;font-weight:600;text-transform:uppercase;display:flex;align-items:center;gap:8px;}
+  .production-dashboard__meta{display:flex;align-items:center;gap:8px;font-size:11px;color:rgba(226,232,240,.72);}
+  .production-dashboard__sections{flex:1;display:grid;grid-template-columns:repeat(2, minmax(0, 1fr));gap:10px;overflow:hidden;}
+  .production-dashboard__section{display:flex;flex-direction:column;gap:6px;overflow:hidden;}
+  .production-dashboard__section-header{display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:11px;color:#334155;}
+  .production-dashboard__section-title{margin:0;font-size:11px;font-weight:600;color:#0f172a;text-transform:uppercase;letter-spacing:.04em;}
+  .production-dashboard__section-meta{font-size:10px;color:#64748b;}
   .dashboard-alert{padding:10px 12px;border-radius:6px;font-size:var(--fs-sm);line-height:1.5;border:1px solid rgba(248,113,113,.35);background:rgba(248,113,113,.12);color:#7f1d1d;}
   .dashboard-note{padding:8px 12px;border-radius:6px;font-size:var(--fs-xs);background:rgba(14,165,233,.12);color:#0369a1;border:1px solid rgba(56,189,248,.3);}
-  .production-dashboard__table-wrapper{flex:1;overflow:auto;border:1px solid rgba(148,163,184,.25);border-radius:8px;background:#fff;}
-  .production-dashboard__table{width:100%;border-collapse:collapse;font-size:var(--fs-sm);min-width:560px;}
-  .production-dashboard__table thead{background:rgba(241,245,249,.85);position:sticky;top:0;z-index:2;}
+  .production-dashboard__table-wrapper{flex:1;overflow:auto;border:1px solid rgba(148,163,184,.2);border-radius:10px;background:#fff;}
+  .production-dashboard__table{width:100%;border-collapse:collapse;font-size:12px;}
+  .production-dashboard__table thead{background:rgba(241,245,249,.9);position:sticky;top:0;z-index:2;}
   .production-dashboard__table th,
-  .production-dashboard__table td{padding:8px 10px;border-bottom:1px solid rgba(148,163,184,.2);text-align:left;}
-  .production-dashboard__table th{font-weight:700;font-size:var(--fs-xs);letter-spacing:.05em;color:var(--muted);text-transform:uppercase;}
-  .production-dashboard__table tbody tr:hover{background:rgba(148,163,184,.12);}
-  .production-dashboard__table .is-primary{font-weight:600;color:var(--brand);}
-  .production-dashboard__empty{padding:24px;border:1px dashed rgba(148,163,184,.5);border-radius:8px;text-align:center;font-size:var(--fs-sm);color:var(--muted);background:rgba(148,163,184,.08);}
+  .production-dashboard__table td{padding:6px 8px;border-bottom:1px solid rgba(148,163,184,.2);text-align:left;}
+  .production-dashboard__table th{font-weight:600;font-size:10px;letter-spacing:.06em;color:#475569;text-transform:uppercase;}
+  .production-dashboard__table tbody tr:hover{background:rgba(30,64,175,.12);}
+  .production-dashboard__table .is-primary{font-weight:600;color:#1d4ed8;}
+  .production-dashboard__empty{padding:18px;border:1px dashed rgba(148,163,184,.4);border-radius:10px;text-align:center;font-size:12px;color:#64748b;background:rgba(148,163,184,.1);}
   .production-dashboard__table tr.is-highlight{background:rgba(14,165,233,.18) !important;box-shadow:inset 3px 0 0 var(--brand);}
   .production-dashboard__table tr.is-candidate{background:rgba(250,204,21,.18) !important;}
   .maintenance-card{margin-bottom:20px;padding:16px;background:#f8f9fa;border-radius:8px;border:1px solid #e5e7eb;}
@@ -348,44 +345,40 @@
         <div class="production-dashboard__alerts">
           {% if production_view.plan_error %}
             <div class="dashboard-alert">{{ production_view.plan_error }}</div>
-          {% endif %}
-          {% if production_view.standard_error %}
+          {% elif production_view.standard_error %}
             <div class="dashboard-alert">{{ production_view.standard_error }}</div>
+          {% else %}
+            <div class="production-dashboard__note">USB同期後に最新 CSV を配置すると即時反映されます</div>
           {% endif %}
-          {% if not production_view.plan_error and not production_view.standard_error %}
-            <div class="dashboard-note">USB 同期で <code>production_plan.csv</code> と <code>standard_times.csv</code> を配置すると、生産計画と標準工数の最新データが表示されます。</div>
-          {% endif %}
-          <div id="productionHighlightMessage" class="dashboard-note" style="display:none;"></div>
         </div>
+        <div id="productionHighlightMessage" class="production-dashboard__note" style="display:none;"></div>
         <div class="production-dashboard__sections">
           <div class="production-dashboard__section">
             <div class="production-dashboard__section-header">
               <h3 class="production-dashboard__section-title">生産計画</h3>
-              {% if production_view.plan_updated_at %}
-                <span class="production-dashboard__section-meta">更新: {{ production_view.plan_updated_at }}</span>
-              {% endif %}
+              {% if production_view.plan_updated_at %}<span class="production-dashboard__section-meta">更新: {{ production_view.plan_updated_at }}</span>{% endif %}
             </div>
             {% if production_view.plan_entries %}
-          <div class="production-dashboard__table-wrapper">
-            <table class="production-dashboard__table" id="productionPlanTable">
-              <thead>
-                <tr>
-                  <th style="width:120px;">納期</th>
-                  <th style="width:90px;">製番</th>
-                  <th style="width:110px;">部品番号</th>
+              <div class="production-dashboard__table-wrapper">
+                <table class="production-dashboard__table" id="productionPlanTable">
+                  <thead>
+                    <tr>
+                      <th style="width:100px;">納期</th>
+                      <th style="width:80px;">製番</th>
+                      <th style="width:95px;">部品番号</th>
                       <th>部品名</th>
-                      <th style="width:90px;">工程名</th>
-                      <th style="width:70px;">個数</th>
+                      <th style="width:80px;">工程名</th>
+                      <th style="width:60px;">個数</th>
                     </tr>
                   </thead>
                   <tbody>
-                  {% for row in production_view.plan_entries %}
-                    <tr data-part="{{ row['部品番号'] }}" data-order="{{ row['標準工数_製造オーダー']|default('', true) }}" data-process="{{ row['工程名'] }}">
-                      <td class="is-primary">{{ row['納期'] }}</td>
-                      <td>{{ row['製番'] }}</td>
-                      <td>{{ row['部品番号'] }}</td>
-                      <td>{{ row['部品名'] }}</td>
-                      <td>{{ row['工程名'] }}</td>
+                    {% for row in production_view.plan_entries %}
+                      <tr data-part="{{ row['部品番号'] }}" data-order="{{ row['標準工数_製造オーダー']|default('', true) }}" data-process="{{ row['工程名'] }}">
+                        <td class="is-primary">{{ row['納期'] }}</td>
+                        <td>{{ row['製番'] }}</td>
+                        <td>{{ row['部品番号'] }}</td>
+                        <td>{{ row['部品名'] }}</td>
+                        <td>{{ row['工程名'] }}</td>
                         <td style="text-align:right;">{{ row['個数'] }}</td>
                       </tr>
                     {% endfor %}
@@ -400,25 +393,23 @@
           <div class="production-dashboard__section">
             <div class="production-dashboard__section-header">
               <h3 class="production-dashboard__section-title">標準工数</h3>
-              {% if production_view.standard_updated_at %}
-                <span class="production-dashboard__section-meta">更新: {{ production_view.standard_updated_at }}</span>
-              {% endif %}
+              {% if production_view.standard_updated_at %}<span class="production-dashboard__section-meta">更新: {{ production_view.standard_updated_at }}</span>{% endif %}
             </div>
             {% if production_view.standard_entries %}
               <div class="production-dashboard__table-wrapper">
-                <table class="production-dashboard__table">
+                <table class="production-dashboard__table" id="standardTimesTable">
                   <thead>
                     <tr>
-                      <th style="width:140px;">部品名</th>
-                      <th style="width:110px;">部品番号</th>
-                      <th style="width:100px;">工程名</th>
-                      <th style="width:110px;">機械標準工数</th>
-                      <th style="width:140px;">製造オーダー番号</th>
+                      <th style="width:120px;">部品名</th>
+                      <th style="width:95px;">部品番号</th>
+                      <th style="width:90px;">工程名</th>
+                      <th style="width:90px;">標準工数</th>
+                      <th style="width:120px;">製造オーダー</th>
                     </tr>
                   </thead>
                   <tbody>
                     {% for row in production_view.standard_entries %}
-                      <tr>
+                      <tr data-part="{{ row['部品番号'] }}" data-order="{{ row['製造オーダー番号']|default('', true) }}" data-process="{{ row['工程名'] }}">
                         <td>{{ row['部品名'] }}</td>
                         <td>{{ row['部品番号'] }}</td>
                         <td>{{ row['工程名'] }}</td>
@@ -1102,64 +1093,83 @@
   const productionHighlightState = { part: null, order: null };
 
   function highlightProductionRows(part, order){
-    const tableBody = document.querySelector('#productionPlanTable tbody');
+    const planBody = document.querySelector('#productionPlanTable tbody');
+    const standardBody = document.querySelector('#standardTimesTable tbody');
     const messageEl = document.getElementById('productionHighlightMessage');
     productionHighlightState.part = part || null;
     productionHighlightState.order = order || null;
 
-    if (!tableBody){
-      if (messageEl){ messageEl.style.display = 'none'; messageEl.textContent = ''; }
-      return;
-    }
+    const resetRows = (body) => {
+      if (!body) return [];
+      const rows = Array.from(body.querySelectorAll('tr'));
+      rows.forEach(row => row.classList.remove('is-highlight', 'is-candidate'));
+      return rows;
+    };
 
-    const rows = tableBody.querySelectorAll('tr');
-    let matchCount = 0;
-    let exactCount = 0;
-    rows.forEach(row => {
-      row.classList.remove('is-highlight', 'is-candidate');
-      const rowPart = row.dataset.part || '';
-      const rowOrder = row.dataset.order || '';
-      if (part && rowPart === part){
-        matchCount += 1;
-        if (order && rowOrder === order){
-          row.classList.add('is-highlight');
-          exactCount += 1;
-        } else if (!order){
-          row.classList.add('is-highlight');
-        } else {
-          row.classList.add('is-candidate');
+    const planRows = resetRows(planBody);
+    const standardRows = resetRows(standardBody);
+
+    const evaluate = (rows) => {
+      let matchCount = 0;
+      let exactCount = 0;
+      rows.forEach(row => {
+        const rowPart = row.dataset.part || '';
+        const rowOrder = row.dataset.order || '';
+        if (part && rowPart === part){
+          matchCount += 1;
+          if (order && rowOrder === order){
+            row.classList.add('is-highlight');
+            exactCount += 1;
+          } else if (!order){
+            row.classList.add('is-highlight');
+          } else {
+            row.classList.add('is-candidate');
+          }
         }
-      }
-    });
+      });
+      return { matchCount, exactCount };
+    };
+
+    const planStats = evaluate(planRows);
+    const standardStats = evaluate(standardRows);
 
     if (!messageEl){
       return;
     }
 
     if (!part){
+      messageEl.className = 'production-dashboard__note';
       messageEl.style.display = 'none';
       messageEl.textContent = '';
       return;
     }
 
-    let modeClass = 'dashboard-note';
-    let text = '';
-    if (matchCount === 0){
-      modeClass = 'dashboard-alert';
-      text = `部品番号「${part}」に一致する生産計画が見つかりませんでした。`;
-    } else if (order){
-      if (exactCount > 0){
-        text = `部品番号「${part}」、製造オーダー「${order}」に一致する行を強調表示しました。`;
-      } else {
-        modeClass = 'dashboard-alert';
-        text = `部品番号「${part}」は ${matchCount} 件ありますが、製造オーダー「${order}」に一致する行はありません。候補行を確認してください。`;
-      }
-    } else {
-      text = `部品番号「${part}」の候補を ${matchCount} 件ハイライトしました。製造オーダー番号をスキャンして確定してください。`;
+    const totalMatches = planStats.matchCount + standardStats.matchCount;
+    const totalExact = planStats.exactCount + standardStats.exactCount;
+
+    if (totalMatches === 0){
+      messageEl.className = 'dashboard-alert';
+      messageEl.textContent = `部品番号「${part}」に一致するデータが見つかりません。`;
+      messageEl.style.display = 'block';
+      return;
     }
 
-    messageEl.className = modeClass;
-    messageEl.textContent = text;
+    if (order && totalExact === 0){
+      messageEl.className = 'dashboard-alert';
+      messageEl.textContent = `部品番号「${part}」、製造オーダー「${order}」に完全一致はありません。候補: 生産計画 ${planStats.matchCount} 件 / 標準工数 ${standardStats.matchCount} 件`;
+      messageEl.style.display = 'block';
+      return;
+    }
+
+    if (order){
+      messageEl.className = 'production-dashboard__note';
+      messageEl.textContent = `部品番号「${part}」、製造オーダー「${order}」をハイライトしました（生産計画 ${planStats.exactCount} 件 / 標準工数 ${standardStats.exactCount} 件）`;
+      messageEl.style.display = 'block';
+      return;
+    }
+
+    messageEl.className = 'production-dashboard__note';
+    messageEl.textContent = `部品番号「${part}」の候補を表示しました（生産計画 ${planStats.matchCount} 件 / 標準工数 ${standardStats.matchCount} 件）`;
     messageEl.style.display = 'block';
   }
 
@@ -1171,15 +1181,19 @@
   }
 
   function attachProductionRowHandlers(){
-    const tbody = document.querySelector('#productionPlanTable tbody');
-    if(!tbody) return;
-    tbody.addEventListener('click', (event)=>{
-      const row = event.target.closest('tr');
-      if(!row) return;
-      const part = row.dataset.part || '';
-      const order = row.dataset.order || '';
-      highlightProductionRows(part, order);
-    });
+    const attach = (selector) => {
+      const body = document.querySelector(`${selector} tbody`);
+      if(!body) return;
+      body.addEventListener('click', (event)=>{
+        const row = event.target.closest('tr');
+        if(!row) return;
+        const part = row.dataset.part || '';
+        const order = row.dataset.order || '';
+        highlightProductionRows(part, order);
+      });
+    };
+    attach('#productionPlanTable');
+    attach('#standardTimesTable');
   }
 
   // 一覧
