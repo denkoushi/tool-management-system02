@@ -20,6 +20,7 @@ import subprocess
 import urllib.request
 from usb_sync import run_usb_sync
 from station_config import load_station_config, save_station_config
+from api_token_store import get_token_info, API_TOKEN_HEADER
 
 
 # =========================
@@ -31,8 +32,6 @@ app.config['DOCUMENT_VIEWER_URL'] = os.getenv("DOCUMENT_VIEWER_URL", "http://127
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 # --- API 認証/監査設定 ---
-API_AUTH_TOKEN = os.getenv("API_AUTH_TOKEN")
-API_TOKEN_HEADER = os.getenv("API_TOKEN_HEADER", "X-API-Token")
 LOG_PATH = Path(os.getenv(
     "API_AUDIT_LOG",
     str((Path(__file__).resolve().parent / "logs" / "api_actions.log").resolve())
@@ -124,6 +123,9 @@ def log_api_action(action: str, status: str = "success", detail=None) -> None:
         user_agent = request.headers.get("User-Agent")
         if user_agent:
             payload["user_agent"] = user_agent
+        station_id = request.environ.get("api_station_id")
+        if station_id:
+            payload["station_id"] = station_id
     if detail not in (None, ""):
         payload["detail"] = detail
 
@@ -250,11 +252,25 @@ def require_api_token(action_name: str):
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
-            if API_AUTH_TOKEN:
+            token_info = get_token_info()
+            expected = token_info.get("token", "")
+            station_id = token_info.get("station_id")
+
+            if expected:
                 provided = _extract_provided_token()
-                if not provided or provided != API_AUTH_TOKEN:
-                    log_api_action(action_name, status="denied", detail="missing_or_invalid_token")
+                if not provided or provided != expected:
+                    log_api_action(
+                        action_name,
+                        status="denied",
+                        detail={
+                            "reason": "missing_or_invalid_token",
+                            "station_id": station_id,
+                        },
+                    )
                     return jsonify({"error": "unauthorized"}), 401
+                # 正常時も station_id を記録
+                if station_id:
+                    request.environ["api_station_id"] = station_id
             return func(*args, **kwargs)
 
         return wrapper
@@ -591,12 +607,15 @@ def index():
     doc_viewer_online = check_doc_viewer_health(doc_viewer_url)
     production_view = build_production_view()
     station_config = load_station_config()
+    token_info = get_token_info()
     return render_template(
         'index.html',
         doc_viewer_url=doc_viewer_url,
         doc_viewer_online=doc_viewer_online,
-        api_token_required=bool(API_AUTH_TOKEN),
+        api_token_required=bool(token_info.get("token")),
         api_token_header=API_TOKEN_HEADER,
+        api_station_id=token_info.get("station_id", ""),
+        api_token_error=token_info.get("error"),
         production_view=production_view,
         station_config=station_config,
     )
