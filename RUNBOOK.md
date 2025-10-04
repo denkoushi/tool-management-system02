@@ -396,6 +396,18 @@ USB メモリ経由で生産計画と標準工数の CSV を配布し、左上�
 - リモート配布を模擬する場合: `PLAN_REMOTE_BASE_URL=file:///path/to/sample make test`
 - CI 導入時は `make test-smoke` をジョブに登録し、将来的には実機スモークテストを追加する。
 
+
+### 3.10 トラブルシュート（抜粋）
+
+- **工程設定が保存できない (`Permission denied: /var/lib/toolmgmt/station.json`)**
+  - `sudo mkdir -p /var/lib/toolmgmt && sudo chown tools01:tools01 /var/lib/toolmgmt && sudo chmod 755 /var/lib/toolmgmt`
+- **左上ペインがハイライトしない**
+  - DocumentViewer が `{type:'dv-barcode', part, order}` を postMessage しているか確認。ブラウザの Console にエラーがないか確認する。
+- **API トークンが無効（401）になる**
+  - メンテナンス → 「トークンをクリア」でブラウザ保存分を削除し、`scripts/manage_api_token.py rotate` で再発行して入力。
+- **リモート配布が更新されない**
+  - `journalctl -u toolmgmt.service --since now-5m | grep plan-cache` などでログを確認し、環境変数やネットワーク障害を点検。
+
 ### 決定記録 (Decision Log)
 
 1. **DocumentViewer 工程設定の保持方法**  
