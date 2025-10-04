@@ -149,7 +149,14 @@
 
     ※ `make test` でも同じ処理を行います。
 
-12. **DocumentViewer 常駐化 + ブラウザのキオスク自動起動**
+12. **UI 操作ガイド（抜粋）**
+
+    - メンテナンス → 工程設定: 工程候補の追加・削除、現在の工程を保存（station.json 更新）
+    - メンテナンス → 工程設定 → 「トークンをクリア」: ブラウザに保存された API トークンを削除
+    - 左上ペイン: DocumentViewer で部品番号をスキャンすると、生産計画・標準工数の両表がハイライト表示
+    - バーコードが見つからない場合はピンクのメッセージが表示されるので、CSV 更新状況を確認
+
+13. **DocumentViewer 常駐化 + ブラウザのキオスク自動起動**
 
         sudo bash setup_auto_start.sh                        # toolmgmt.service を設定
         sudo ~/DocumentViewer/scripts/install_docviewer_service.sh  # docviewer.service を設定
