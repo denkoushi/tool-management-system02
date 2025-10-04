@@ -386,7 +386,13 @@ USB メモリ経由で生産計画と標準工数の CSV を配布し、左上�
 ### 3.9 テスト（pytest）
 
 - 単体テスト / スモークテスト: `make test`（内部で `python -m pytest` を実行）
-- 実行前に仮想環境を有効化すること：`python3 -m venv venv && source venv/bin/activate` → `pip install -r requirements.txt requirements-dev.txt` → `pytest -q`
+- **実行手順**（仮想環境上で実施）
+
+        python3 -m venv venv
+        source venv/bin/activate
+        pip install -r requirements.txt -r requirements-dev.txt
+        pytest -q
+
 - リモート配布を模擬する場合: `PLAN_REMOTE_BASE_URL=file:///path/to/sample make test`
 - CI 導入時は `make test-smoke` をジョブに登録し、将来的には実機スモークテストを追加する。
 
