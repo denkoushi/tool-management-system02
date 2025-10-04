@@ -21,6 +21,7 @@ import urllib.request
 from usb_sync import run_usb_sync
 from station_config import load_station_config, save_station_config
 from api_token_store import get_token_info, API_TOKEN_HEADER
+from plan_cache import maybe_refresh_plan_cache
 
 
 # =========================
@@ -192,6 +193,10 @@ def load_plan_dataset(key: str) -> dict:
 
 
 def build_production_view() -> dict:
+    try:
+        maybe_refresh_plan_cache()
+    except Exception as exc:  # pylint: disable=broad-except
+        print(f"[plan-cache] refresh skipped due to error: {exc}")
     plan_data = load_plan_dataset("production_plan")
     standard_data = load_plan_dataset("standard_times")
 
