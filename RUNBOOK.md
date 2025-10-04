@@ -264,9 +264,10 @@
 
 1. **API トークンの設定**
    - 既定では `/etc/toolmgmt/api_token.json` に `{ "token": "...", "station_id": "CUTTING-01", "issued_at": "..." }` 形式で保存する。
-   - 発行例：`python scripts/manage_api_token.py issue --station-id CUTTING-01`
-   - 確認例：`python scripts/manage_api_token.py show`（`--reveal` で全表示）
-   - 失効：`python scripts/manage_api_token.py revoke`
+   - 確認：`python scripts/manage_api_token.py show`（`--reveal` で全表示）
+   - 発行：`python scripts/manage_api_token.py issue --station-id CUTTING-01`
+   - 再発行：`python scripts/manage_api_token.py rotate --station-id CUTTING-01`
+   - 無効化：`python scripts/manage_api_token.py revoke --token <値>` または `--station-id`, `--all`, `--file`
    - `/etc/toolmgmt` が存在しない場合は `sudo mkdir -p /etc/toolmgmt && sudo chown tools01:tools01 /etc/toolmgmt && sudo chmod 755 /etc/toolmgmt`
    - 旧来どおり環境変数 `API_AUTH_TOKEN` を設定した場合はフォールバックとして利用される。
    - キオスクブラウザではトークンを `localStorage` に保存するため、毎朝再入力する必要はない。端末入れ替え時や漏洩懸念がある場合は「トークンをクリア」ボタンで削除し、再発行・再入力する。
