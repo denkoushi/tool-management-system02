@@ -7,6 +7,16 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 
+
+def _is_writable(path: Path) -> bool:
+    """Return True if station config file (or its parent directory) is writable."""
+    try:
+        if path.exists():
+            return os.access(path, os.W_OK)
+        return os.access(path.parent, os.W_OK)
+    except Exception:
+        return False
+
 STATION_CONFIG_PATH = Path(os.getenv("STATION_CONFIG_PATH", "/var/lib/toolmgmt/station.json"))
 try:
     STATION_CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -28,6 +38,7 @@ def _default_config() -> Dict[str, object]:
         "source": "env" if env_process else "default",
         "error": None,
         "path": str(STATION_CONFIG_PATH),
+        "writable": _is_writable(STATION_CONFIG_PATH),
     }
     if env_process:
         base["available"] = [env_process]
@@ -53,6 +64,7 @@ def load_station_config() -> Dict[str, object]:
     path = STATION_CONFIG_PATH
 
     if not path.exists():
+        config["writable"] = _is_writable(path)
         return config
 
     try:
@@ -61,6 +73,7 @@ def load_station_config() -> Dict[str, object]:
     except Exception as exc:  # broad catch to surface error
         config["error"] = f"station.json を読み込めませんでした: {exc}"
         config["source"] = "error"
+        config["writable"] = _is_writable(path)
         return config
 
     process = str(data.get("process", "")).strip()
@@ -81,11 +94,14 @@ def load_station_config() -> Dict[str, object]:
             "error": None,
         }
     )
+    config["writable"] = _is_writable(path)
     return config
 
 
 def save_station_config(process: Optional[str] = None, available: Optional[List[str]] = None) -> Dict[str, object]:
     """Persist station configuration and return the updated structure."""
+    if not _is_writable(STATION_CONFIG_PATH):
+        raise PermissionError(f"station.json に書き込みできません: {STATION_CONFIG_PATH}")
     current = load_station_config()
     if current.get("source") == "error":
         current = _default_config()
@@ -117,6 +133,7 @@ def save_station_config(process: Optional[str] = None, available: Optional[List[
         "source": "file",
         "error": None,
         "path": str(STATION_CONFIG_PATH),
+        "writable": True,
     })
     return payload_with_meta
 
