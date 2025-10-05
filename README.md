@@ -102,8 +102,13 @@
         sudo chown tools01:tools01 /etc/toolmgmt
         sudo chmod 755 /etc/toolmgmt
 
-   ブラウザの管理画面にアクセスすると、初回のみトークン入力を求められます。入力した値はキオスクブラウザの `localStorage` に保存されるため、通常は再起動後も再入力は不要です。メンテナンス → 工程設定カードにある「トークンをクリア」ボタンで保存済みトークンを削除できます。
-   トークンは「この端末が正規か」を識別する鍵で、ステーション単位で発行しておくと監査ログに station_id が残ります。端末を入れ替える際は `revoke` → 再発行 → 新しいトークンを入力するだけでアクセスを切り替えられます。
+   ブラウザの管理画面にアクセスすると、初回のみトークン入力を求められます。入力した値はキオスクブラウザの `localStorage` に保存されるため、通常は再起動後も再入力は不要です。保存済みトークンを入れ替えたい場合はブラウザのサイトデータを削除するか、開発者ツールから `localStorage.removeItem('apiToken')` を実行してください。
+   トークンは「この端末が正規か」を識別する鍵で、ステーション単位で発行しておくと監査ログに station_id が残ります。端末を入れ替える際は `revoke` → 再発行 → 新しいトークンを入力するだけでアクセスを切り替えられます。すべてのトークンを無効化した場合は下記コマンドで再発行してください。
+
+        cd ~/tool-management-system02
+        python3 scripts/manage_api_token.py issue --station-id CUTTING-01 --reveal
+
+   station_id は任意の識別子に置き換えてください。発行後は `sudo systemctl restart toolmgmt.service` で再起動し、画面で新しいトークンを入力します。
 
 8. **psql クライアント（USB 同期で利用）**
 
@@ -116,7 +121,7 @@
     1. `scripts/usb_master_sync.sh` が `master/` 配下の CSV を双方向同期
     2. `../DocumentViewer/scripts/usb-import.sh` が `docviewer/` 配下の PDF を取り込み（`docviewer.service` が稼働している前提）
 
-    の順に実行します。処理中は画面がロックされるので USB を抜かず完了メッセージを待ってください。ログは画面内の結果表示に加えて、`journalctl -u tool-master-sync@*` と `/var/log/document-viewer/import.log` で確認できます。
+    の順に実行します。処理中は画面がロックされるので USB を抜かず完了メッセージを待ってください。実行結果はボタン右横のログ領域と `journalctl -u tool-master-sync@*` / `/var/log/document-viewer/import.log` で確認できます。ClamAV スキャンや PDF 検証を含むため、空に近い状態でも 1 分前後かかる点に留意してください（ファイル数が多いほど時間が延びます）。
 
     > 実行権限: UI からの同期では内部で `sudo bash .../scripts/usb_master_sync.sh` を呼び出します。パスワード入力を求められないよう、運用ユーザーに sudoers エントリを追加してください。
 
@@ -152,7 +157,6 @@
 12. **UI 操作ガイド（抜粋）**
 
     - メンテナンス → 工程設定: 工程候補の追加・削除、現在の工程を保存（station.json 更新）
-    - メンテナンス → 工程設定 → 「トークンをクリア」: ブラウザに保存された API トークンを削除
     - 左上ペイン: DocumentViewer で部品番号をスキャンすると、生産計画・標準工数の両表がハイライト表示
     - バーコードが見つからない場合はピンクのメッセージが表示されるので、CSV 更新状況を確認
 
