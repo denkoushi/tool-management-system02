@@ -308,6 +308,14 @@ scan_state = {
 }
 
 
+def emit_station_config_update(config: dict) -> None:
+    """Broadcast station configuration update to connected clients."""
+    try:
+        socketio.emit("station_config_updated", config, broadcast=True)
+    except Exception as exc:  # pylint: disable=broad-except
+        print(f"[station-config] failed to broadcast update: {exc}")
+
+
 def check_doc_viewer_health(url: str, timeout: float = 1.0) -> bool:
     """Return True if DocumentViewer /health endpoint responds."""
     if not url:
@@ -733,6 +741,7 @@ def api_station_config_update():
         "process": config.get("process"),
         "available": config.get("available"),
     })
+    emit_station_config_update(config)
     return jsonify(config)
 
 
