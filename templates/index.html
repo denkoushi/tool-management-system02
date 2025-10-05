@@ -574,10 +574,11 @@
     <div class="maintenance-card">
       <h3>USB 同期（手動）</h3>
       <p style="color:#6b7280; font-size:14px;">ラベル <code>TOOLMASTER</code> の USB メモリを挿入してから実行すると、マスターデータ（工具名・ユーザー・タグ紐づけ）を同期します。</p>
-      <div class="button-row">
+      <div class="button-row"><label style="font-size:13px;color:#6b7280;">USB 同期（手動）：ラベル <code>TOOLMASTER</code> の USB メモリを挿入してから実行してください。</label></div>
+      <div class="button-row" style="gap:8px;align-items:center;flex-wrap:wrap;">
         <button class="btn btn-primary" onclick="runUsbSync()">USB 同期を実行</button>
+        <pre id="usbSyncOutput" style="background:#111827; color:#e5e7eb; padding:8px 10px; border-radius:6px; margin:0; font-size:11px; min-width:200px; max-width:320px; max-height:120px; overflow:auto; white-space:pre-wrap;">(まだ実行していません)</pre>
       </div>
-      <pre id="usbSyncOutput" style="background:#1f2937; color:#e5e7eb; padding:12px; border-radius:6px; min-height:120px; overflow:auto; font-size:13px;">(まだ実行していません)</pre>
     </div>
 
     <div class="maintenance-card">
@@ -620,9 +621,6 @@
       {% if api_token_error %}
         <div class="dashboard-alert">API トークンの読み込みでエラーが発生しています: {{ api_token_error }}</div>
       {% endif %}
-      <div class="button-row" style="margin-top:6px;">
-        <button class="btn btn-secondary" onclick="clearStoredTokenAndNotify()">トークンをクリア</button>
-      </div>
     </div>
 
     <div class="maintenance-card">
@@ -795,15 +793,6 @@
     const panel = document.getElementById('docViewerPanel');
     if (panel){
       panel.dataset.stationProcess = stationConfig.process || '';
-    }
-  }
-
-  function clearStoredTokenAndNotify(){
-    if (typeof window.clearStoredApiToken === 'function'){
-      window.clearStoredApiToken();
-      showStationMessage('info', '保存済みの API トークンをクリアしました。再読み込み後に再入力してください。');
-    } else {
-      showStationMessage('warning', 'API トークンのクリア機能が利用できませんでした');
     }
   }
 
