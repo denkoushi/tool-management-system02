@@ -617,6 +617,7 @@
           <br>APIトークン station_id: {{ api_station_id }}
         {% endif %}
       </div>
+      <div class="station-meta" id="stationConfigNotice" style="display:none;"></div>
       <div id="stationConfigMessage"></div>
       {% if api_token_error %}
         <div class="dashboard-alert">API トークンの読み込みでエラーが発生しています: {{ api_token_error }}</div>
@@ -737,8 +738,22 @@
   // WebSocket
   const socket = io();
 
+  socket.on('station_config_updated', (data) => {
+    if (!data || typeof data !== 'object') return;
+    refreshStationUI(data);
+    try { window.notifyDocViewerStationChange(data); } catch (_) {}
+    if (suppressNextStationNotice){
+      suppressNextStationNotice = false;
+      return;
+    }
+    showStationMessage('info', '他の端末で工程設定が更新されました');
+  });
+
   const stationConfigInitial = {{ station_config|tojson }};
   let stationConfig = stationConfigInitial;
+  let suppressNextStationNotice = false;
+
+  window.notifyDocViewerStationChange = window.notifyDocViewerStationChange || function(){ };
 
   function showStationMessage(type, msg){
     const el = document.getElementById('stationConfigMessage');
@@ -790,10 +805,64 @@
       meta.innerHTML = `${updated}${path ? '<br>' + path : ''}`;
     }
 
+    const notice = document.getElementById('stationConfigNotice');
+    if (notice){
+      const messages = [];
+      if (stationConfig.error){
+        messages.push(`⚠️ 設定ファイルを読み込めません: ${stationConfig.error}`);
+      }
+      if (stationConfig.source === 'env'){
+        messages.push('環境変数から工程が設定されています。station.json を保存すると上書きできます。');
+      } else if (stationConfig.source === 'default'){
+        messages.push('工程は未設定です。工程を選択して保存してください。');
+      }
+      if (stationConfig.writable === false || stationConfig.writable === 0){
+        messages.push('station.json に書き込みできません。権限を確認してください。');
+      }
+      if (messages.length){
+        notice.style.display = 'block';
+        notice.innerHTML = messages.join('<br>');
+      } else {
+        notice.style.display = 'none';
+        notice.innerHTML = '';
+      }
+    }
+
     const panel = document.getElementById('docViewerPanel');
     if (panel){
       panel.dataset.stationProcess = stationConfig.process || '';
     }
+  }
+
+  function handleStationConfigFeedback(config, successMessage){
+    if (config){
+      refreshStationUI(config);
+      try { window.notifyDocViewerStationChange(config); } catch (_) {}
+      if (config.writable === false || config.writable === 0){
+        showStationMessage('warning', 'station.json に書き込めません。権限を確認してください。');
+      } else if (successMessage){
+        showStationMessage('success', successMessage);
+      }
+    }
+  }
+
+  async function processStationConfigResponse(res, { successMessage, errorMessage, errorLevel = 'danger' }){
+    let data = null;
+    try{
+      data = await res.json();
+    }catch(_){
+      data = null;
+    }
+
+    if (res.ok && data){
+      suppressNextStationNotice = true;
+      setTimeout(() => { suppressNextStationNotice = false; }, 500);
+      handleStationConfigFeedback(data, successMessage);
+    } else {
+      const message = (data && data.error) ? data.error : (errorMessage || '工程設定の更新に失敗しました');
+      showStationMessage(errorLevel, message);
+    }
+    return data;
   }
 
   function showApiTokenMessage(type, msg){
@@ -920,7 +989,7 @@
       const res = await fetch('/api/station_config');
       const data = await res.json();
       if(res.ok){
-        refreshStationUI(data);
+        handleStationConfigFeedback(data);
       } else {
         showStationMessage('warning', data.error || '工程設定の取得に失敗しました');
       }
@@ -943,13 +1012,10 @@
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify(payload)
       });
-      const data = await res.json();
-      if(res.ok){
-        refreshStationUI(data);
-        showStationMessage('success', '工程設定を保存しました');
-      } else {
-        showStationMessage('danger', data.error || '工程設定の保存に失敗しました');
-      }
+      await processStationConfigResponse(res, {
+        successMessage: '工程設定を保存しました',
+        errorMessage: '工程設定の保存に失敗しました',
+      });
     }catch(err){
       showStationMessage('danger', `工程設定の保存でエラー: ${err}`);
     }
@@ -973,13 +1039,12 @@
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({process: stationConfig.process || '', available})
       });
-      const data = await res.json();
-      if(res.ok){
+      const data = await processStationConfigResponse(res, {
+        successMessage: `工程候補「${name}」を追加しました`,
+        errorMessage: '工程候補の追加に失敗しました',
+      });
+      if(res.ok && data){
         input.value='';
-        refreshStationUI(data);
-        showStationMessage('success', `工程候補「${name}」を追加しました`);
-      }else{
-        showStationMessage('danger', data.error || '工程候補の追加に失敗しました');
       }
     }catch(err){
       showStationMessage('danger', `工程候補の追加でエラー: ${err}`);
@@ -995,13 +1060,10 @@
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({process, available})
       });
-      const data = await res.json();
-      if(res.ok){
-        refreshStationUI(data);
-        showStationMessage('success', `工程候補「${name}」を削除しました`);
-      } else {
-        showStationMessage('danger', data.error || '工程候補の削除に失敗しました');
-      }
+      await processStationConfigResponse(res, {
+        successMessage: `工程候補「${name}」を削除しました`,
+        errorMessage: '工程候補の削除に失敗しました',
+      });
     }catch(err){
       showStationMessage('danger', `工程候補の削除でエラー: ${err}`);
     }
@@ -1069,6 +1131,19 @@
       frame.src = `${docViewerUrl}${cacheBust}v=${Date.now()}`;
     };
 
+    const notifyStationChange = (payload) => {
+      if (!payload) return;
+      postToViewer({
+        type: 'station-change',
+        process: payload.process || '',
+        available: payload.available || [],
+        updated_at: payload.updated_at || null,
+      });
+      if (!frame || !frame.src) {
+        reloadFrame();
+      }
+    };
+
     if (initialOnline && frame && docViewerUrl) {
       frame.src = docViewerUrl;
     } else if (!initialOnline) {
@@ -1094,6 +1169,7 @@
     panel.dataset.docViewerUrl = docViewerUrl;
     panel.__requestViewerFocus = requestViewerFocus;
     window.requestDocViewerFocus = requestViewerFocus;
+    window.notifyDocViewerStationChange = notifyStationChange;
 
     if (document.getElementById('operations')?.classList.contains('active')) {
       requestViewerFocus();
