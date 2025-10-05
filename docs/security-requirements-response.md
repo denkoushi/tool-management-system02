@@ -8,7 +8,7 @@
 | --- | --- | --- | --- | --- | --- |
 | `sudo apt install ufw` | 外部からラズパイのポートを総当たりされ、不要サービスが露出してしまう。 | UFW（ファイアウォール）を導入し、`scripts/configure_ufw.sh` で初期設定を自動化。 | 「門番」を立て、許可した通信だけを通す状態になる。 | `sudo ufw status numbered` でルール確認。 | RUNBOOK 3.3 |
 | デフォルト拒否 + 必要ポートのみ許可 | 想定していないポートが開いたままだと、不正アクセスやマルウェア通信の入り口になる。 | `ufw default deny` で基本遮断し、`ufw allow 22/tcp` など必要なポートだけ開放。さらに `configure_ufw.sh <CIDR>` で接続元 IP を限定。 | 通信経路を最小限に絞り、想定外の侵入口を塞げる。 | 例：`sudo ./scripts/configure_ufw.sh 192.168.128.111 --no-enable` → 現地で `sudo ufw enable`。 | RUNBOOK 3.3 |
-| 特定 IP のみアクセス許可 | 認めていない PC からの SSH/VNC 操作で設定変更や乗っ取りが行われる。 | SSH と VNC それぞれ、管理端末の IP のみ許可。 | 認証情報が漏れても、許可された場所からしか接続できない。 | `sudo ufw status numbered` で `22/tcp` と `5900/tcp` の許可先を確認。 | RUNBOOK 6.4 |
+| 特定 IP のみアクセス許可 | 認めていない PC からの SSH/VNC 操作で設定変更や乗っ取りが行われる。 | SSH と VNC それぞれ、管理端末の IP のみ許可。 | 認証情報が漏れても、許可された場所からしか接続できない。 | `sudo ufw status numbered` で `22/tcp` と `5900/tcp` の許可先を確認。 | RUNBOOK 6 (運用チートシート) |
 
 ## 2. アクセス制御
 
@@ -22,7 +22,7 @@
 
 | 要求 | リスク | 対策 | 安心 | 運用・確認 | 参照 |
 | --- | --- | --- | --- | --- | --- |
-| 不要サービス停止 | 無線や VNC がむやみに開いていると、近くからリモート操作される恐れ。 | Bluetooth を停止。VNC は運用で必須だが、UFW でアクセス元を限定し、ログイン時の警告も確認。 | 「必要な機能だけを残し、誰でも入れるドアを閉じた」状態にできる。 | `systemctl status bluetooth` / `systemctl status vncserver-x11-serviced`。 | RUNBOOK 6.4 |
+| 不要サービス停止 | 無線や VNC がむやみに開いていると、近くからリモート操作される恐れ。 | Bluetooth を停止。VNC は運用で必須だが、UFW でアクセス元を限定し、ログイン時の警告も確認。 | 「必要な機能だけを残し、誰でも入れるドアを閉じた」状態にできる。 | `systemctl status bluetooth` / `systemctl status vncserver-x11-serviced`。 | RUNBOOK 6 (運用チートシート) |
 | 不要ポート閉鎖 | 使っていないポートが露出して攻撃に使われる。 | UFW によるデフォルト拒否。許可ポートは 22/tcp と管理端末向け 5900/tcp のみ。 | 通信ログを見れば、想定外の接続が遮断されている事実を確認できる。 | `sudo ufw status numbered`。 | RUNBOOK 3.3 |
 | fail2ban（再掲） |（2 章と同じ） |（2 章と同じ） |（2 章と同じ） | `sudo fail2ban-client status sshd`。 | RUNBOOK 3.3 |
 
