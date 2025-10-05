@@ -169,7 +169,7 @@
      2. `which clamscan` でコマンド有無、`clamscan --version` で動作確認。
      3. 定義ファイルが壊れている可能性があるため後述の更新手順で `main.cvd` などを入れ直す。
      4. 解決後に USB を再スキャンし、正常終了することを確認。
-   - UI から同期する場合は「🛠 メンテナンス」タブ内の「USB 同期を実行」ボタンを利用。内部的に上記 2 ステップを直列で実行し、結果は画面のログに整形して表示されます。
+   - UI から同期する場合は「🛠 メンテナンス」タブ内の「USB 同期を実行」ボタンを利用。内部的に上記 2 ステップを直列で実行し、結果はボタン右側のログ表示に整形して流れます。ClamAV スキャンと PDF 検証を行うため、データが少ない場合でも 1 分前後を見込んでください（ファイル数・サイズに比例して延びます）。
    - sudoers に下記エントリを追加し、パスワード無しでスクリプトを実行できるようにしておくと運用が楽になります（ユーザー名/パスは環境に合わせて変更）。
 
         sudo tee /etc/sudoers.d/toolmgmt-usbsync >/dev/null <<'SUDO'
@@ -271,13 +271,13 @@
    - 無効化：`python scripts/manage_api_token.py revoke --token <値>` または `--station-id`, `--all`, `--file`
    - `/etc/toolmgmt` が存在しない場合は `sudo mkdir -p /etc/toolmgmt && sudo chown tools01:tools01 /etc/toolmgmt && sudo chmod 755 /etc/toolmgmt`
    - 旧来どおり環境変数 `API_AUTH_TOKEN` を設定した場合はフォールバックとして利用される。
-   - キオスクブラウザではトークンを `localStorage` に保存するため、毎朝再入力する必要はない。端末入れ替え時や漏洩懸念がある場合は「トークンをクリア」ボタンで削除し、再発行・再入力する。
+   - キオスクブラウザではトークンを `localStorage` に保存するため、毎朝再入力する必要はない。端末入れ替え時や漏洩懸念がある場合はブラウザのサイトデータを削除するか `localStorage.removeItem('apiToken')` を実行し、再発行・再入力する。
    - **設置の目的**:
      1. **正当な端末の識別** … トークンを保持する端末だけが API を叩けるため、同一ネットワーク内に不審な端末があっても操作できない。
      2. **ステーション単位の監査** … station_id とひも付いてログに残るので、どの工程の端末が操作したか追跡できる。
      3. **容易な無効化** … 端末の入れ替え・紛失時は `revoke` + 再発行で即座にアクセスを止められる。
 
-     > **運用イメージ**: 物理的に管理されたキオスク端末で鍵を差したまま使うイメージです。トークンは `localStorage` に保存されるため毎朝の入力は不要ですが、鍵を抜きたいとき（端末移設・漏洩疑い）は「トークンをクリア」→ 再発行するだけでリセットできます。
+     > **運用イメージ**: 物理的に管理されたキオスク端末で鍵を差したまま使うイメージです。トークンは `localStorage` に保存されるため毎朝の入力は不要ですが、鍵を抜きたいとき（端末移設・漏洩疑い）は `localStorage` を削除 → 再発行するだけでリセットできます。
 
 2. **ヘッダ仕様**
    - 既定では `X-API-Token` ヘッダを使用。必要なら `API_TOKEN_HEADER` で名称を変更可能。
@@ -294,7 +294,13 @@
 
 5. **運用メモ**
    - ログに 401 が連続する場合は不正アクセスまたはトークン入力ミスの可能性があるため、`fail2ban` の結果と併せて確認する。
-   - トークンを再発行した場合は、発行コマンドの出力に表示される新しいトークンを利用者に周知し、ブラウザの `sessionStorage` をクリアして再入力を促す。
+   - トークンをすべて無効化した場合は、次のコマンドですぐに再発行できる。
+
+        cd ~/tool-management-system02
+        python3 scripts/manage_api_token.py issue --station-id CUTTING-01 --reveal
+
+     station_id は現場に合わせて置き換え、発行後は `sudo systemctl restart toolmgmt.service` → `sudo systemctl status toolmgmt.service --no-pager` で再起動と状態確認を行う。
+   - トークンを再発行した場合は、発行コマンドの出力に表示される新しいトークンを利用者に周知し、ブラウザの `localStorage`/`sessionStorage` をクリアして再入力を促す。
 
 ### 3.5 ログローテーション（toolmgmt/document-viewer）
 
@@ -405,7 +411,7 @@ USB メモリ経由で生産計画と標準工数の CSV を配布し、左上�
 - **左上ペインがハイライトしない**
   - DocumentViewer が `{type:'dv-barcode', part, order}` を postMessage しているか確認。ブラウザの Console にエラーがないか確認する。
 - **API トークンが無効（401）になる**
-  - メンテナンス → 「トークンをクリア」でブラウザ保存分を削除し、`scripts/manage_api_token.py rotate` で再発行して入力。
+  - ブラウザのサイトデータ（`localStorage`/`sessionStorage`）を削除し、`python3 scripts/manage_api_token.py rotate --station-id <既存ID>` で再発行したトークンを再入力。
 - **リモート配布が更新されない**
   - `journalctl -u toolmgmt.service --since now-5m | grep plan-cache` などでログを確認し、環境変数やネットワーク障害を点検。
 
