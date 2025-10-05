@@ -15,7 +15,7 @@
 ## 3. 実装タスク一覧
 1. **DocumentViewer 側調査**
    - Raspberry Pi 上で DV を常駐させる方法を決める（venv, systemd, 依存パッケージ）。
-   - `docs/setup-raspberrypi.md` を確認し、TMS との併用時に競合するパッケージが無いか確認する。
+   - DocumentViewer リポジトリのセットアップ手順（例: README / docs 配下）を確認し、TMS との併用時に競合するパッケージが無いか確認する。
 2. **通信エンドポイントの確定**
    - DV を `http://127.0.0.1:5000`（または別ポート）で固定し、TMS の設定ファイルに base URL を記録。
    - もし別マシンで DV を稼働させる場合は、同一ネットワーク内の固定 IP へ切替えられるよう README/RUNBOOK に記載する。
