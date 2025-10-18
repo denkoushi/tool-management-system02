@@ -153,48 +153,6 @@
     position:relative;
     overflow:hidden;
   }
-  .future-tabs{
-    display:flex;
-    background:linear-gradient(135deg, rgba(37,99,235,.82) 0%, rgba(14,165,233,.78) 100%);
-    border-bottom:1px solid rgba(148,163,184,.25);
-    box-shadow:0 6px 18px rgba(15,23,42,.3);
-    z-index:2;
-  }
-  .future-tab-button{
-    flex:1;
-    appearance:none;
-    background:none;
-    border:0;
-    color:rgba(241,245,249,.76);
-    font-size:13px;
-    font-weight:600;
-    letter-spacing:.04em;
-    padding:10px 14px;
-    cursor:pointer;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    gap:6px;
-    position:relative;
-    transition:background .2s ease,color .2s ease;
-  }
-  .future-tab-button.active{
-    color:#fff;
-    background:rgba(15,23,42,.2);
-  }
-  .future-tab-button .tab-badge{
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    min-width:20px;
-    height:20px;
-    padding:0 6px;
-    background:rgba(15,23,42,.35);
-    border-radius:999px;
-    font-size:11px;
-    font-weight:700;
-    color:#e0f2fe;
-  }
   .future-panel-contents{
     flex:1;
     display:flex;
@@ -236,6 +194,49 @@
   #docViewerFrame{width:100%;height:100%;border:0;background:#0f172a;}
   .doc-viewer-overlay{position:absolute;inset:6px;border-radius:var(--radius);background:rgba(15,23,42,.72);color:#f8fafc;display:flex;align-items:center;justify-content:center;text-align:center;padding:12px;font-size:var(--fs-sm);line-height:1.4;box-shadow:0 12px 32px rgba(15,23,42,.35);}
   .doc-viewer-overlay.is-hidden{display:none;}
+
+  .view-switch{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    background:rgba(30,41,59,.55);
+    border:1px solid rgba(148,163,184,.35);
+    border-radius:999px;
+    padding:2px;
+  }
+  .view-switch button{
+    appearance:none;
+    border:0;
+    background:transparent;
+    color:rgba(226,232,240,.78);
+    font-size:11px;
+    font-weight:600;
+    letter-spacing:.04em;
+    padding:4px 10px;
+    border-radius:999px;
+    cursor:pointer;
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+    transition:background .2s ease,color .2s ease;
+  }
+  .view-switch button.active{
+    background:rgba(226,232,240,.18);
+    color:#fff;
+  }
+  .view-switch .tab-badge{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    min-width:18px;
+    height:18px;
+    padding:0 5px;
+    background:rgba(15,23,42,.6);
+    border-radius:999px;
+    font-size:10px;
+    font-weight:700;
+    color:#e0f2fe;
+  }
 
   .part-locations-shell{flex:1;display:flex;flex-direction:column;gap:18px;padding:18px 22px;color:#e2e8f0;}
   .part-locations-header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;}
@@ -772,13 +773,6 @@
     </div>
   </div>
   <div class="future-panel" id="rightPanel">
-    <div class="future-tabs" role="tablist">
-      <button type="button" class="future-tab-button active" data-target="docViewerPanel">要領書</button>
-      <button type="button" class="future-tab-button" data-target="partLocationsPanel">
-        所在一覧
-        <span class="tab-badge" id="partLocationsTabBadge">{{ part_locations|length }}</span>
-      </button>
-    </div>
     <div class="future-panel-contents">
       <section class="future-panel-body future-panel-body--doc active"
                id="docViewerPanel"
@@ -786,6 +780,13 @@
                data-doc-viewer-online="{{ 'true' if doc_viewer_online else 'false' }}"
                data-station-process="{{ station_config.process|default('', true) }}">
         <div class="doc-viewer-header">
+          <div class="view-switch" role="tablist">
+            <button type="button" class="active" data-target="docViewerPanel">要領書</button>
+            <button type="button" data-target="partLocationsPanel">
+              所在一覧
+              <span class="tab-badge" id="partLocationsTabBadge">{{ part_locations|length }}</span>
+            </button>
+          </div>
           <div class="doc-viewer-status-group">
             <div id="docViewerStatus"
                  class="doc-viewer-status {{ 'doc-viewer-status--online' if doc_viewer_online else 'doc-viewer-status--offline' }}">
@@ -822,6 +823,13 @@
               <p class="part-locations-subtitle">ハンディリーダの最新スキャンをリアルタイムに反映します</p>
             </div>
             <div class="part-locations-meta">
+              <div class="view-switch" role="tablist">
+                <button type="button" data-target="docViewerPanel">要領書</button>
+                <button type="button" data-target="partLocationsPanel">
+                  所在一覧
+                  <span class="tab-badge">{{ part_locations|length }}</span>
+                </button>
+              </div>
               <span id="partLocationSocketStatus" class="part-location-chip" data-state="loading">接続確認中…</span>
               <span id="partLocationCount" class="part-location-chip">件数: {{ part_locations|length }}</span>
               <span id="partLocationLastUpdated" class="part-location-chip">最終更新: -</span>
@@ -877,7 +885,7 @@
     lastUpdated: document.getElementById('partLocationLastUpdated'),
     refreshBtn: document.getElementById('partLocationRefreshBtn'),
     socketStatus: document.getElementById('partLocationSocketStatus'),
-    tabBadge: document.getElementById('partLocationsTabBadge'),
+    tabBadges: Array.from(document.querySelectorAll('.view-switch .tab-badge')),
   };
   const partLocationState = new Map();
   let partLocationMessageTimer = null;
@@ -989,9 +997,9 @@
     if (partLocationElements.count){
       partLocationElements.count.textContent = `件数: ${entries.length}`;
     }
-    if (partLocationElements.tabBadge){
-      partLocationElements.tabBadge.textContent = entries.length;
-    }
+    partLocationElements.tabBadges.forEach(badge => {
+      if (badge) badge.textContent = entries.length;
+    });
     if (partLocationElements.lastUpdated){
       const latest = entries.length ? entries[0].updated_at : null;
       partLocationElements.lastUpdated.textContent = `最終更新: ${latest ? formatTimestampDisplay(latest) : '—'}`;
@@ -1100,19 +1108,24 @@
   (function setupRightPanelTabs(){
     const container = document.getElementById('rightPanel');
     if (!container) return;
-    const buttons = Array.from(container.querySelectorAll('.future-tab-button'));
+    const buttons = Array.from(container.querySelectorAll('.view-switch button'));
     const panels = {};
     buttons.forEach(btn => {
       const target = btn.dataset.target;
-      if (target) panels[target] = document.getElementById(target);
+      if (target && !panels[target]) panels[target] = document.getElementById(target);
     });
-    let active = buttons.find(btn => btn.classList.contains('active'))?.dataset.target || (buttons[0] && buttons[0].dataset.target);
+    let active = buttons.find(btn => btn.classList.contains('active'))?.dataset.target || (buttons[0] && buttons[0].dataset.target) || 'docViewerPanel';
+    function syncActiveClasses(target){
+      buttons.forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.target === target);
+      });
+    }
     function activate(target){
       if (!target || target === active) return;
       const panel = panels[target];
       if (!panel) return;
       active = target;
-      buttons.forEach(btn => btn.classList.toggle('active', btn.dataset.target === target));
+      syncActiveClasses(target);
       Object.entries(panels).forEach(([key, pane]) => {
         if (!pane) return;
         pane.classList.toggle('active', key === target);
@@ -1129,6 +1142,7 @@
     buttons.forEach(btn => {
       btn.addEventListener('click', () => activate(btn.dataset.target));
     });
+    syncActiveClasses(active);
   })();
 
   socket.on('station_config_updated', (data) => {
