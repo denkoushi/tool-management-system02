@@ -891,6 +891,8 @@
   let partLocationMessageTimer = null;
   let partLocationHighlightTimer = null;
   let partLocationLastHighlight = null;
+  let partLocationLastRender = 0;
+  let partLocationFetchInFlight = false;
 
   const cssEscape = window.CSS && typeof window.CSS.escape === 'function'
     ? window.CSS.escape.bind(window.CSS)
@@ -1013,6 +1015,7 @@
       partLocationLastHighlight = highlightKey;
       queueHighlightRow(highlightKey);
     }
+    partLocationLastRender = Date.now();
   }
 
   function hydratePartLocations(list){
@@ -1025,8 +1028,11 @@
   }
 
   async function refreshPartLocations(){
-    if (!partLocationElements.refreshBtn) return;
-    partLocationElements.refreshBtn.disabled = true;
+    if (partLocationFetchInFlight) return;
+    partLocationFetchInFlight = true;
+    if (partLocationElements.refreshBtn){
+      partLocationElements.refreshBtn.disabled = true;
+    }
     setPartLocationStatus('loading', '更新中…');
     try{
       const res = await fetch('/api/part_locations?limit=200');
@@ -1042,8 +1048,11 @@
       console.error('part_locations refresh error', err);
       showPartLocationMessage('danger', err.message || String(err));
     }finally{
-      partLocationElements.refreshBtn.disabled = false;
+      if (partLocationElements.refreshBtn){
+        partLocationElements.refreshBtn.disabled = false;
+      }
       setPartLocationStatus(socket.connected ? 'live' : 'offline', socket.connected ? 'LIVE' : 'OFFLINE');
+      partLocationFetchInFlight = false;
     }
   }
 
@@ -1075,6 +1084,14 @@
       partLocationElements.message.innerHTML = '';
     }
   })();
+
+  setInterval(() => {
+    const now = Date.now();
+    const stale = now - partLocationLastRender > 20000;
+    if (stale || !socket.connected){
+      refreshPartLocations();
+    }
+  }, 20000);
 
   socket.on('part_location_updated', (payload) => {
     if (!partLocationElements.tableBody) return;
