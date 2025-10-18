@@ -32,6 +32,7 @@
 - USB とリモート配布の併用フェーズにおける運用手順更新。
 - 中央ストレージ（PostgreSQL など）への集約検討。PDF を含むすべてを DB 化するのではなく、まず CSV メタ情報から段階的に移行し、ネットワーク障害時のフォールバックや認証強化を含む運用設計を策定する。移行期間中の二重管理リスクやセキュリティ要件を踏まえて段階的に進める。
 - スキャン所在更新用 API (`POST /api/v1/scans`) を受け付け、製造オーダー番号と棚位置を `part_locations` テーブルに upsert する機能を実装（ステップ進行中）。
+  - 運用時は `toolmgmt.service` を `feature/scan-intake` で更新し、`ufw allow from 192.168.128.0/24 to any port 8501 proto tcp` を追加。詳細手順は RUNBOOK 3.4「OnSiteLogistics（ハンディリーダ）との連携」を参照。
 
 ### 2.3 コンテナ運用（Docker）
 - Raspberry Pi 上でのコンテナ統一運用を検討。アプリ・PostgreSQL・Grafana を Docker 化すると再現性が高まる一方、端末リソースを圧迫するため構成を整理する。
