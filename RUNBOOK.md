@@ -303,7 +303,41 @@
         python3 scripts/manage_api_token.py issue --station-id CUTTING-01 --reveal
 
      station_id は現場に合わせて置き換え、発行後は `sudo systemctl restart toolmgmt.service` → `sudo systemctl status toolmgmt.service --no-pager` で再起動と状態確認を行う。
-   - トークンを再発行した場合は、発行コマンドの出力に表示される新しいトークンを利用者に周知し、ブラウザの `localStorage`/`sessionStorage` をクリアして再入力を促す。
+- トークンを再発行した場合は、発行コマンドの出力に表示される新しいトークンを利用者に周知し、ブラウザの `localStorage`/`sessionStorage` をクリアして再入力を促す。
+
+#### OnSiteLogistics（ハンディリーダ）との連携
+
+- **アプリ更新**
+
+      cd ~/tool-management-system02
+      git checkout feature/scan-intake
+      git pull
+      sudo systemctl restart toolmgmt.service
+      sudo systemctl --no-pager status toolmgmt.service
+
+- **ファイアウォール許可**（初回のみ）
+
+      sudo ufw allow from 192.168.128.0/24 to any port 8501 proto tcp
+      sudo ufw status numbered
+
+- **トークン発行**（推奨）
+
+      source ~/tool-management-system02/venv/bin/activate    # venv 利用時
+      python scripts/manage_api_token.py issue --station-id HANDHELD-01 --reveal
+
+  - トークン不要にする場合は `sudo systemctl edit toolmgmt.service` → `Environment=API_TOKEN_ENFORCE=0` を追加し、`daemon-reload` → 再起動。
+
+- **疎通テスト**
+
+      curl -s -o /dev/null -w '%{http_code}\n' \
+        http://127.0.0.1:8501/api/v1/scans \
+        -H 'Content-Type: application/json' \
+        -H 'Authorization: Bearer <token>' \
+        -d '{"part_code":"PING","location_code":"TEST","scanned_at":"2025-01-01T00:00:00Z"}'
+
+  - Pi Zero からも同様に `curl` を実行し、200 が返ることを確認する。
+  - 受信後は `docker exec -it pg psql -U app -d sensordb -c "SELECT * FROM part_locations ORDER BY updated_at DESC LIMIT 5;"` で登録内容を確認。
+  - API 受信時は `SocketIO` の `part_location_updated` イベントが配信される。サイネージでリアルタイム表示する場合はこのイベントを購読。
 
 ### 3.5 ログローテーション（toolmgmt/document-viewer）
 
