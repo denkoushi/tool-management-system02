@@ -264,7 +264,11 @@
 
 1. **API トークンの設定**
    - 環境変数 `API_AUTH_TOKEN` を設定してから Flask アプリを起動する（systemd ユニットの場合は `Environment=API_AUTH_TOKEN=<token>` を追記）。
-   - 一時的に入力を省略したい場合は `API_TOKEN_ENFORCE=0` を併せて設定すると、ダイアログを表示せずに操作できる（認証自体は無効化されるため、運用状況に応じて元に戻すこと）。
+   - 一時的に入力を省略したい場合は、以下の手順で `API_TOKEN_ENFORCE=0` を設定するとダイアログが表示されません。
+     1. `sudo systemctl edit toolmgmt.service` を実行し、ドロップインファイルに `[Service]` と `Environment=API_TOKEN_ENFORCE=0` を追記して保存。
+     2. `sudo systemctl daemon-reload`
+     3. `sudo systemctl restart toolmgmt.service`
+     4. 元に戻すときはこの記述を削除（または `API_TOKEN_ENFORCE=1` に変更）し、同様に reload / restart を行う。
    - UI で操作を行う際は、強制が有効な場合にトークンダイアログが表示され、`sessionStorage` に保存される。
    - 401 が返った場合はトークンが無効化されるため、ダイアログで再入力する。
 
