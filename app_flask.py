@@ -6,6 +6,7 @@ import threading
 import json
 from datetime import datetime
 from functools import wraps
+from typing import Optional
 import logging
 from pathlib import Path
 from flask import Flask, render_template, request, jsonify, has_request_context
@@ -27,9 +28,16 @@ app.config['SECRET_KEY'] = 'your-secret-key-here'
 app.config['DOCUMENT_VIEWER_URL'] = os.getenv("DOCUMENT_VIEWER_URL", "http://127.0.0.1:5000")
 socketio = SocketIO(app, cors_allowed_origins="*")
 
+
+def _parse_bool(value: Optional[str], default: bool = True) -> bool:
+    if value is None:
+        return default
+    return value.strip().lower() not in {"0", "false", "off", "no", ""}
+
 # --- API 認証/監査設定 ---
 API_AUTH_TOKEN = os.getenv("API_AUTH_TOKEN")
 API_TOKEN_HEADER = os.getenv("API_TOKEN_HEADER", "X-API-Token")
+API_TOKEN_ENFORCE = _parse_bool(os.getenv("API_TOKEN_ENFORCE", "1"), True)
 LOG_PATH = Path(os.getenv(
     "API_AUDIT_LOG",
     str((Path(__file__).resolve().parent / "logs" / "api_actions.log").resolve())
@@ -131,6 +139,8 @@ def require_api_token(action_name: str):
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
+            if not API_TOKEN_ENFORCE:
+                return func(*args, **kwargs)
             if API_AUTH_TOKEN:
                 provided = _extract_provided_token()
                 if not provided or provided != API_AUTH_TOKEN:
@@ -474,7 +484,7 @@ def index():
         'index.html',
         doc_viewer_url=doc_viewer_url,
         doc_viewer_online=doc_viewer_online,
-        api_token_required=bool(API_AUTH_TOKEN),
+        api_token_required=bool(API_AUTH_TOKEN) and API_TOKEN_ENFORCE,
         api_token_header=API_TOKEN_HEADER,
     )
 
