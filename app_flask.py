@@ -259,6 +259,43 @@ def build_production_view() -> dict:
     }
 
 
+def fetch_part_locations(limit: int = 200) -> list[dict[str, object]]:
+    """Return recent part location entries sorted by newest update."""
+    try:
+        limit_value = int(limit or 0)
+    except (TypeError, ValueError):
+        limit_value = 200
+    limit_value = max(1, min(limit_value, 1000))
+
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT order_code, location_code, device_id, last_scan_id, scanned_at, updated_at
+                FROM part_locations
+                ORDER BY updated_at DESC
+                LIMIT %s
+                """,
+                (limit_value,),
+            )
+            rows = cur.fetchall()
+    finally:
+        conn.close()
+
+    results: list[dict[str, object]] = []
+    for order_code, location_code, device_id, last_scan_id, scanned_at, updated_at in rows:
+        results.append({
+            "order_code": order_code,
+            "location_code": location_code,
+            "device_id": device_id,
+            "last_scan_id": last_scan_id,
+            "scanned_at": _to_utc_iso(scanned_at),
+            "updated_at": _to_utc_iso(updated_at),
+        })
+    return results
+
+
 def _extract_provided_token() -> str:
     header_token = request.headers.get(API_TOKEN_HEADER)
     if header_token:
@@ -678,6 +715,7 @@ def index():
     doc_viewer_online = check_doc_viewer_health(doc_viewer_url)
     production_view = build_production_view()
     station_config = load_station_config()
+    part_locations = fetch_part_locations()
     token_info = get_token_info()
     return render_template(
         'index.html',
@@ -689,6 +727,7 @@ def index():
         api_token_error=token_info.get("error"),
         production_view=production_view,
         station_config=station_config,
+        part_locations=part_locations,
     )
 
 @app.route('/api/start_scan', methods=['POST'])
@@ -904,6 +943,23 @@ def api_v1_scans():
     except Exception:
         pass
     return jsonify(response)
+
+
+@app.route('/api/part_locations', methods=['GET'])
+@require_api_token("part_location_list")
+def api_part_locations_list():
+    raw_limit = request.args.get('limit', 200)
+    try:
+        limit_value = int(raw_limit)
+    except (TypeError, ValueError):
+        limit_value = 200
+    limit_value = max(1, min(limit_value, 1000))
+    items = fetch_part_locations(limit_value)
+    log_api_action("part_location_list", detail={"count": len(items), "limit": limit_value})
+    return jsonify({
+        "items": items,
+        "limit": limit_value,
+    })
 
 
 @app.route('/api/tokens/revoke', methods=['POST'])
