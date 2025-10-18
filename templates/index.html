@@ -152,10 +152,71 @@
     flex-direction:column;
     position:relative;
     overflow:hidden;
-    padding-top:40px;
+  }
+  .future-tabs{
+    display:flex;
+    background:linear-gradient(135deg, rgba(37,99,235,.82) 0%, rgba(14,165,233,.78) 100%);
+    border-bottom:1px solid rgba(148,163,184,.25);
+    box-shadow:0 6px 18px rgba(15,23,42,.3);
+    z-index:2;
+  }
+  .future-tab-button{
+    flex:1;
+    appearance:none;
+    background:none;
+    border:0;
+    color:rgba(241,245,249,.76);
+    font-size:13px;
+    font-weight:600;
+    letter-spacing:.04em;
+    padding:10px 14px;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    position:relative;
+    transition:background .2s ease,color .2s ease;
+  }
+  .future-tab-button.active{
+    color:#fff;
+    background:rgba(15,23,42,.2);
+  }
+  .future-tab-button .tab-badge{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    min-width:20px;
+    height:20px;
+    padding:0 6px;
+    background:rgba(15,23,42,.35);
+    border-radius:999px;
+    font-size:11px;
+    font-weight:700;
+    color:#e0f2fe;
+  }
+  .future-panel-contents{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    position:relative;
+  }
+  .future-panel-body{
+    display:none;
+    flex:1;
+    position:relative;
+  }
+  .future-panel-body.active{
+    display:flex;
+  }
+  .future-panel-body--doc{
+    padding:64px 0 12px;
+  }
+  .future-panel-body--doc .doc-viewer-wrapper{
+    flex:1;
   }
 
-  .doc-viewer-header{position:absolute;top:8px;left:12px;right:12px;display:flex;align-items:center;justify-content:space-between;background:rgba(15,23,42,.88);padding:6px 12px;border-radius:10px;border:1px solid rgba(148,163,184,.28);gap:12px;}
+  .doc-viewer-header{position:absolute;top:12px;left:12px;right:12px;display:flex;align-items:center;justify-content:space-between;background:rgba(15,23,42,.88);padding:8px 14px;border-radius:10px;border:1px solid rgba(148,163,184,.28);gap:12px;}
   .doc-viewer-status-group{display:flex;align-items:center;gap:8px;min-width:0;}
   .doc-viewer-status{padding:2px 12px;border-radius:999px;border:1px solid rgba(148,163,184,.35);font-size:12px;font-weight:600;color:#f8fafc;background:rgba(34,197,94,.2);display:inline-flex;align-items:center;gap:6px;letter-spacing:.04em;white-space:nowrap;}
   .doc-viewer-chip{padding:2px 10px;border-radius:999px;background:rgba(148,163,184,.25);color:#e2e8f0;font-size:12px;letter-spacing:.04em;white-space:nowrap;display:inline-flex;align-items:center;gap:4px;transition:background .2s ease,color .2s ease;}
@@ -175,6 +236,26 @@
   #docViewerFrame{width:100%;height:100%;border:0;background:#0f172a;}
   .doc-viewer-overlay{position:absolute;inset:6px;border-radius:var(--radius);background:rgba(15,23,42,.72);color:#f8fafc;display:flex;align-items:center;justify-content:center;text-align:center;padding:12px;font-size:var(--fs-sm);line-height:1.4;box-shadow:0 12px 32px rgba(15,23,42,.35);}
   .doc-viewer-overlay.is-hidden{display:none;}
+
+  .part-locations-shell{flex:1;display:flex;flex-direction:column;gap:18px;padding:18px 22px;color:#e2e8f0;}
+  .part-locations-header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+  .part-locations-title{margin:0;font-size:17px;font-weight:700;color:#f8fafc;letter-spacing:.05em;}
+  .part-locations-subtitle{margin:0;font-size:12px;color:rgba(226,232,240,.7);}
+  .part-locations-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .part-location-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:999px;border:1px solid rgba(148,163,184,.35);background:rgba(15,23,42,.35);font-size:12px;color:#e2e8f0;letter-spacing:.03em;transition:background .2s ease,color .2s ease;}
+  .part-location-chip[data-state="live"]{background:rgba(34,197,94,.25);color:#bbf7d0;border-color:rgba(34,197,94,.45);}
+  .part-location-chip[data-state="offline"]{background:rgba(248,113,113,.25);color:#fecaca;border-color:rgba(248,113,113,.45);}
+  .part-location-chip[data-state="loading"]{background:rgba(250,204,21,.25);color:#fef08a;border-color:rgba(250,204,21,.45);}
+  .part-locations-table-wrapper{flex:1;overflow:auto;border-radius:14px;border:1px solid rgba(148,163,184,.25);background:rgba(15,23,42,.65);box-shadow:inset 0 1px 6px rgba(15,23,42,.4);}
+  .part-locations-table{width:100%;border-collapse:collapse;font-size:12px;color:#e2e8f0;}
+  .part-locations-table thead{background:rgba(10,20,35,.74);backdrop-filter:blur(6px);position:sticky;top:0;z-index:1;}
+  .part-locations-table th{font-weight:600;text-transform:uppercase;letter-spacing:.06em;padding:8px 10px;border-bottom:1px solid rgba(148,163,184,.35);text-align:left;}
+  .part-locations-table td{padding:7px 10px;border-bottom:1px solid rgba(148,163,184,.2);vertical-align:middle;}
+  .part-locations-table tbody tr:nth-child(even){background:rgba(15,23,42,.32);}
+  .part-locations-table tbody tr.is-flash{animation:flash-row 2s ease-out;}
+  @keyframes flash-row{0%{background:rgba(34,197,94,.45);}100%{background:transparent;}}
+  .part-locations-empty{padding:18px;border:1px dashed rgba(148,163,184,.45);border-radius:12px;text-align:center;font-size:13px;color:rgba(226,232,240,.78);background:rgba(14,23,42,.6);}
+  .part-locations-message{min-height:22px;}
 
   .modal-overlay{
     position:fixed;
@@ -690,40 +771,88 @@
   </div>
     </div>
   </div>
-  <div class="future-panel" id="docViewerPanel"
-     data-doc-viewer-url="{{ doc_viewer_url|default('', true) }}"
-     data-doc-viewer-online="{{ 'true' if doc_viewer_online else 'false' }}"
-     data-station-process="{{ station_config.process|default('', true) }}">
-  <div class="doc-viewer-header">
-    <div class="doc-viewer-status-group">
-      <div id="docViewerStatus"
-           class="doc-viewer-status {{ 'doc-viewer-status--online' if doc_viewer_online else 'doc-viewer-status--offline' }}">
-        <span class="doc-viewer-status__dot"></span>
-        <span class="doc-viewer-status__label">{{ '接続済み' if doc_viewer_online else '未接続' }}</span>
-      </div>
-      <span id="docViewerStateChip" class="doc-viewer-chip">状態: 未表示</span>
-      <span id="docViewerPartChip" class="doc-viewer-chip doc-viewer-chip--part" data-empty="true">部品番号: -</span>
+  <div class="future-panel" id="rightPanel">
+    <div class="future-tabs" role="tablist">
+      <button type="button" class="future-tab-button active" data-target="docViewerPanel">要領書</button>
+      <button type="button" class="future-tab-button" data-target="partLocationsPanel">
+        所在一覧
+        <span class="tab-badge" id="partLocationsTabBadge">{{ part_locations|length }}</span>
+      </button>
     </div>
-    <div class="doc-viewer-header-actions">
-      <button type="button" id="docViewerReloadBtn" class="btn-reload">再読み込み</button>
-      <button type="button" id="docViewerReturnBtn" class="btn-reload">待機画面に戻る</button>
+    <div class="future-panel-contents">
+      <section class="future-panel-body future-panel-body--doc active"
+               id="docViewerPanel"
+               data-doc-viewer-url="{{ doc_viewer_url|default('', true) }}"
+               data-doc-viewer-online="{{ 'true' if doc_viewer_online else 'false' }}"
+               data-station-process="{{ station_config.process|default('', true) }}">
+        <div class="doc-viewer-header">
+          <div class="doc-viewer-status-group">
+            <div id="docViewerStatus"
+                 class="doc-viewer-status {{ 'doc-viewer-status--online' if doc_viewer_online else 'doc-viewer-status--offline' }}">
+              <span class="doc-viewer-status__dot"></span>
+              <span class="doc-viewer-status__label">{{ '接続済み' if doc_viewer_online else '未接続' }}</span>
+            </div>
+            <span id="docViewerStateChip" class="doc-viewer-chip">状態: 未表示</span>
+            <span id="docViewerPartChip" class="doc-viewer-chip doc-viewer-chip--part" data-empty="true">部品番号: -</span>
+          </div>
+          <div class="doc-viewer-header-actions">
+            <button type="button" id="docViewerReloadBtn" class="btn-reload">再読み込み</button>
+            <button type="button" id="docViewerReturnBtn" class="btn-reload">待機画面に戻る</button>
+          </div>
+        </div>
+        <div class="doc-viewer-wrapper">
+          <iframe id="docViewerFrame" title="Document Viewer"
+                  src="{{ doc_viewer_url if doc_viewer_online else '' }}"
+                  loading="lazy"></iframe>
+          <div id="docViewerOverlay" class="doc-viewer-overlay">
+            {% if doc_viewer_online %}
+              読み込み中…
+            {% else %}
+              DocumentViewer サービスが見つかりません。<br>
+              起動後に「再読み込み」を押してください。
+            {% endif %}
+          </div>
+        </div>
+      </section>
+      <section class="future-panel-body future-panel-body--locations" id="partLocationsPanel">
+        <div class="part-locations-shell">
+          <div class="part-locations-header">
+            <div>
+              <h3 class="part-locations-title">部品所在一覧</h3>
+              <p class="part-locations-subtitle">ハンディリーダの最新スキャンをリアルタイムに反映します</p>
+            </div>
+            <div class="part-locations-meta">
+              <span id="partLocationSocketStatus" class="part-location-chip" data-state="loading">接続確認中…</span>
+              <span id="partLocationCount" class="part-location-chip">件数: {{ part_locations|length }}</span>
+              <span id="partLocationLastUpdated" class="part-location-chip">最終更新: -</span>
+              <button type="button" id="partLocationRefreshBtn" class="btn-reload">最新を取得</button>
+            </div>
+          </div>
+          <div id="partLocationsMessage" class="part-locations-message"></div>
+          <div class="part-locations-table-wrapper">
+            <table class="part-locations-table" id="partLocationsTable">
+              <thead>
+                <tr>
+                  <th style="width:28%;">部品番号</th>
+                  <th style="width:22%;">棚位置</th>
+                  <th style="width:16%;">デバイス</th>
+                  <th style="width:17%;">スキャン時刻</th>
+                  <th style="width:17%;">更新時刻</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div id="partLocationsEmpty" class="part-locations-empty">
+            まだ所在データが登録されていません。ハンディリーダからスキャンを送信すると表示されます。
+          </div>
+        </div>
+      </section>
     </div>
-  </div>
-  <div class="doc-viewer-wrapper">
-    <iframe id="docViewerFrame" title="Document Viewer"
-            src="{{ doc_viewer_url if doc_viewer_online else '' }}"
-            loading="lazy"></iframe>
-    <div id="docViewerOverlay" class="doc-viewer-overlay">
-      {% if doc_viewer_online %}
-        読み込み中…
-      {% else %}
-        DocumentViewer サービスが見つかりません。<br>
-        起動後に「再読み込み」を押してください。
-      {% endif %}
-    </div>
-  </div>
   </div>
 </div>
+
+<script id="initialPartLocations" type="application/json">{{ part_locations|tojson|safe }}</script>
 
 <div id="usbSyncOverlay" class="modal-overlay" aria-hidden="true">
   <div class="modal-body">
@@ -737,6 +866,270 @@
 <script>
   // WebSocket
   const socket = io();
+
+  const dateTimeFormatter = new Intl.DateTimeFormat('ja-JP', { dateStyle: 'short', timeStyle: 'medium' });
+  const partLocationElements = {
+    panel: document.getElementById('partLocationsPanel'),
+    tableBody: document.querySelector('#partLocationsTable tbody'),
+    empty: document.getElementById('partLocationsEmpty'),
+    message: document.getElementById('partLocationsMessage'),
+    count: document.getElementById('partLocationCount'),
+    lastUpdated: document.getElementById('partLocationLastUpdated'),
+    refreshBtn: document.getElementById('partLocationRefreshBtn'),
+    socketStatus: document.getElementById('partLocationSocketStatus'),
+    tabBadge: document.getElementById('partLocationsTabBadge'),
+  };
+  const partLocationState = new Map();
+  let partLocationMessageTimer = null;
+  let partLocationHighlightTimer = null;
+  let partLocationLastHighlight = null;
+
+  const cssEscape = window.CSS && typeof window.CSS.escape === 'function'
+    ? window.CSS.escape.bind(window.CSS)
+    : (value) => String(value).replace(/[^a-zA-Z0-9_-]/g, '\\$&');
+
+  function parseTimestamp(value){
+    if (!value) return null;
+    const dt = new Date(value);
+    return Number.isNaN(dt.getTime()) ? null : dt;
+  }
+
+  function formatTimestampDisplay(value){
+    const dt = parseTimestamp(value);
+    return dt ? dateTimeFormatter.format(dt) : '—';
+  }
+
+  function normalizePartLocation(entry){
+    if (!entry || !entry.order_code) return null;
+    const scanned = entry.scanned_at || entry.scannedAt || null;
+    const updated = entry.updated_at || entry.updatedAt || scanned;
+    return {
+      order_code: entry.order_code,
+      location_code: entry.location_code || '',
+      device_id: entry.device_id || '',
+      scan_id: entry.scan_id || entry.last_scan_id || '',
+      scanned_at: scanned,
+      updated_at: updated,
+    };
+  }
+
+  function setPartLocationStatus(state, label){
+    const el = partLocationElements.socketStatus;
+    if (!el) return;
+    const messages = {
+      live: 'LIVE',
+      offline: 'OFFLINE',
+      loading: '接続確認中…',
+      reconnect: '再接続中…',
+    };
+    el.dataset.state = state;
+    el.textContent = label || messages[state] || '—';
+  }
+
+  function showPartLocationMessage(level, message, duration = 5000){
+    const container = partLocationElements.message;
+    if (!container) return;
+    const classes = {
+      success: 'alert-success',
+      info: 'alert-info',
+      warning: 'alert-warning',
+      danger: 'alert-danger',
+    };
+    const className = classes[level] || classes.info;
+    container.innerHTML = `<div class="alert ${className}">${message}</div>`;
+    if (partLocationMessageTimer) clearTimeout(partLocationMessageTimer);
+    if (duration){
+      partLocationMessageTimer = setTimeout(() => {
+        if (container.innerHTML.includes(message)) container.innerHTML = '';
+      }, duration);
+    }
+  }
+
+  function queueHighlightRow(key){
+    if (!partLocationElements.tableBody || !key) return;
+    const selector = `tr[data-key="${cssEscape(key)}"]`;
+    const row = partLocationElements.tableBody.querySelector(selector);
+    if (!row) return;
+    row.classList.add('is-flash');
+    if (partLocationHighlightTimer) clearTimeout(partLocationHighlightTimer);
+    partLocationHighlightTimer = setTimeout(() => {
+      row.classList.remove('is-flash');
+      partLocationHighlightTimer = null;
+    }, 2200);
+  }
+
+  function renderPartLocations(options = {}){
+    if (!partLocationElements.tableBody) return;
+    const entries = Array.from(partLocationState.values()).sort((a, b) => {
+      const aTime = parseTimestamp(a.updated_at)?.getTime() || 0;
+      const bTime = parseTimestamp(b.updated_at)?.getTime() || 0;
+      return bTime - aTime;
+    });
+    const fragment = document.createDocumentFragment();
+    entries.forEach(entry => {
+      const tr = document.createElement('tr');
+      tr.dataset.key = entry.order_code;
+      const cells = [
+        entry.order_code,
+        entry.location_code || '-',
+        entry.device_id || '-',
+        formatTimestampDisplay(entry.scanned_at),
+        formatTimestampDisplay(entry.updated_at),
+      ];
+      cells.forEach(text => {
+        const td = document.createElement('td');
+        td.textContent = text;
+        tr.appendChild(td);
+      });
+      fragment.appendChild(tr);
+    });
+    partLocationElements.tableBody.innerHTML = '';
+    partLocationElements.tableBody.appendChild(fragment);
+
+    if (partLocationElements.count){
+      partLocationElements.count.textContent = `件数: ${entries.length}`;
+    }
+    if (partLocationElements.tabBadge){
+      partLocationElements.tabBadge.textContent = entries.length;
+    }
+    if (partLocationElements.lastUpdated){
+      const latest = entries.length ? entries[0].updated_at : null;
+      partLocationElements.lastUpdated.textContent = `最終更新: ${latest ? formatTimestampDisplay(latest) : '—'}`;
+    }
+    if (partLocationElements.empty){
+      partLocationElements.empty.style.display = entries.length ? 'none' : 'block';
+    }
+
+    const highlightKey = options.highlightKey || partLocationLastHighlight;
+    if (highlightKey){
+      partLocationLastHighlight = highlightKey;
+      queueHighlightRow(highlightKey);
+    }
+  }
+
+  function hydratePartLocations(list){
+    partLocationState.clear();
+    (list || []).forEach(item => {
+      const normalized = normalizePartLocation(item);
+      if (normalized) partLocationState.set(normalized.order_code, normalized);
+    });
+    renderPartLocations();
+  }
+
+  async function refreshPartLocations(){
+    if (!partLocationElements.refreshBtn) return;
+    partLocationElements.refreshBtn.disabled = true;
+    setPartLocationStatus('loading', '更新中…');
+    try{
+      const res = await fetch('/api/part_locations?limit=200');
+      const data = await res.json();
+      if (!res.ok){
+        throw new Error(data.error || '所在一覧の取得に失敗しました');
+      }
+      hydratePartLocations(data.items || []);
+      if (isPartLocationsActive()){
+        showPartLocationMessage('success', `所在一覧を更新しました（${(data.items || []).length}件）`, 3000);
+      }
+    }catch(err){
+      console.error('part_locations refresh error', err);
+      showPartLocationMessage('danger', err.message || String(err));
+    }finally{
+      partLocationElements.refreshBtn.disabled = false;
+      setPartLocationStatus(socket.connected ? 'live' : 'offline', socket.connected ? 'LIVE' : 'OFFLINE');
+    }
+  }
+
+  function loadInitialPartLocations(){
+    try{
+      const el = document.getElementById('initialPartLocations');
+      if (!el) return [];
+      return JSON.parse(el.textContent || '[]') || [];
+    }catch(err){
+      console.warn('Failed to parse initial part locations', err);
+      return [];
+    }
+  }
+
+  function isPartLocationsActive(){
+    return !!(partLocationElements.panel && partLocationElements.panel.classList.contains('active'));
+  }
+
+  const partLocationInitialData = loadInitialPartLocations();
+
+  (function setupPartLocations(){
+    if (!partLocationElements.tableBody) return;
+    setPartLocationStatus(socket.connected ? 'live' : 'loading', socket.connected ? 'LIVE' : '接続確認中…');
+    hydratePartLocations(partLocationInitialData);
+    if (partLocationElements.refreshBtn){
+      partLocationElements.refreshBtn.addEventListener('click', refreshPartLocations);
+    }
+    if (!isPartLocationsActive() && partLocationElements.message){
+      partLocationElements.message.innerHTML = '';
+    }
+  })();
+
+  socket.on('part_location_updated', (payload) => {
+    if (!partLocationElements.tableBody) return;
+    const normalized = normalizePartLocation(payload);
+    if (!normalized) return;
+    partLocationState.set(normalized.order_code, normalized);
+    renderPartLocations({ highlightKey: normalized.order_code });
+    if (isPartLocationsActive()){
+      showPartLocationMessage('info', `更新: ${normalized.order_code} → ${normalized.location_code || '-'}`, 4000);
+    }
+    if (socket.connected){
+      setPartLocationStatus('live', 'LIVE');
+    }
+  });
+
+  socket.on('connect', () => {
+    setPartLocationStatus('live', 'LIVE');
+  });
+  socket.on('connect_error', () => {
+    setPartLocationStatus('offline', 'OFFLINE');
+  });
+  socket.on('disconnect', () => {
+    setPartLocationStatus('offline', 'OFFLINE');
+  });
+  if (socket.io){
+    socket.io.on('reconnect_attempt', () => setPartLocationStatus('loading', '再接続中…'));
+    socket.io.on('reconnect', () => setPartLocationStatus('live', 'LIVE'));
+    socket.io.on('reconnect_error', () => setPartLocationStatus('offline', 'OFFLINE'));
+  }
+
+  (function setupRightPanelTabs(){
+    const container = document.getElementById('rightPanel');
+    if (!container) return;
+    const buttons = Array.from(container.querySelectorAll('.future-tab-button'));
+    const panels = {};
+    buttons.forEach(btn => {
+      const target = btn.dataset.target;
+      if (target) panels[target] = document.getElementById(target);
+    });
+    let active = buttons.find(btn => btn.classList.contains('active'))?.dataset.target || (buttons[0] && buttons[0].dataset.target);
+    function activate(target){
+      if (!target || target === active) return;
+      const panel = panels[target];
+      if (!panel) return;
+      active = target;
+      buttons.forEach(btn => btn.classList.toggle('active', btn.dataset.target === target));
+      Object.entries(panels).forEach(([key, pane]) => {
+        if (!pane) return;
+        pane.classList.toggle('active', key === target);
+      });
+      if (target === 'docViewerPanel' && typeof window.requestDocViewerFocus === 'function'){
+        setTimeout(() => {
+          try { window.requestDocViewerFocus(); } catch (_) {}
+        }, 150);
+      }
+      if (target === 'partLocationsPanel'){
+        renderPartLocations();
+      }
+    }
+    buttons.forEach(btn => {
+      btn.addEventListener('click', () => activate(btn.dataset.target));
+    });
+  })();
 
   socket.on('station_config_updated', (data) => {
     if (!data || typeof data !== 'object') return;
