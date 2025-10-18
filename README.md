@@ -3,7 +3,8 @@
 このリポジトリは、Raspberry Pi 5 上で実運用していた **ZIP 版の安定構成**をそのまま保存する復旧用ベースラインです。  
 当面の起動は **python app_flask.py** を前提とします（ポート既定: **8501**）。
 
-> ドキュメント全体の役割分担は `docs/requirements.md` などで管理しています。エージェント／自動化タスクを利用するときは `docs/AGENTS.md` を最初に確認してください。
+> ドキュメント全体の役割分担と更新ルールは `docs/documentation-guidelines.md` にまとめています。エージェント／自動化タスクを利用するときは `docs/AGENTS.md` を最初に確認してください。
+> トークン入力を一時的に省略したい場合は、以下の手順で `API_TOKEN_ENFORCE=0` を設定します。\n> 1. `sudo systemctl edit toolmgmt.service` でドロップインファイルを開く\n> 2. `[Service]` セクションに `Environment=API_TOKEN_ENFORCE=0` を追記して保存\n> 3. `sudo systemctl daemon-reload`\n> 4. `sudo systemctl restart toolmgmt.service`\n> 元に戻すときは設定を削除または `1` に戻して同じ手順で再起動してください。
 
 ---
 
@@ -57,18 +58,73 @@
 
     > **Note**: 安全シャットダウンボタンは Raspberry Pi 本体上で `http://127.0.0.1:8501`（または `http://localhost:8501`）にアクセスしたときのみ動作します。LAN 側の IP から呼び出すと `forbidden` になります。どうしても遠隔から操作する場合は、環境変数 `SHUTDOWN_TOKEN` を設定し、トークンで認証してください。
 
-6. **psql クライアント（USB 同期で利用）**
+6. **工程設定（station.json）**
+
+   画面左の「🛠 メンテナンス」タブに「工程設定」カードが追加されています。工程候補を追加し、現在の工程を選択して保存すると `/var/lib/toolmgmt/station.json` に設定が反映され、DocumentViewer や生産計画ビューが対象工程で動作するようになります。初回は候補が空なので、実際の工程名（例: `切削`, `研磨` 等）を追加してから保存してください。
+
+   CLI から設定したい場合は次のスクリプトを利用できます。
+
+        python scripts/manage_station_config.py show
+        python scripts/manage_station_config.py add 切削
+        python scripts/manage_station_config.py set --process 切削
+
+   JSON の保存先は `STATION_CONFIG_PATH` 環境変数でも上書き可能です。
+
+   > 初回のみ: `/var/lib/toolmgmt/` が存在しない場合は次を実行して権限を与えてください。
+
+        sudo mkdir -p /var/lib/toolmgmt
+        sudo chown tools01:tools01 /var/lib/toolmgmt
+        sudo chmod 755 /var/lib/toolmgmt
+
+7. **管理 API トークンの発行**
+
+   管理 API にアクセスするときは `X-API-Token` ヘッダでトークンを付与する必要があります。既定では `/etc/toolmgmt/api_token.json` を参照します。
+
+   一覧表示（マスク表示。`--reveal` で全表示）:
+
+        python scripts/manage_api_token.py show
+
+   トークン発行（既存を無効化して新規発行。`--keep-existing` で並存させる）:
+
+        python scripts/manage_api_token.py issue --station-id CUTTING-01
+
+   トークン再発行（station_id を省略すると既存の station_id を引き継ぎ）:
+
+        python scripts/manage_api_token.py rotate --station-id CUTTING-01
+
+   トークンの無効化:
+
+        python scripts/manage_api_token.py revoke --token <発行したトークン文字列>
+        python scripts/manage_api_token.py revoke --station-id CUTTING-01
+        python scripts/manage_api_token.py revoke --all   # すべて無効化
+        python scripts/manage_api_token.py revoke --file  # ファイルごと削除
+
+   初回は `/etc/toolmgmt` が存在しない場合があるため、次のコマンドでディレクトリを作成し書き込み権限を与えてください。
+
+        sudo mkdir -p /etc/toolmgmt
+        sudo chown tools01:tools01 /etc/toolmgmt
+        sudo chmod 755 /etc/toolmgmt
+
+   ブラウザの管理画面にアクセスすると、初回のみトークン入力を求められます。入力した値はキオスクブラウザの `localStorage` に保存されるため、通常は再起動後も再入力は不要です。保存済みトークンを入れ替えたい場合はブラウザのサイトデータを削除するか、開発者ツールから `localStorage.removeItem('apiToken')` を実行してください。
+   トークンは「この端末が正規か」を識別する鍵で、ステーション単位で発行しておくと監査ログに station_id が残ります。端末を入れ替える際は `revoke` → 再発行 → 新しいトークンを入力するだけでアクセスを切り替えられます。すべてのトークンを無効化した場合は下記コマンドで再発行してください。
+
+        cd ~/tool-management-system02
+        python3 scripts/manage_api_token.py issue --station-id CUTTING-01 --reveal
+
+   station_id は任意の識別子に置き換えてください。発行後は `sudo systemctl restart toolmgmt.service` で再起動し、画面で新しいトークンを入力します。
+
+8. **psql クライアント（USB 同期で利用）**
 
         sudo apt install -y postgresql-client
 
-7. **USB 同期（手動ボタン）**
+9. **USB 同期（手動ボタン）**
 
     画面上の「🛠 メンテナンス」タブにある `USB 同期を実行` は、工具マスタとドキュメントビューア PDF を **一括** で処理します。ラベル `TOOLMASTER` の USB メモリを挿した状態で押すと、
 
     1. `scripts/usb_master_sync.sh` が `master/` 配下の CSV を双方向同期
     2. `../DocumentViewer/scripts/usb-import.sh` が `docviewer/` 配下の PDF を取り込み（`docviewer.service` が稼働している前提）
 
-    の順に実行します。処理中は画面がロックされるので USB を抜かず完了メッセージを待ってください。ログは画面内の結果表示に加えて、`journalctl -u tool-master-sync@*` と `/var/log/document-viewer/import.log` で確認できます。
+    の順に実行します。処理中は画面がロックされるので USB を抜かず完了メッセージを待ってください。実行結果はボタン右横のログ領域と `journalctl -u tool-master-sync@*` / `/var/log/document-viewer/import.log` で確認できます。ClamAV スキャンや PDF 検証を含むため、空に近い状態でも 1 分前後かかる点に留意してください（ファイル数が多いほど時間が延びます）。
 
     > 実行権限: UI からの同期では内部で `sudo bash .../scripts/usb_master_sync.sh` を呼び出します。パスワード入力を求められないよう、運用ユーザーに sudoers エントリを追加してください。
 
@@ -78,7 +134,36 @@
         SUDO
         sudo visudo -cf /etc/sudoers.d/toolmgmt-usbsync
 
-8. **DocumentViewer 常駐化 + ブラウザのキオスク自動起動**
+10. **リモート配布（任意）**
+
+    USB の代わりにサーバー上の CSV を取得したい場合は、環境変数 `PLAN_REMOTE_BASE_URL` を設定してください。例：`https://example.com/toolmgmt/plan` に `production_plan.csv` / `standard_times.csv` を配置しておくと、アプリ起動時にダウンロードされ `/var/lib/toolmgmt/plan/` が上書きされます。既定では 600 秒ごとに更新確認を行い（`PLAN_REMOTE_REFRESH_SECONDS` で調整）、失敗した場合はローカルの最終データを使います。
+
+    - 認証が必要な場合は `PLAN_REMOTE_TOKEN` に Bearer トークンを指定。
+    - LAN 上の共有を参照したい場合は `PLAN_REMOTE_BASE_URL=file:///path/to/share` 形式で `file://` を指定。
+    - 取得状況は標準出力に `[plan-cache] ...` として記録されます。
+
+11. **テスト（pytest）**
+
+        make test
+
+    `PLAN_REMOTE_BASE_URL` などの環境変数を与えたい場合は `PLAN_REMOTE_BASE_URL=... make test` のように実行します。簡易動作確認であれば `make test-smoke` を利用してください（現状 `make test` と同じです）。
+
+    仮想環境上で次を実行してください（Pi ではシステム Python への `pip install` が禁止されているため）。
+
+        python3 -m venv venv
+        source venv/bin/activate
+        pip install -r requirements.txt -r requirements-dev.txt
+        pytest -q
+
+    ※ `make test` でも同じ処理を行います。
+
+12. **UI 操作ガイド（抜粋）**
+
+    - メンテナンス → 工程設定: 工程候補の追加・削除、現在の工程を保存（station.json 更新）――保存すると DocumentViewer 側も即座に更新されます
+    - 左上ペイン: DocumentViewer で部品番号をスキャンすると、生産計画・標準工数の両表がハイライト表示
+    - バーコードが見つからない場合はピンクのメッセージが表示されるので、CSV 更新状況を確認
+
+13. **DocumentViewer 常駐化 + ブラウザのキオスク自動起動**
 
         sudo bash setup_auto_start.sh                        # toolmgmt.service を設定
         sudo ~/DocumentViewer/scripts/install_docviewer_service.sh  # docviewer.service を設定

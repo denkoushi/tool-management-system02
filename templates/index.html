@@ -14,13 +14,39 @@
         return;
       }
       const originalFetch = window.fetch.bind(window);
+      const storageKey = 'apiToken';
+
+      const tokenStorage = {
+        get(){
+          try {
+            return localStorage.getItem(storageKey) || sessionStorage.getItem(storageKey);
+          } catch (_) {
+            return sessionStorage.getItem(storageKey);
+          }
+        },
+        set(value){
+          try {
+            localStorage.setItem(storageKey, value);
+          } catch (_) {
+            sessionStorage.setItem(storageKey, value);
+          }
+        },
+        clear(){
+          try { localStorage.removeItem(storageKey); } catch (_) {}
+          sessionStorage.removeItem(storageKey);
+        }
+      };
+
+      window.clearStoredApiToken = () => {
+        tokenStorage.clear();
+      };
 
       function obtainToken(){
-        let token = sessionStorage.getItem('apiToken');
+        let token = tokenStorage.get();
         if (!token){
           token = window.prompt('管理用パスコードを入力してください');
           if (token){
-            sessionStorage.setItem('apiToken', token);
+            tokenStorage.set(token);
           }
         }
         return token;
@@ -37,7 +63,7 @@
         opts.headers = headers;
         return originalFetch(url, opts).then(response => {
           if (response.status === 401){
-            sessionStorage.removeItem('apiToken');
+            tokenStorage.clear();
             alert('APIトークンが無効です。再入力してください。');
           }
           return response;
@@ -91,7 +117,34 @@
   .operation-shelf{flex:0 0 58%;display:flex;flex-direction:column;gap:var(--space-3);background:var(--surface);border-radius:var(--radius);box-shadow:0 10px 30px rgba(15,23,42,.12);padding:var(--space-3);overflow:hidden;}
   .operation-shelf .tab-content{background:transparent;padding:var(--space-2);}
   .operation-shelf .tabs{margin-bottom:var(--space-2);}
-  .future-reserve{flex:1;background:rgba(15,23,42,.08);border:1px dashed rgba(148,163,184,.6);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;color:rgba(71,85,105,.9);font-weight:600;letter-spacing:.06em;text-transform:uppercase;font-size:13px;}
+  .production-dashboard{flex:1;display:flex;flex-direction:column;background:var(--surface);border-radius:12px;box-shadow:0 10px 28px rgba(15,23,42,.14);overflow:hidden;border:1px solid rgba(148,163,184,.22);}
+  .production-dashboard__header{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--border);background:#111827;color:#f8fafc;gap:8px;}
+  .production-dashboard__title{margin:0;font-size:13px;letter-spacing:.06em;font-weight:600;text-transform:uppercase;display:flex;align-items:center;gap:8px;}
+  .production-dashboard__meta{display:flex;align-items:center;gap:8px;font-size:11px;color:rgba(226,232,240,.72);}
+  .production-dashboard__sections{flex:1;display:grid;grid-template-columns:repeat(2, minmax(0, 1fr));gap:10px;overflow:hidden;}
+  .production-dashboard__section{display:flex;flex-direction:column;gap:6px;overflow:hidden;}
+  .production-dashboard__section-header{display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:11px;color:#334155;}
+  .production-dashboard__section-title{margin:0;font-size:11px;font-weight:600;color:#0f172a;text-transform:uppercase;letter-spacing:.04em;}
+  .production-dashboard__section-meta{font-size:10px;color:#64748b;}
+  .dashboard-alert{padding:10px 12px;border-radius:6px;font-size:var(--fs-sm);line-height:1.5;border:1px solid rgba(248,113,113,.35);background:rgba(248,113,113,.12);color:#7f1d1d;}
+  .dashboard-note{padding:8px 12px;border-radius:6px;font-size:var(--fs-xs);background:rgba(14,165,233,.12);color:#0369a1;border:1px solid rgba(56,189,248,.3);}
+  .production-dashboard__table-wrapper{flex:1;overflow:auto;border:1px solid rgba(148,163,184,.2);border-radius:10px;background:#fff;}
+  .production-dashboard__table{width:100%;border-collapse:collapse;font-size:12px;}
+  .production-dashboard__table thead{background:rgba(241,245,249,.9);position:sticky;top:0;z-index:2;}
+  .production-dashboard__table th,
+  .production-dashboard__table td{padding:6px 8px;border-bottom:1px solid rgba(148,163,184,.2);text-align:left;}
+  .production-dashboard__table th{font-weight:600;font-size:10px;letter-spacing:.06em;color:#475569;text-transform:uppercase;}
+  .production-dashboard__table tbody tr:hover{background:rgba(30,64,175,.12);}
+  .production-dashboard__table .is-primary{font-weight:600;color:#1d4ed8;}
+  .production-dashboard__empty{padding:18px;border:1px dashed rgba(148,163,184,.4);border-radius:10px;text-align:center;font-size:12px;color:#64748b;background:rgba(148,163,184,.1);}
+  .production-dashboard__table tr.is-highlight{background:rgba(14,165,233,.18) !important;box-shadow:inset 3px 0 0 var(--brand);}
+  .production-dashboard__table tr.is-candidate{background:rgba(250,204,21,.18) !important;}
+  .maintenance-card{margin-bottom:20px;padding:16px;background:#f8f9fa;border-radius:8px;border:1px solid #e5e7eb;}
+  .station-chip-list{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}
+  .station-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;background:rgba(37,99,235,.12);color:#1d4ed8;border:1px solid rgba(37,99,235,.2);border-radius:999px;font-size:var(--fs-xs);}
+  .station-chip button{background:none;border:0;color:inherit;font-size:12px;cursor:pointer;padding:0 4px;line-height:1;}
+  .station-chip button:hover{color:#dc2626;}
+  .station-meta{margin-top:6px;font-size:var(--fs-xs);color:var(--muted);}
   .future-panel{
     flex:1;
     background:#0f172a;
@@ -280,7 +333,100 @@
 <body>
 <div class="app-layout">
   <div class="left-pane">
-    <div class="future-reserve" aria-hidden="true">右上スペースは今後の用途に予約されています</div>
+    <section class="production-dashboard" aria-labelledby="productionDashboardTitle">
+      <div class="production-dashboard__header">
+        <h2 id="productionDashboardTitle" class="production-dashboard__title">工程別 生産計画</h2>
+        <div class="production-dashboard__meta">
+          {% if production_view.plan_updated_at %}<span>生産計画: <strong>{{ production_view.plan_updated_at }}</strong></span>{% endif %}
+          {% if production_view.standard_updated_at %}<span>標準工数: <strong>{{ production_view.standard_updated_at }}</strong></span>{% endif %}
+        </div>
+      </div>
+      <div class="production-dashboard__body">
+        <div class="production-dashboard__alerts">
+          {% if production_view.plan_error %}
+            <div class="dashboard-alert">{{ production_view.plan_error }}</div>
+          {% elif production_view.standard_error %}
+            <div class="dashboard-alert">{{ production_view.standard_error }}</div>
+          {% else %}
+            <div class="production-dashboard__note">USB同期後に最新 CSV を配置すると即時反映されます</div>
+          {% endif %}
+        </div>
+        <div id="productionHighlightMessage" class="production-dashboard__note" style="display:none;"></div>
+        <div class="production-dashboard__sections">
+          <div class="production-dashboard__section">
+            <div class="production-dashboard__section-header">
+              <h3 class="production-dashboard__section-title">生産計画</h3>
+              {% if production_view.plan_updated_at %}<span class="production-dashboard__section-meta">更新: {{ production_view.plan_updated_at }}</span>{% endif %}
+            </div>
+            {% if production_view.plan_entries %}
+              <div class="production-dashboard__table-wrapper">
+                <table class="production-dashboard__table" id="productionPlanTable">
+                  <thead>
+                    <tr>
+                      <th style="width:100px;">納期</th>
+                      <th style="width:80px;">製番</th>
+                      <th style="width:95px;">部品番号</th>
+                      <th>部品名</th>
+                      <th style="width:80px;">工程名</th>
+                      <th style="width:60px;">個数</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for row in production_view.plan_entries %}
+                      <tr data-part="{{ row['部品番号'] }}" data-order="{{ row['標準工数_製造オーダー']|default('', true) }}" data-process="{{ row['工程名'] }}">
+                        <td class="is-primary">{{ row['納期'] }}</td>
+                        <td>{{ row['製番'] }}</td>
+                        <td>{{ row['部品番号'] }}</td>
+                        <td>{{ row['部品名'] }}</td>
+                        <td>{{ row['工程名'] }}</td>
+                        <td style="text-align:right;">{{ row['個数'] }}</td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% elif not production_view.plan_error %}
+              <div class="production-dashboard__empty">生産計画のデータがありません。USB に CSV を配置して同期してください。</div>
+            {% endif %}
+          </div>
+
+          <div class="production-dashboard__section">
+            <div class="production-dashboard__section-header">
+              <h3 class="production-dashboard__section-title">標準工数</h3>
+              {% if production_view.standard_updated_at %}<span class="production-dashboard__section-meta">更新: {{ production_view.standard_updated_at }}</span>{% endif %}
+            </div>
+            {% if production_view.standard_entries %}
+              <div class="production-dashboard__table-wrapper">
+                <table class="production-dashboard__table" id="standardTimesTable">
+                  <thead>
+                    <tr>
+                      <th style="width:120px;">部品名</th>
+                      <th style="width:95px;">部品番号</th>
+                      <th style="width:90px;">工程名</th>
+                      <th style="width:90px;">標準工数</th>
+                      <th style="width:120px;">製造オーダー</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for row in production_view.standard_entries %}
+                      <tr data-part="{{ row['部品番号'] }}" data-order="{{ row['製造オーダー番号']|default('', true) }}" data-process="{{ row['工程名'] }}">
+                        <td>{{ row['部品名'] }}</td>
+                        <td>{{ row['部品番号'] }}</td>
+                        <td>{{ row['工程名'] }}</td>
+                        <td style="text-align:right;">{{ row['機械標準工数'] }}</td>
+                        <td>{{ row['製造オーダー番号'] }}</td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% elif not production_view.standard_error %}
+              <div class="production-dashboard__empty">標準工数のデータがありません。USB に CSV を配置して同期してください。</div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </section>
     <div class="operation-shelf">
   <div class="tabs">
     <button class="tab-button active" onclick="showTab('operations')">借用/返却</button>
@@ -425,20 +571,129 @@
   <!-- メンテナンス -->
   <div id="maintenance" class="tab-content">
     <h2>🛠 メンテナンス</h2>
-    <div style="margin-bottom:20px; padding:16px; background:#f8f9fa; border-radius:8px; border:1px solid #e5e7eb;">
+    <div class="maintenance-card">
       <h3>USB 同期（手動）</h3>
       <p style="color:#6b7280; font-size:14px;">ラベル <code>TOOLMASTER</code> の USB メモリを挿入してから実行すると、マスターデータ（工具名・ユーザー・タグ紐づけ）を同期します。</p>
-      <div class="button-row">
+      <div class="button-row"><label style="font-size:13px;color:#6b7280;">USB 同期（手動）：ラベル <code>TOOLMASTER</code> の USB メモリを挿入してから実行してください。</label></div>
+      <div class="button-row" style="gap:8px;align-items:center;flex-wrap:wrap;">
         <button class="btn btn-primary" onclick="runUsbSync()">USB 同期を実行</button>
+        <pre id="usbSyncOutput" style="background:#111827; color:#e5e7eb; padding:8px 10px; border-radius:6px; margin:0; font-size:11px; min-width:200px; max-width:320px; max-height:120px; overflow:auto; white-space:pre-wrap;">(まだ実行していません)</pre>
       </div>
-      <pre id="usbSyncOutput" style="background:#1f2937; color:#e5e7eb; padding:12px; border-radius:6px; min-height:120px; overflow:auto; font-size:13px;">(まだ実行していません)</pre>
+    </div>
+
+    <div class="maintenance-card">
+      <h3>工程設定</h3>
+      <p style="color:#6b7280; font-size:14px;">ラズパイが属する工程を設定します。変更すると DocumentViewer や生産計画の候補表示に反映されます。</p>
+      <div class="input-row">
+        <div class="input-group">
+          <label>現在の工程</label>
+          <select id="stationProcessSelect" class="form-control">
+            <option value="">（未設定）</option>
+            {% for name in station_config.available %}
+              <option value="{{ name }}" {% if station_config.process == name %}selected{% endif %}>{{ name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button class="btn btn-primary" onclick="saveStationProcess()">💾 保存</button>
+      </div>
+
+      <div class="input-row">
+        <div class="input-group">
+          <label>工程候補を追加</label>
+          <input type="text" id="stationNewProcessInput" class="form-control" placeholder="例：研磨">
+        </div>
+        <button class="btn btn-secondary" onclick="addStationProcess()">候補に追加</button>
+      </div>
+
+      <div class="station-chip-list" id="stationAvailableList"></div>
+      <div class="station-meta" id="stationConfigMeta">
+        {% if station_config.updated_at %}
+          最終更新: {{ station_config.updated_at }}
+        {% else %}
+          station.json はまだ保存されていません（環境変数または未設定）
+        {% endif %}
+        <br>設定ファイル: {{ station_config.path }}
+        {% if api_station_id %}
+          <br>APIトークン station_id: {{ api_station_id }}
+        {% endif %}
+      </div>
+      <div class="station-meta" id="stationConfigNotice" style="display:none;"></div>
+      <div id="stationConfigMessage"></div>
+      {% if api_token_error %}
+        <div class="dashboard-alert">API トークンの読み込みでエラーが発生しています: {{ api_token_error }}</div>
+      {% endif %}
+    </div>
+
+    <div class="maintenance-card">
+      <h3>API トークン管理</h3>
+      <p style="color:#6b7280; font-size:14px;">ステーションごとの API トークンを発行・一覧・無効化できます。新しいトークンは即座に有効になります（古いトークンは無効化してください）。</p>
+
+      <div class="button-row" style="margin-bottom:6px;">
+        <button class="btn btn-secondary" onclick="loadApiTokens()">一覧を更新</button>
+      </div>
+
+      <div class="scrollable" style="max-height:200px; overflow:auto; border:1px solid #e2e8f0; border-radius:8px;">
+        <table class="production-dashboard__table" id="apiTokenTable">
+          <thead>
+            <tr>
+              <th style="width:100px;">ステーション</th>
+              <th style="width:120px;">発行日時</th>
+              <th style="width:120px;">無効化</th>
+              <th>メモ</th>
+              <th style="width:70px;">状態</th>
+              <th style="width:130px;">トークン</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div id="apiTokenMessage" style="margin-top:8px;"></div>
+
+      <h4 style="margin-top:12px;">新しいトークンを発行</h4>
+      <div class="input-row">
+        <div class="input-group">
+          <label>station_id</label>
+          <input type="text" id="apiTokenStationInput" class="form-control" placeholder="例: CUTTING-01">
+        </div>
+        <div class="input-group">
+          <label>メモ（任意）</label>
+          <input type="text" id="apiTokenNoteInput" class="form-control" placeholder="端末の設置場所など">
+        </div>
+      </div>
+      <div class="input-row" style="align-items:center;">
+        <label style="display:flex;align-items:center;gap:6px;">
+          <input type="checkbox" id="apiTokenKeepExisting"> 既存トークンを無効化せず追加する
+        </label>
+        <button class="btn btn-primary" onclick="issueApiToken()">新しいトークンを発行</button>
+      </div>
+      <pre id="apiTokenIssued" style="display:none;background:#1f2937;color:#f8fafc;padding:10px;border-radius:8px;font-size:12px;overflow:auto;"></pre>
+
+      <h4 style="margin-top:12px;">トークンを無効化</h4>
+      <div class="input-row">
+        <div class="input-group">
+          <label>トークン文字列で無効化</label>
+          <input type="text" id="apiTokenRevokeTokenInput" class="form-control" placeholder="発行したトークン文字列（任意）">
+        </div>
+        <div class="input-group">
+          <label>station_id で無効化</label>
+          <input type="text" id="apiTokenRevokeStationInput" class="form-control" placeholder="例: CUTTING-01">
+        </div>
+      </div>
+      <div class="input-row" style="align-items:center;">
+        <label style="display:flex;align-items:center;gap:6px;">
+          <input type="checkbox" id="apiTokenRevokeAll"> すべてのトークンを無効化する
+        </label>
+        <button class="btn btn-danger" onclick="revokeApiToken()">無効化を実行</button>
+      </div>
     </div>
   </div>
     </div>
   </div>
   <div class="future-panel" id="docViewerPanel"
      data-doc-viewer-url="{{ doc_viewer_url|default('', true) }}"
-     data-doc-viewer-online="{{ 'true' if doc_viewer_online else 'false' }}">
+     data-doc-viewer-online="{{ 'true' if doc_viewer_online else 'false' }}"
+     data-station-process="{{ station_config.process|default('', true) }}">
   <div class="doc-viewer-header">
     <div class="doc-viewer-status-group">
       <div id="docViewerStatus"
@@ -482,6 +737,337 @@
 <script>
   // WebSocket
   const socket = io();
+
+  socket.on('station_config_updated', (data) => {
+    if (!data || typeof data !== 'object') return;
+    refreshStationUI(data);
+    try { window.notifyDocViewerStationChange(data); } catch (_) {}
+    if (suppressNextStationNotice){
+      suppressNextStationNotice = false;
+      return;
+    }
+    showStationMessage('info', '他の端末で工程設定が更新されました');
+  });
+
+  const stationConfigInitial = {{ station_config|tojson }};
+  let stationConfig = stationConfigInitial;
+  let suppressNextStationNotice = false;
+
+  window.notifyDocViewerStationChange = window.notifyDocViewerStationChange || function(){ };
+
+  function showStationMessage(type, msg){
+    const el = document.getElementById('stationConfigMessage');
+    if (!el) return;
+    el.innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
+    setTimeout(()=>{ if (el.innerHTML.includes(msg)) el.innerHTML=''; }, 5000);
+  }
+
+  function refreshStationUI(config){
+    stationConfig = config || stationConfig;
+    const select = document.getElementById('stationProcessSelect');
+    if (select){
+      const current = stationConfig.process || '';
+      const options = ['<option value="">（未設定）</option>'];
+      (stationConfig.available || []).forEach(name => {
+        options.push(`<option value="${name}">${name}</option>`);
+      });
+      select.innerHTML = options.join('');
+      select.value = current;
+    }
+
+    const listEl = document.getElementById('stationAvailableList');
+    if (listEl){
+      listEl.innerHTML = '';
+      (stationConfig.available || []).forEach(name => {
+        const chip = document.createElement('span');
+        chip.className = 'station-chip';
+        chip.textContent = name;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = '×';
+        btn.title = `${name} を候補から削除`;
+        btn.addEventListener('click', ()=>removeStationProcess(name));
+        chip.appendChild(btn);
+        listEl.appendChild(chip);
+      });
+      if (!stationConfig.available || stationConfig.available.length === 0){
+        const empty = document.createElement('span');
+        empty.className = 'station-meta';
+        empty.textContent = '工程候補が登録されていません。追加してください。';
+        listEl.appendChild(empty);
+      }
+    }
+
+    const meta = document.getElementById('stationConfigMeta');
+    if (meta){
+      const updated = stationConfig.updated_at ? `最終更新: ${stationConfig.updated_at}` : 'station.json はまだ保存されていません（環境変数または未設定）';
+      const path = stationConfig.path ? `設定ファイル: ${stationConfig.path}` : '';
+      meta.innerHTML = `${updated}${path ? '<br>' + path : ''}`;
+    }
+
+    const notice = document.getElementById('stationConfigNotice');
+    if (notice){
+      const messages = [];
+      if (stationConfig.error){
+        messages.push(`⚠️ 設定ファイルを読み込めません: ${stationConfig.error}`);
+      }
+      if (stationConfig.source === 'env'){
+        messages.push('環境変数から工程が設定されています。station.json を保存すると上書きできます。');
+      } else if (stationConfig.source === 'default'){
+        messages.push('工程は未設定です。工程を選択して保存してください。');
+      }
+      if (stationConfig.writable === false || stationConfig.writable === 0){
+        messages.push('station.json に書き込みできません。権限を確認してください。');
+      }
+      if (messages.length){
+        notice.style.display = 'block';
+        notice.innerHTML = messages.join('<br>');
+      } else {
+        notice.style.display = 'none';
+        notice.innerHTML = '';
+      }
+    }
+
+    const panel = document.getElementById('docViewerPanel');
+    if (panel){
+      panel.dataset.stationProcess = stationConfig.process || '';
+    }
+  }
+
+  function handleStationConfigFeedback(config, successMessage){
+    if (config){
+      refreshStationUI(config);
+      try { window.notifyDocViewerStationChange(config); } catch (_) {}
+      if (config.writable === false || config.writable === 0){
+        showStationMessage('warning', 'station.json に書き込めません。権限を確認してください。');
+      } else if (successMessage){
+        showStationMessage('success', successMessage);
+      }
+    }
+  }
+
+  async function processStationConfigResponse(res, { successMessage, errorMessage, errorLevel = 'danger' }){
+    let data = null;
+    try{
+      data = await res.json();
+    }catch(_){
+      data = null;
+    }
+
+    if (res.ok && data){
+      suppressNextStationNotice = true;
+      setTimeout(() => { suppressNextStationNotice = false; }, 500);
+      handleStationConfigFeedback(data, successMessage);
+    } else {
+      const message = (data && data.error) ? data.error : (errorMessage || '工程設定の更新に失敗しました');
+      showStationMessage(errorLevel, message);
+    }
+    return data;
+  }
+
+  function showApiTokenMessage(type, msg){
+    const el = document.getElementById('apiTokenMessage');
+    if(!el) return;
+    el.innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
+    setTimeout(()=>{ if(el.innerHTML.includes(msg)){ el.innerHTML=''; } }, 6000);
+  }
+
+  async function loadApiTokens(){
+    const tableBody = document.querySelector('#apiTokenTable tbody');
+    if(tableBody) tableBody.innerHTML = '';
+    try{
+      const res = await fetch('/api/tokens');
+      const data = await res.json();
+      if(!res.ok){
+        showApiTokenMessage('danger', data.error || 'トークン一覧の取得に失敗しました');
+        return;
+      }
+      if(tableBody){
+        const tokens = data.tokens || [];
+        tokens.forEach(entry => {
+          const tr = tableBody.insertRow();
+          tr.insertCell(0).textContent = entry.station_id || '-';
+          tr.insertCell(1).textContent = entry.issued_at || '-';
+          tr.insertCell(2).textContent = entry.revoked_at || '-';
+          tr.insertCell(3).textContent = entry.note || '';
+          tr.insertCell(4).textContent = entry.revoked_at ? '無効' : '有効';
+          tr.insertCell(5).textContent = entry.token || '';
+        });
+        if(tokens.length === 0){
+          const tr = tableBody.insertRow();
+          const td = tr.insertCell(0);
+          td.colSpan = 6;
+          td.style.textAlign = 'center';
+          td.style.color = '#64748b';
+          td.textContent = '登録されているトークンはありません';
+        }
+      }
+    }catch(err){
+      showApiTokenMessage('danger', `トークン一覧の取得でエラー: ${err}`);
+    }
+  }
+
+  let apiTokenIssuedTimer = null;
+
+  async function issueApiToken(){
+    const stationInput = document.getElementById('apiTokenStationInput');
+    const noteInput = document.getElementById('apiTokenNoteInput');
+    const keepExisting = document.getElementById('apiTokenKeepExisting').checked;
+    const payload = {
+      station_id: stationInput.value.trim(),
+      note: noteInput.value.trim() || null,
+      keep_existing: keepExisting,
+    };
+    if(!payload.station_id){
+      showApiTokenMessage('warning', 'station_id を入力してください');
+      return;
+    }
+    try{
+      const res = await fetch('/api/tokens', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if(!res.ok){
+        showApiTokenMessage('danger', data.error || 'トークン発行に失敗しました');
+        return;
+      }
+      const pre = document.getElementById('apiTokenIssued');
+      if(pre){
+        pre.style.display = 'block';
+        pre.textContent = `station_id: ${data.station_id}\nissued_at: ${data.issued_at}\nnote: ${data.note || ''}\n\n下記トークンを安全な場所に保管してください:\n${data.token}`;
+        if(apiTokenIssuedTimer) clearTimeout(apiTokenIssuedTimer);
+        apiTokenIssuedTimer = setTimeout(()=>{ pre.style.display='none'; pre.textContent=''; }, 60000);
+      }
+      showApiTokenMessage('success', 'トークンを発行しました。表示されたトークンを保管してください。');
+      stationInput.value='';
+      noteInput.value='';
+      document.getElementById('apiTokenKeepExisting').checked = false;
+      loadApiTokens();
+    }catch(err){
+      showApiTokenMessage('danger', `トークン発行でエラー: ${err}`);
+    }
+  }
+
+  async function revokeApiToken(){
+    const tokenInput = document.getElementById('apiTokenRevokeTokenInput');
+    const stationInput = document.getElementById('apiTokenRevokeStationInput');
+    const revokeAll = document.getElementById('apiTokenRevokeAll').checked;
+    const payload = {
+      token: (tokenInput.value || '').trim() || null,
+      station_id: (stationInput.value || '').trim() || null,
+      all: revokeAll,
+    };
+    if(!payload.token && !payload.station_id && !revokeAll){
+      showApiTokenMessage('warning', 'トークン文字列、station_id、または「すべて」を指定してください');
+      return;
+    }
+    try{
+      const res = await fetch('/api/tokens/revoke', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if(!res.ok){
+        showApiTokenMessage('danger', data.error || 'トークンの無効化に失敗しました');
+        return;
+      }
+      showApiTokenMessage('success', `${data.updated || 0} 件のトークンを無効化しました`);
+      tokenInput.value='';
+      stationInput.value='';
+      document.getElementById('apiTokenRevokeAll').checked = false;
+      loadApiTokens();
+    }catch(err){
+      showApiTokenMessage('danger', `トークン無効化でエラー: ${err}`);
+    }
+  }
+
+  async function fetchStationConfig(){
+    try{
+      const res = await fetch('/api/station_config');
+      const data = await res.json();
+      if(res.ok){
+        handleStationConfigFeedback(data);
+      } else {
+        showStationMessage('warning', data.error || '工程設定の取得に失敗しました');
+      }
+    }catch(err){
+      showStationMessage('warning', `工程設定の取得でエラー: ${err}`);
+    }
+  }
+
+  async function saveStationProcess(){
+    const select = document.getElementById('stationProcessSelect');
+    if(!select) return;
+    const process = select.value;
+    const payload = {
+      process: process,
+      available: stationConfig.available || []
+    };
+    try{
+      const res = await fetch('/api/station_config', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+      await processStationConfigResponse(res, {
+        successMessage: '工程設定を保存しました',
+        errorMessage: '工程設定の保存に失敗しました',
+      });
+    }catch(err){
+      showStationMessage('danger', `工程設定の保存でエラー: ${err}`);
+    }
+  }
+
+  async function addStationProcess(){
+    const input = document.getElementById('stationNewProcessInput');
+    if(!input) return;
+    const name = input.value.trim();
+    if(!name){
+      showStationMessage('warning', '追加する工程名を入力してください');
+      return;
+    }
+    const available = stationConfig.available ? [...stationConfig.available] : [];
+    if(!available.includes(name)){
+      available.push(name);
+    }
+    try{
+      const res = await fetch('/api/station_config', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({process: stationConfig.process || '', available})
+      });
+      const data = await processStationConfigResponse(res, {
+        successMessage: `工程候補「${name}」を追加しました`,
+        errorMessage: '工程候補の追加に失敗しました',
+      });
+      if(res.ok && data){
+        input.value='';
+      }
+    }catch(err){
+      showStationMessage('danger', `工程候補の追加でエラー: ${err}`);
+    }
+  }
+
+  async function removeStationProcess(name){
+    const available = (stationConfig.available || []).filter(item => item !== name);
+    const process = stationConfig.process === name ? '' : stationConfig.process || '';
+    try{
+      const res = await fetch('/api/station_config', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({process, available})
+      });
+      await processStationConfigResponse(res, {
+        successMessage: `工程候補「${name}」を削除しました`,
+        errorMessage: '工程候補の削除に失敗しました',
+      });
+    }catch(err){
+      showStationMessage('danger', `工程候補の削除でエラー: ${err}`);
+    }
+  }
 
   // 状態
   let scanActive = false;
@@ -545,6 +1131,19 @@
       frame.src = `${docViewerUrl}${cacheBust}v=${Date.now()}`;
     };
 
+    const notifyStationChange = (payload) => {
+      if (!payload) return;
+      postToViewer({
+        type: 'station-change',
+        process: payload.process || '',
+        available: payload.available || [],
+        updated_at: payload.updated_at || null,
+      });
+      if (!frame || !frame.src) {
+        reloadFrame();
+      }
+    };
+
     if (initialOnline && frame && docViewerUrl) {
       frame.src = docViewerUrl;
     } else if (!initialOnline) {
@@ -570,6 +1169,7 @@
     panel.dataset.docViewerUrl = docViewerUrl;
     panel.__requestViewerFocus = requestViewerFocus;
     window.requestDocViewerFocus = requestViewerFocus;
+    window.notifyDocViewerStationChange = notifyStationChange;
 
     if (document.getElementById('operations')?.classList.contains('active')) {
       requestViewerFocus();
@@ -603,6 +1203,8 @@
       if (!data || typeof data !== 'object') return;
       if (data.type === 'viewer-state') {
         updateStateChips(data);
+      } else if (data.type === 'dv-barcode') {
+        handleViewerBarcode(data);
       }
     });
   })();
@@ -734,6 +1336,112 @@
     const el = document.getElementById(id);
     el.innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
     setTimeout(()=>{ el.innerHTML=''; }, 5000);
+  }
+
+  const productionHighlightState = { part: null, order: null };
+
+  function highlightProductionRows(part, order){
+    const planBody = document.querySelector('#productionPlanTable tbody');
+    const standardBody = document.querySelector('#standardTimesTable tbody');
+    const messageEl = document.getElementById('productionHighlightMessage');
+    productionHighlightState.part = part || null;
+    productionHighlightState.order = order || null;
+
+    const resetRows = (body) => {
+      if (!body) return [];
+      const rows = Array.from(body.querySelectorAll('tr'));
+      rows.forEach(row => row.classList.remove('is-highlight', 'is-candidate'));
+      return rows;
+    };
+
+    const planRows = resetRows(planBody);
+    const standardRows = resetRows(standardBody);
+
+    const evaluate = (rows) => {
+      let matchCount = 0;
+      let exactCount = 0;
+      rows.forEach(row => {
+        const rowPart = row.dataset.part || '';
+        const rowOrder = row.dataset.order || '';
+        if (part && rowPart === part){
+          matchCount += 1;
+          if (order && rowOrder === order){
+            row.classList.add('is-highlight');
+            exactCount += 1;
+          } else if (!order){
+            row.classList.add('is-highlight');
+          } else {
+            row.classList.add('is-candidate');
+          }
+        }
+      });
+      return { matchCount, exactCount };
+    };
+
+    const planStats = evaluate(planRows);
+    const standardStats = evaluate(standardRows);
+
+    if (!messageEl){
+      return;
+    }
+
+    if (!part){
+      messageEl.className = 'production-dashboard__note';
+      messageEl.style.display = 'none';
+      messageEl.textContent = '';
+      return;
+    }
+
+    const totalMatches = planStats.matchCount + standardStats.matchCount;
+    const totalExact = planStats.exactCount + standardStats.exactCount;
+
+    if (totalMatches === 0){
+      messageEl.className = 'dashboard-alert';
+      messageEl.textContent = `部品番号「${part}」に一致するデータが見つかりません。`;
+      messageEl.style.display = 'block';
+      return;
+    }
+
+    if (order && totalExact === 0){
+      messageEl.className = 'dashboard-alert';
+      messageEl.textContent = `部品番号「${part}」、製造オーダー「${order}」に完全一致はありません。候補: 生産計画 ${planStats.matchCount} 件 / 標準工数 ${standardStats.matchCount} 件`;
+      messageEl.style.display = 'block';
+      return;
+    }
+
+    if (order){
+      messageEl.className = 'production-dashboard__note';
+      messageEl.textContent = `部品番号「${part}」、製造オーダー「${order}」をハイライトしました（生産計画 ${planStats.exactCount} 件 / 標準工数 ${standardStats.exactCount} 件）`;
+      messageEl.style.display = 'block';
+      return;
+    }
+
+    messageEl.className = 'production-dashboard__note';
+    messageEl.textContent = `部品番号「${part}」の候補を表示しました（生産計画 ${planStats.matchCount} 件 / 標準工数 ${standardStats.matchCount} 件）`;
+    messageEl.style.display = 'block';
+  }
+
+  function handleViewerBarcode(payload){
+    if (!payload || typeof payload !== 'object') return;
+    const part = payload.part || payload.part_number || payload.partNumber || '';
+    const order = payload.order || payload.order_number || payload.orderNumber || '';
+    highlightProductionRows(part, order);
+  }
+
+  function attachProductionRowHandlers(){
+    const attach = (selector) => {
+      const body = document.querySelector(`${selector} tbody`);
+      if(!body) return;
+      body.addEventListener('click', (event)=>{
+        const row = event.target.closest('tr');
+        if(!row) return;
+        const part = row.dataset.part || '';
+        const order = row.dataset.order || '';
+        highlightProductionRows(part, order);
+      });
+    };
+    attach('#productionPlanTable');
+    attach('#standardTimesTable');
   }
 
   // 一覧
@@ -916,7 +1624,14 @@
   }
 
   // 初期化
-  document.addEventListener('DOMContentLoaded', function(){ loadLoansData(); loadToolNames(); });
+  document.addEventListener('DOMContentLoaded', function(){
+    loadLoansData();
+    loadToolNames();
+    refreshStationUI(stationConfigInitial);
+    fetchStationConfig();
+    attachProductionRowHandlers();
+    loadApiTokens();
+  });
 </script>
 
 <!-- ===== 安全シャットダウン（動的・右下固定） ===== -->

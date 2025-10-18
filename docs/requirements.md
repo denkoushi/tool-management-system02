@@ -70,4 +70,5 @@
 
 - セキュリティ関連の詳細は `docs/security-overview.md` と `docs/security-requirements-response.md` を参照。
 - DocumentViewer 右ペインの詳細な作業計画は `docs/right-pane-plan.md` に記載。
+- ドキュメントを更新する際は `docs/documentation-guidelines.md` に従い、情報の所在が重複しないように整理する。
 - エージェント・自動化作業の基本指示は `docs/AGENTS.md` を参照。

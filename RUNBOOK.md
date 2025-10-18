@@ -3,6 +3,8 @@
 本書は、Raspberry Pi 5 上で運用する **工具持ち出し・返却管理システム** の「セットアップ手順」「運用手順」「バックアップ/リストア」「トラブルシューティング」をまとめた運用ドキュメントです。  
 本リポジトリは、過去に安定稼働していた ZIP 版をベースに再構成した **復旧用ベースライン**です。
 
+> ドキュメント全体の役割分担や更新ルールは `docs/documentation-guidelines.md` を参照してください。
+
 ---
 
 ## 目的と設計方針（What & Why）
@@ -169,7 +171,7 @@
      2. `which clamscan` でコマンド有無、`clamscan --version` で動作確認。
      3. 定義ファイルが壊れている可能性があるため後述の更新手順で `main.cvd` などを入れ直す。
      4. 解決後に USB を再スキャンし、正常終了することを確認。
-   - UI から同期する場合は「🛠 メンテナンス」タブ内の「USB 同期を実行」ボタンを利用。内部的に上記 2 ステップを直列で実行し、結果は画面のログに整形して表示されます。
+   - UI から同期する場合は「🛠 メンテナンス」タブ内の「USB 同期を実行」ボタンを利用。内部的に上記 2 ステップを直列で実行し、結果はボタン右側のログ表示に整形して流れます。ClamAV スキャンと PDF 検証を行うため、データが少ない場合でも 1 分前後を見込んでください（ファイル数・サイズに比例して延びます）。特に DocumentViewer 用 PDF が増えると I/O とスキャン時間が増大するため、運用開始後に著しく所要時間が伸びるようなら差分同期や PDF キャッシュ化を検討する改善候補として記録しておいてください。
    - sudoers に下記エントリを追加し、パスワード無しでスクリプトを実行できるようにしておくと運用が楽になります（ユーザー名/パスは環境に合わせて変更）。
 
         sudo tee /etc/sudoers.d/toolmgmt-usbsync >/dev/null <<'SUDO'
@@ -263,14 +265,22 @@
 ### 3.4 管理 API の認証と監査ログ
 
 1. **API トークンの設定**
-   - 環境変数 `API_AUTH_TOKEN` を設定してから Flask アプリを起動する（systemd ユニットの場合は `Environment=API_AUTH_TOKEN=<token>` を追記）。
-   - 一時的に入力を省略したい場合は、以下の手順で `API_TOKEN_ENFORCE=0` を設定するとダイアログが表示されません。
-     1. `sudo systemctl edit toolmgmt.service` を実行し、ドロップインファイルに `[Service]` と `Environment=API_TOKEN_ENFORCE=0` を追記して保存。
-     2. `sudo systemctl daemon-reload`
-     3. `sudo systemctl restart toolmgmt.service`
-     4. 元に戻すときはこの記述を削除（または `API_TOKEN_ENFORCE=1` に変更）し、同様に reload / restart を行う。
-   - UI で操作を行う際は、強制が有効な場合にトークンダイアログが表示され、`sessionStorage` に保存される。
-   - 401 が返った場合はトークンが無効化されるため、ダイアログで再入力する。
+   - 既定では `/etc/toolmgmt/api_token.json` に `{ "token": "...", "station_id": "CUTTING-01", "issued_at": "..." }` 形式で保存する。
+   - メンテナンス → API トークン管理 から一覧・発行・無効化が可能。発行時に表示されるトークンは必ず控えておく。
+   - 確認：`python scripts/manage_api_token.py show`（`--reveal` で全表示）
+   - 発行：`python scripts/manage_api_token.py issue --station-id CUTTING-01`
+   - 再発行：`python scripts/manage_api_token.py rotate --station-id CUTTING-01`
+   - 無効化：`python scripts/manage_api_token.py revoke --token <値>` または `--station-id`, `--all`, `--file`
+   - `/etc/toolmgmt` が存在しない場合は `sudo mkdir -p /etc/toolmgmt && sudo chown tools01:tools01 /etc/toolmgmt && sudo chmod 755 /etc/toolmgmt`
+   - 旧来どおり環境変数 `API_AUTH_TOKEN` を設定した場合はフォールバックとして利用される。
+   - キオスクブラウザではトークンを `localStorage` に保存するため、毎朝再入力する必要はない。端末入れ替え時や漏洩懸念がある場合はブラウザのサイトデータを削除するか `localStorage.removeItem('apiToken')` を実行し、再発行・再入力する。
+   - トークン入力を一時的に省略したい場合は、`sudo systemctl edit toolmgmt.service` で `[Service]` セクションに `Environment=API_TOKEN_ENFORCE=0` を追記し、`sudo systemctl daemon-reload` → `sudo systemctl restart toolmgmt.service` を実行。元に戻すときは設定を削除するか `1` に戻して同じ手順で再起動する。
+   - **設置の目的**:
+     1. **正当な端末の識別** … トークンを保持する端末だけが API を叩けるため、同一ネットワーク内に不審な端末があっても操作できない。
+     2. **ステーション単位の監査** … station_id とひも付いてログに残るので、どの工程の端末が操作したか追跡できる。
+     3. **容易な無効化** … 端末の入れ替え・紛失時は `revoke` + 再発行で即座にアクセスを止められる。
+
+     > **運用イメージ**: 物理的に管理されたキオスク端末で鍵を差したまま使うイメージです。トークンは `localStorage` に保存されるため毎朝の入力は不要ですが、鍵を抜きたいとき（端末移設・漏洩疑い）は `localStorage` を削除 → 再発行するだけでリセットできます。
 
 2. **ヘッダ仕様**
    - 既定では `X-API-Token` ヘッダを使用。必要なら `API_TOKEN_HEADER` で名称を変更可能。
@@ -287,7 +297,13 @@
 
 5. **運用メモ**
    - ログに 401 が連続する場合は不正アクセスまたはトークン入力ミスの可能性があるため、`fail2ban` の結果と併せて確認する。
-   - トークンを変更したい場合は、`systemctl restart toolmgmt.service` 後にブラウザの `sessionStorage` をクリアする。
+   - トークンをすべて無効化した場合は、次のコマンドですぐに再発行できる。
+
+        cd ~/tool-management-system02
+        python3 scripts/manage_api_token.py issue --station-id CUTTING-01 --reveal
+
+     station_id は現場に合わせて置き換え、発行後は `sudo systemctl restart toolmgmt.service` → `sudo systemctl status toolmgmt.service --no-pager` で再起動と状態確認を行う。
+   - トークンを再発行した場合は、発行コマンドの出力に表示される新しいトークンを利用者に周知し、ブラウザの `localStorage`/`sessionStorage` をクリアして再入力を促す。
 
 ### 3.5 ログローテーション（toolmgmt/document-viewer）
 
@@ -301,7 +317,126 @@
 3. ルール追加後は `sudo systemctl status cron`（または `anacron`）を確認し、デフォルトの logrotate が有効であることを確認する。
 4. ローテーション後のログは `/var/log/toolmgmt/*.log.*.gz` へ保存されるため、保管ポリシーに従って外部媒体へコピーする。
 
+### 3.6 生産計画／標準工数の同期（USB）
+
+USB メモリ経由で生産計画と標準工数の CSV を配布し、左上ダッシュボードに表示する仕組みを用意しています。
+
+1. **USB 内の配置場所（`master/` 直下）**
+
+        production_plan.csv      # 生産計画：納期,個数,部品番号,部品名,製番,工程名
+        standard_times.csv       # 標準工数：部品名,機械標準工数,製造オーダー番号,部品番号,工程名
+
+   - サンプルデータは `docs/sample-data/` を参照。
+   - 文字コードは UTF-8（BOM 可）、ヘッダー行は上記と同一であること。
+
+2. **取り込み先**
+   - USB 同期 (`scripts/usb_master_sync.sh`) 実行時に `/var/lib/toolmgmt/plan/` へコピーされる。
+   - ファイル所有者は `tools01:tools01`、パーミッションは 640。
+
+3. **検証内容**
+   - 拡張子と MIME を確認し、想定外形式は WARN としてログに残しスキップ。
+   - ヘッダーが一致しない場合は `usbsync.log` に WARN を出しコピーしない。
+
+4. **表示**
+   - Flask UI 左上ペインに「生産計画」と「標準工数」の 2 つのテーブルが並び、USB から取り込んだ最新データを別々に確認できる。
+   - 生産計画は納期順にソートされ、標準工数テーブルは部品番号＋工程名で昇順表示。
+   - 将来突合のため、両テーブルは部品番号と工程名の共通情報で参照可能。
+
+5. **よくあるケース**
+   - CSV が置かれていない：UI にメッセージを表示するだけでエラーにはならない。
+   - 形式エラー：`/var/log/toolmgmt/usbsync.log` を確認し、CSV を修正して再同期。
+
 ---
+
+### 3.7 工程設定（station.json）
+
+1. **設定ファイルとフォーマット**
+   - 既定パス: `/var/lib/toolmgmt/station.json`（`STATION_CONFIG_PATH` で変更可）
+   - 例:
+
+        {
+          "process": "切削",
+          "available": ["切削", "研磨"],
+          "updated_at": "2025-10-05T12:34:56"
+        }
+
+   - ファイルが存在しない場合は環境変数 `STATION_PROCESS` をフォールバックとして採用し、UI 上では「未設定」表示になる。
+
+2. **UI 操作手順（推奨）**
+   - 画面「🛠 メンテナンス」タブ → 「工程設定」で候補追加・削除・初期化と現在の工程の保存が可能。
+   - 保存成功時は station.json が即座に更新され、DocumentViewer iframe へも postMessage で通知されるため、右ペインを開き直さなくても反映される。
+
+3. **CLI 操作手順**
+
+        python scripts/manage_station_config.py show
+        python scripts/manage_station_config.py add 切削
+        python scripts/manage_station_config.py set --process 切削 --available 切削,研磨
+
+   - `remove` サブコマンドで候補から除外できる（現在の工程を削除した場合は「未設定」へ戻る）。
+
+4. **トラブルシュート**
+   - station.json が破損している場合: CLI で `set` を実行するかファイルを削除すると再生成される。
+   - UI でエラー表示が出る場合: 書き込み権限、ディスク容量、API トークンの有効性を確認。
+   - 初回にディレクトリが存在しない場合:  
+        sudo mkdir -p /var/lib/toolmgmt  
+        sudo chown tools01:tools01 /var/lib/toolmgmt  
+        sudo chmod 755 /var/lib/toolmgmt
+
+---
+
+### 3.8 リモート配布（任意）
+
+- 環境変数 `PLAN_REMOTE_BASE_URL` を設定すると、`/var/lib/toolmgmt/plan/` を自動更新する。例: `https://example.com/toolmgmt/plan` 配下に `production_plan.csv`, `standard_times.csv` を配置。
+- 600 秒ごと（`PLAN_REMOTE_REFRESH_SECONDS`）に更新を確認。`PLAN_REMOTE_TOKEN` を設定すると Bearer トークンとして送信する。
+- `file://` スキームも利用可能（例: `PLAN_REMOTE_BASE_URL=file:///mnt/share`）。
+- 取得に失敗した場合はログに `[plan-cache]` が出力され、ローカルの前回データをそのまま使う。
+
+---
+
+### 3.9 テスト（pytest）
+
+- 単体テスト / スモークテスト: `make test`（内部で `python -m pytest` を実行）
+- **実行手順**（仮想環境上で実施）
+
+        python3 -m venv venv
+        source venv/bin/activate
+        pip install -r requirements.txt -r requirements-dev.txt
+        pytest -q
+
+- リモート配布を模擬する場合: `PLAN_REMOTE_BASE_URL=file:///path/to/sample make test`
+- CI 導入時は `make test-smoke` をジョブに登録し、将来的には実機スモークテストを追加する。
+
+
+### 3.10 トラブルシュート（抜粋）
+
+- **工程設定が保存できない (`Permission denied: /var/lib/toolmgmt/station.json`)**
+  - `sudo mkdir -p /var/lib/toolmgmt && sudo chown tools01:tools01 /var/lib/toolmgmt && sudo chmod 755 /var/lib/toolmgmt`
+- **左上ペインがハイライトしない**
+  - DocumentViewer が `{type:'dv-barcode', part, order}` を postMessage しているか確認。ブラウザの Console にエラーがないか確認する。
+- **API トークンが無効（401）になる**
+  - ブラウザのサイトデータ（`localStorage`/`sessionStorage`）を削除し、`python3 scripts/manage_api_token.py rotate --station-id <既存ID>` で再発行したトークンを再入力。
+- **リモート配布が更新されない**
+  - `journalctl -u toolmgmt.service --since now-5m | grep plan-cache` などでログを確認し、環境変数やネットワーク障害を点検。
+
+### 決定記録 (Decision Log)
+
+主要な決定事項および未完了タスクは `docs/requirements.md` で管理しています。運用面で参照が必要な決定事項のみ、該当セクションにまとめています。
+
+1. **DocumentViewer 工程設定の保持方法**  
+   - 各ラズパイに工程設定ファイル（例: `/var/lib/toolmgmt/station.json`）を配置し、管理 UI から工程を選択して保存する。環境変数 `STATION_PROCESS` は初期値フォールバックとして残す。設定ファイルは JSON 形式で工程候補リストも保持。  
+   - **参照**: `docs/requirements.md` の「決定事項」。
+
+2. **バーコード連携（部品番号／製造オーダー）**  
+   - 移動票バーコードは「部品番号 → 製造オーダー番号」。DocumentViewer (iframe) から `postMessage` で連携し、TMS 側がハイライト処理を行う。  
+   - **参照**: `docs/requirements.md` の「決定事項」。
+
+3. **データ配布（USB → サーバー／クラウド移行）**  
+   - 当面は USB 同期を維持しつつ、将来的に API 経由で計画データを取得できるハイブリッド構成へ移行する。  
+   - **参照**: `docs/requirements.md` の「バックログ」。
+
+4. **API トークン運用（ステーション単位）**  
+   - 各ラズパイ/ステーションごとに API トークンを個別発行し、`/etc/toolmgmt/api_token.json` に保存して認証する。  
+   - **参照**: `docs/requirements.md` の「決定事項 / バックログ」。
 
 ## 4. データ保全（バックアップ／リストア）
 

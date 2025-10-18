@@ -4,7 +4,9 @@
 import time
 import threading
 import json
+import csv
 from datetime import datetime
+from typing import Optional
 from functools import wraps
 from typing import Optional
 import logging
@@ -18,6 +20,17 @@ import os
 import subprocess
 import urllib.request
 from usb_sync import run_usb_sync
+from station_config import load_station_config, save_station_config
+from api_token_store import (
+    get_token_info,
+    get_active_tokens,
+    list_tokens,
+    issue_token,
+    revoke_token,
+    API_TOKEN_FILE,
+    API_TOKEN_HEADER,
+)
+from plan_cache import maybe_refresh_plan_cache
 
 
 # =========================
@@ -35,9 +48,7 @@ def _parse_bool(value: Optional[str], default: bool = True) -> bool:
     return value.strip().lower() not in {"0", "false", "off", "no", ""}
 
 # --- API 認証/監査設定 ---
-API_AUTH_TOKEN = os.getenv("API_AUTH_TOKEN")
-API_TOKEN_HEADER = os.getenv("API_TOKEN_HEADER", "X-API-Token")
-API_TOKEN_ENFORCE = _parse_bool(os.getenv("API_TOKEN_ENFORCE", "1"), True)
+API_TOKEN_ENFORCED = _parse_bool(os.getenv("API_TOKEN_ENFORCE", "1"), True)
 LOG_PATH = Path(os.getenv(
     "API_AUDIT_LOG",
     str((Path(__file__).resolve().parent / "logs" / "api_actions.log").resolve())
@@ -50,6 +61,21 @@ if not audit_logger.handlers:
     handler.setFormatter(logging.Formatter('%(asctime)s\t%(message)s'))
     audit_logger.addHandler(handler)
     audit_logger.setLevel(logging.INFO)
+
+# --- 生産計画/標準工数データ設定 ---
+PLAN_DATA_DIR = Path(os.getenv("PLAN_DATA_DIR", "/var/lib/toolmgmt/plan"))
+PLAN_DATASETS = {
+    "production_plan": {
+        "filename": "production_plan.csv",
+        "columns": ["納期", "個数", "部品番号", "部品名", "製番", "工程名"],
+        "label": "生産計画"
+    },
+    "standard_times": {
+        "filename": "standard_times.csv",
+        "columns": ["部品名", "機械標準工数", "製造オーダー番号", "部品番号", "工程名"],
+        "label": "標準工数"
+    },
+}
 
 # --- シャットダウンAPI用設定 ---
 SHUTDOWN_TOKEN = os.getenv("SHUTDOWN_TOKEN")  # 任意。必要なら systemd に環境変数を追加して使う
@@ -114,6 +140,9 @@ def log_api_action(action: str, status: str = "success", detail=None) -> None:
         user_agent = request.headers.get("User-Agent")
         if user_agent:
             payload["user_agent"] = user_agent
+        station_id = request.environ.get("api_station_id")
+        if station_id:
+            payload["station_id"] = station_id
     if detail not in (None, ""):
         payload["detail"] = detail
 
@@ -122,6 +151,111 @@ def log_api_action(action: str, status: str = "success", detail=None) -> None:
     except Exception:
         # ログ出力で例外が出ても本体処理を止めない
         audit_logger.warning("ログ出力に失敗しました", exc_info=True)
+
+
+
+def _parse_due_date(value: str) -> Optional[datetime]:
+    if not value:
+        return None
+    for fmt in ("%Y-%m-%d", "%Y/%m/%d"):
+        try:
+            return datetime.strptime(value, fmt)
+        except ValueError:
+            continue
+    return None
+
+
+def load_plan_dataset(key: str) -> dict:
+    cfg = PLAN_DATASETS[key]
+    path = PLAN_DATA_DIR / cfg["filename"]
+    result = {
+        "rows": [],
+        "error": None,
+        "updated_at": None,
+        "path": str(path),
+        "label": cfg["label"],
+    }
+
+    if not path.exists():
+        result["error"] = f"{cfg['label']}ファイルが見つかりません ({path})"
+        return result
+
+    try:
+        with path.open("r", encoding="utf-8-sig", newline="") as fh:
+            reader = csv.DictReader(fh)
+            headers = reader.fieldnames or []
+            if headers != cfg["columns"]:
+                result["error"] = (
+                    f"{cfg['label']}のヘッダーが想定と異なります: {headers}"
+                )
+                return result
+            rows = []
+            for row in reader:
+                normalized = {column: row.get(column, "") for column in cfg["columns"]}
+                rows.append(normalized)
+    except FileNotFoundError:
+        result["error"] = f"{cfg['label']}ファイルが見つかりません ({path})"
+        return result
+    except Exception as exc:  # pylint: disable=broad-except
+        result["error"] = f"{cfg['label']}の読み込みに失敗しました: {exc}"
+        return result
+
+    result["rows"] = rows
+    try:
+        result["updated_at"] = datetime.fromtimestamp(path.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
+    except Exception:  # pylint: disable=broad-except
+        result["updated_at"] = None
+    return result
+
+
+def build_production_view() -> dict:
+    try:
+        maybe_refresh_plan_cache()
+    except Exception as exc:  # pylint: disable=broad-except
+        print(f"[plan-cache] refresh skipped due to error: {exc}")
+    plan_data = load_plan_dataset("production_plan")
+    standard_data = load_plan_dataset("standard_times")
+
+    plan_entries = []
+    for row in plan_data["rows"]:
+        record = dict(row)
+        record["_sort_due"] = _parse_due_date(row.get("納期"))
+        plan_entries.append(record)
+
+    plan_entries.sort(key=lambda item: (
+        item["_sort_due"] if item["_sort_due"] else datetime.max,
+        item.get("製番", ""),
+    ))
+    for item in plan_entries:
+        item.pop("_sort_due", None)
+
+    standard_entries = []
+    for row in standard_data["rows"]:
+        record = dict(row)
+        record["_sort_key"] = (
+            record.get("部品番号", ""),
+            record.get("工程名", ""),
+        )
+        standard_entries.append(record)
+
+    standard_entries.sort(
+        key=lambda item: (
+            item["_sort_key"][0] or "",
+            item["_sort_key"][1] or "",
+        )
+    )
+    for item in standard_entries:
+        item.pop("_sort_key", None)
+
+    return {
+        "entries": plan_entries,
+        "plan_entries": plan_entries,
+        "standard_entries": standard_entries,
+        "plan_error": plan_data["error"],
+        "standard_error": standard_data["error"],
+        "plan_updated_at": plan_data["updated_at"],
+        "standard_updated_at": standard_data["updated_at"],
+    }
 
 
 def _extract_provided_token() -> str:
@@ -139,13 +273,31 @@ def require_api_token(action_name: str):
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
-            if not API_TOKEN_ENFORCE:
+            if not API_TOKEN_ENFORCEDD:
                 return func(*args, **kwargs)
-            if API_AUTH_TOKEN:
+            active_tokens = get_active_tokens()
+            if active_tokens:
                 provided = _extract_provided_token()
-                if not provided or provided != API_AUTH_TOKEN:
-                    log_api_action(action_name, status="denied", detail="missing_or_invalid_token")
+                if not provided:
+                    log_api_action(
+                        action_name,
+                        status="denied",
+                        detail="missing_token",
+                    )
                     return jsonify({"error": "unauthorized"}), 401
+
+                matched = next((t for t in active_tokens if t.get("token") == provided), None)
+                if not matched:
+                    log_api_action(
+                        action_name,
+                        status="denied",
+                        detail={"reason": "invalid_token"},
+                    )
+                    return jsonify({"error": "unauthorized"}), 401
+
+                station_id = matched.get("station_id")
+                if station_id:
+                    request.environ["api_station_id"] = station_id
             return func(*args, **kwargs)
 
         return wrapper
@@ -164,6 +316,14 @@ scan_state = {
     "last_scan_time": 0,
     "message": ""
 }
+
+
+def emit_station_config_update(config: dict) -> None:
+    """Broadcast station configuration update to connected clients."""
+    try:
+        socketio.emit("station_config_updated", config, broadcast=True)
+    except Exception as exc:  # pylint: disable=broad-except
+        print(f"[station-config] failed to broadcast update: {exc}")
 
 
 def check_doc_viewer_health(url: str, timeout: float = 1.0) -> bool:
@@ -480,12 +640,19 @@ def scan_monitor():
 def index():
     doc_viewer_url = app.config.get('DOCUMENT_VIEWER_URL')
     doc_viewer_online = check_doc_viewer_health(doc_viewer_url)
+    production_view = build_production_view()
+    station_config = load_station_config()
+    token_info = get_token_info()
     return render_template(
         'index.html',
         doc_viewer_url=doc_viewer_url,
         doc_viewer_online=doc_viewer_online,
-        api_token_required=bool(API_AUTH_TOKEN) and API_TOKEN_ENFORCE,
+        api_token_required=API_TOKEN_ENFORCED and bool(token_info.get("token")),
         api_token_header=API_TOKEN_HEADER,
+        api_station_id=token_info.get("station_id", ""),
+        api_token_error=token_info.get("error"),
+        production_view=production_view,
+        station_config=station_config,
     )
 
 @app.route('/api/start_scan', methods=['POST'])
@@ -544,6 +711,123 @@ def get_loans():
         })
     finally:
         conn.close()
+
+
+@app.route('/api/station_config', methods=['GET'])
+@require_api_token("station_config_get")
+def api_station_config_get():
+    config = load_station_config()
+    log_api_action("station_config_get", detail={"process": config.get("process"), "source": config.get("source")})
+    return jsonify(config)
+
+
+@app.route('/api/station_config', methods=['POST'])
+@require_api_token("station_config_update")
+def api_station_config_update():
+    payload = request.get_json(silent=True) or {}
+    process = payload.get("process", None)
+    available = payload.get("available", None)
+
+    if process is not None and not isinstance(process, str):
+        return jsonify({"error": "process は文字列で指定してください"}), 400
+
+    if available is not None:
+        if not isinstance(available, (list, tuple)):
+            return jsonify({"error": "available は文字列のリストで指定してください"}), 400
+        normalized = []
+        for item in available:
+            if not isinstance(item, str):
+                return jsonify({"error": "available には文字列のみ指定できます"}), 400
+            normalized.append(item)
+        available = normalized
+
+    try:
+        config = save_station_config(process=process, available=available)
+    except Exception as exc:  # pylint: disable=broad-except
+        log_api_action("station_config_update", status="error", detail=str(exc))
+        return jsonify({"error": str(exc)}), 500
+
+    log_api_action("station_config_update", detail={
+        "process": config.get("process"),
+        "available": config.get("available"),
+    })
+    emit_station_config_update(config)
+    return jsonify(config)
+
+
+@app.route('/api/tokens', methods=['GET'])
+@require_api_token("list_tokens")
+def api_tokens_list():
+    reveal = request.args.get('reveal') == '1'
+    tokens = list_tokens(with_token=reveal)
+    summary = get_token_info()
+    if not reveal and summary.get("token"):
+        summary = dict(summary)
+        summary["token"] = summary.get("token_preview", "***")
+    log_api_action("list_tokens", detail={"count": len(tokens)})
+    return jsonify({
+        "tokens": tokens,
+        "summary": summary,
+        "file": str(API_TOKEN_FILE),
+    })
+
+
+@app.route('/api/tokens', methods=['POST'])
+@require_api_token("issue_token")
+def api_tokens_issue():
+    payload = request.get_json(silent=True) or {}
+    station_id = (payload.get("station_id") or "").strip()
+    keep_existing = bool(payload.get("keep_existing"))
+    note = payload.get("note")
+
+    if not station_id:
+        return jsonify({"error": "station_id を指定してください"}), 400
+
+    try:
+        entry = issue_token(station_id=station_id, token=None, note=note, keep_existing=keep_existing)
+    except Exception as exc:  # pylint: disable=broad-except
+        log_api_action("issue_token", status="error", detail=str(exc))
+        return jsonify({"error": str(exc)}), 500
+
+    log_api_action("issue_token", detail={
+        "station_id": station_id,
+        "note": note,
+        "keep_existing": keep_existing,
+    })
+
+    response = {
+        "token": entry.get("token"),
+        "station_id": entry.get("station_id"),
+        "issued_at": entry.get("issued_at"),
+        "note": entry.get("note"),
+    }
+    return jsonify(response)
+
+
+@app.route('/api/tokens/revoke', methods=['POST'])
+@require_api_token("revoke_token")
+def api_tokens_revoke():
+    payload = request.get_json(silent=True) or {}
+    token = payload.get("token")
+    station_id = payload.get("station_id")
+    revoke_all = bool(payload.get("all"))
+
+    if not (token or station_id or revoke_all):
+        return jsonify({"error": "token / station_id / all のいずれかを指定してください"}), 400
+
+    try:
+        count = revoke_token(token=token, station_id=station_id, all_tokens=revoke_all)
+    except Exception as exc:  # pylint: disable=broad-except
+        log_api_action("revoke_token", status="error", detail=str(exc))
+        return jsonify({"error": str(exc)}), 500
+
+    log_api_action("revoke_token", detail={
+        "token": token,
+        "station_id": station_id,
+        "all": revoke_all,
+        "updated": count,
+    })
+    return jsonify({"updated": count})
 
 @app.route('/api/loans/<int:loan_id>/manual_return', methods=['POST'])
 @require_api_token("manual_return")
