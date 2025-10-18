@@ -5,7 +5,8 @@ import time
 import threading
 import json
 import csv
-from datetime import datetime
+import uuid
+from datetime import datetime, timezone
 from typing import Optional
 from functools import wraps
 from typing import Optional
@@ -273,7 +274,7 @@ def require_api_token(action_name: str):
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
-            if not API_TOKEN_ENFORCEDD:
+            if not API_TOKEN_ENFORCED:
                 return func(*args, **kwargs)
             active_tokens = get_active_tokens()
             if active_tokens:
@@ -399,8 +400,43 @@ def ensure_tables():
                 returned_at TIMESTAMPTZ
               )
             """)
+            cur.execute("""
+              CREATE TABLE IF NOT EXISTS part_locations(
+                order_code TEXT PRIMARY KEY,
+                location_code TEXT NOT NULL,
+                device_id TEXT,
+                last_scan_id TEXT,
+                scanned_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+              )
+            """)
     finally:
         conn.close()
+
+
+def _parse_iso8601(value: Optional[str]) -> datetime:
+    if not value:
+        return datetime.now(timezone.utc)
+    if isinstance(value, (int, float)):
+        # treat numeric value as unix timestamp (seconds)
+        return datetime.fromtimestamp(value, tz=timezone.utc)
+    if not isinstance(value, str):
+        raise ValueError("timestamp must be string")
+    normalized = value.strip()
+    if normalized.endswith("Z"):
+        normalized = normalized[:-1] + "+00:00"
+    try:
+        parsed = datetime.fromisoformat(normalized)
+    except ValueError as exc:
+        raise ValueError("invalid timestamp format") from exc
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed
+
+
+def _to_utc_iso(dt: datetime) -> str:
+    return dt.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
 
 def name_of_user(conn, uid):
     with conn.cursor() as cur:
@@ -801,6 +837,72 @@ def api_tokens_issue():
         "issued_at": entry.get("issued_at"),
         "note": entry.get("note"),
     }
+    return jsonify(response)
+
+
+@app.route('/api/v1/scans', methods=['POST'])
+@require_api_token("scan_intake")
+def api_v1_scans():
+    payload = request.get_json(silent=True) or {}
+
+    def _bad_request(reason: str, status: int = 400):
+        log_api_action("scan_intake", status="denied", detail=reason)
+        return jsonify({"error": reason}), status
+
+    part_code = str(payload.get("part_code", "")).strip()
+    location_code = str(payload.get("location_code", "")).strip()
+    if not part_code or not location_code:
+        return _bad_request("missing_part_or_location")
+
+    scan_id = str(payload.get("scan_id") or uuid.uuid4())
+    device_id = payload.get("device_id")
+    if isinstance(device_id, str):
+        device_id = device_id.strip() or None
+    else:
+        device_id = None
+
+    try:
+        scanned_at = _parse_iso8601(payload.get("scanned_at"))
+    except ValueError:
+        return _bad_request("invalid_scanned_at")
+
+    conn = get_conn()
+    try:
+        with conn, conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO part_locations (order_code, location_code, device_id, last_scan_id, scanned_at, updated_at)
+                VALUES (%s, %s, %s, %s, %s, now())
+                ON CONFLICT (order_code)
+                DO UPDATE SET
+                    location_code = EXCLUDED.location_code,
+                    device_id = EXCLUDED.device_id,
+                    last_scan_id = EXCLUDED.last_scan_id,
+                    scanned_at = EXCLUDED.scanned_at,
+                    updated_at = now()
+                RETURNING order_code, location_code, device_id, last_scan_id, scanned_at, updated_at
+                """,
+                (part_code, location_code, device_id, scan_id, scanned_at)
+            )
+            row = cur.fetchone()
+    finally:
+        conn.close()
+
+    log_api_action("scan_intake")
+
+    response = {
+        "accepted": True,
+        "order_code": row[0],
+        "location_code": row[1],
+        "device_id": row[2],
+        "scan_id": row[3],
+        "scanned_at": _to_utc_iso(row[4]),
+        "updated_at": _to_utc_iso(row[5]),
+    }
+    try:
+        socketio.emit("part_location_updated", response, broadcast=True)
+    except Exception:
+        pass
     return jsonify(response)
 
 
