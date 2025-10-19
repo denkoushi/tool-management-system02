@@ -337,7 +337,7 @@
 
   - Pi Zero からも同様に `curl` を実行し、200 が返ることを確認する。
   - 受信後は `docker exec -it pg psql -U app -d sensordb -c "SELECT * FROM part_locations ORDER BY updated_at DESC LIMIT 5;"` で登録内容を確認。
-  - API 受信時は `SocketIO` の `part_location_updated` イベントが配信される。サイネージでリアルタイム表示する場合はこのイベントを購読。
+  - API 受信時は `SocketIO` の `part_location_updated` イベントが配信される。右ペインのステータスバーから要領書／所在一覧を切り替えられ、所在一覧は LIVE 接続中に即時更新される（接続断時も 20 秒間隔で REST から自動取得）。
 
 ### 3.5 ログローテーション（toolmgmt/document-viewer）
 
