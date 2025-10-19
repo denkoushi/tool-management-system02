@@ -6,6 +6,20 @@
 > ドキュメント全体の役割分担と更新ルールは `docs/documentation-guidelines.md` にまとめています。エージェント／自動化タスクを利用するときは `docs/AGENTS.md` を最初に確認してください。
 > トークン入力を一時的に省略したい場合は、以下の手順で `API_TOKEN_ENFORCE=0` を設定します。\n> 1. `sudo systemctl edit toolmgmt.service` でドロップインファイルを開く\n> 2. `[Service]` セクションに `Environment=API_TOKEN_ENFORCE=0` を追記して保存\n> 3. `sudo systemctl daemon-reload`\n> 4. `sudo systemctl restart toolmgmt.service`\n> 元に戻すときは設定を削除または `1` に戻して同じ手順で再起動してください。
 
+## OnSiteLogistics（ハンディリーダ）との連携
+- 受信エンドポイント: `POST /api/v1/scans`（Bearer トークン必須、JSON ボディで所在を upsert）
+- 主な反映:
+  - `part_locations` テーブルへ最新所在を upsert
+  - `Socket.IO` イベント `part_location_updated` を発行し、右ペインの所在ビューを即時更新（接続断時は 20 秒 REST フォールバック）
+- 導入手順（抜粋）
+  1. `cd ~/tool-management-system02 && git checkout feature/scan-intake && git pull`
+  2. `sudo systemctl restart toolmgmt.service` → `sudo systemctl status toolmgmt.service`
+  3. `sudo ufw allow from <ハンディ側セグメント> to any port 8501 proto tcp`
+  4. `python scripts/manage_api_token.py issue --station-id HANDHELD-01 --reveal` で専用トークンを発行
+  5. Pi Zero 側の `/etc/onsitelogistics/config.json` に API URL とトークンを設定し、A→B スキャンで疎通確認
+  6. `docker exec -it pg psql -U app -d sensordb -c "SELECT * FROM part_locations ORDER BY updated_at DESC LIMIT 5;"` で登録結果を確認
+- 詳細な手順とトラブルシュートは `RUNBOOK.md` 3.4「OnSiteLogistics（ハンディリーダ）との連携」を参照してください。
+
 ---
 
 ## 1) 依存関係（セットアップ手順）

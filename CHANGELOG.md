@@ -80,3 +80,10 @@
 - バックエンド API を拡張：`POST /api/loans/<id>/manual_return` と `DELETE /api/loans/<id>` を追加し、Socket.IO 通知を既存フローと共通化。
 - USB メモリ挿入でマスターデータ（tool_master/users/tools）を自動取り込み・書き戻しするスクリプトを追加。ラベル `TOOLMASTER` の USB を挿すだけで同期が完了。
 - README / RUNBOOK に Raspberry Pi 初期セットアップの具体的な手順（Docker 公式スクリプト、`docker compose up -d` など）を追記し、再構築時の手順を明確化。
+
+## 2025-10-19
+
+- OnSiteLogistics（ハンディリーダ）からの所在データ受信を `feature/scan-intake` へ統合し、`POST /api/v1/scans` → `part_locations` upsert → `Socket.IO` 配信まで検証。
+- README に連携サマリーを追加し、ブランチ更新・UFW 設定・トークン発行・DB 確認手順を記載。
+- `RUNBOOK.md` 3.4 にトラブルシュートを含む詳細手順を追記。
+- `docs/requirements.md` の完了セクションへ所在連携を明記し、重複していたバックログ記述を整理。

@@ -36,8 +36,6 @@
 - 認証・監査設計（API トークンまたは別トークン）。
 - USB とリモート配布の併用フェーズにおける運用手順更新。
 - 中央ストレージ（PostgreSQL など）への集約検討。PDF を含むすべてを DB 化するのではなく、まず CSV メタ情報から段階的に移行し、ネットワーク障害時のフォールバックや認証強化を含む運用設計を策定する。移行期間中の二重管理リスクやセキュリティ要件を踏まえて段階的に進める。
-- スキャン所在更新用 API (`POST /api/v1/scans`) を受け付け、製造オーダー番号と棚位置を `part_locations` テーブルに upsert する機能を実装（`feature/scan-intake` で稼働中）。
-  - 運用時は `toolmgmt.service` を `feature/scan-intake` で更新し、`ufw allow from 192.168.128.0/24 to any port 8501 proto tcp` を追加。詳細手順は RUNBOOK 3.4「OnSiteLogistics（ハンディリーダ）との連携」を参照。
 - サイネージ向けに `part_locations` を提供するエンドポイント／Socket.IO チャネルの公開方法とキャッシュ戦略を決定し、Window C の端末構成と合わせて実装する。
 - 所在一覧 UI はヘッダ内トグル（要領書⇔所在）と Socket.IO / 20 秒間隔の REST フォールバックを備える。今後は Window C への引き渡し方法とスケーラビリティを検討。
 - アイテム番号のみに依存しない視認性向上のため、部品番号をキーに部品名称・顧客名・製品型番など外部マスタ（生産管理システム）と連携するリレーション設計を進める。データ同期手段、キャッシュ方針、更新頻度、セキュリティ要求を整理する。
@@ -78,6 +76,7 @@
 - USB マスターデータ同期と DocumentViewer importer の連携。 
 - API トークン認証・監査ログ、セキュリティ対策（UFW、SSH 鍵化、fail2ban 等）。
 - DocumentViewer 右ペイン UI、工程設定 UI の最新化。 
+- OnSiteLogistics（ハンディリーダ）から `POST /api/v1/scans` を受け付け、`part_locations` upsert と `Socket.IO` ブロードキャストを実装。`feature/scan-intake` ブランチで稼働し、RUNBOOK 3.4 に連携手順を整備。
 
 ## 5. 運用上のメモ
 
