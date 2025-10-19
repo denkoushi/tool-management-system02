@@ -34,6 +34,7 @@
 - スキャン所在更新用 API (`POST /api/v1/scans`) を受け付け、製造オーダー番号と棚位置を `part_locations` テーブルに upsert する機能を実装（`feature/scan-intake` で稼働中）。
   - 運用時は `toolmgmt.service` を `feature/scan-intake` で更新し、`ufw allow from 192.168.128.0/24 to any port 8501 proto tcp` を追加。詳細手順は RUNBOOK 3.4「OnSiteLogistics（ハンディリーダ）との連携」を参照。
 - サイネージ向けに `part_locations` を提供するエンドポイント／Socket.IO チャネルの公開方法とキャッシュ戦略を決定し、Window C の端末構成と合わせて実装する。
+- 所在一覧 UI はヘッダ内トグル（要領書⇔所在）と Socket.IO / 20 秒間隔の REST フォールバックを備える。今後は Window C への引き渡し方法とスケーラビリティを検討。
 
 ### 2.3 コンテナ運用（Docker）
 - Raspberry Pi 上でのコンテナ統一運用を検討。アプリ・PostgreSQL・Grafana を Docker 化すると再現性が高まる一方、端末リソースを圧迫するため構成を整理する。
