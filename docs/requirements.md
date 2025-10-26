@@ -84,3 +84,11 @@
 - DocumentViewer 右ペインの詳細な作業計画は `docs/right-pane-plan.md` に記載。
 - ドキュメントを更新する際は `docs/documentation-guidelines.md` に従い、情報の所在が重複しないように整理する。
 - エージェント・自動化作業の基本指示は `docs/AGENTS.md` を参照。
+
+## 6. 現在の進捗メモ（2025-10-26 時点）
+- RaspberryPiServer 上での API／Socket.IO へ切り替える準備中。現状は Window A 上の既存構成で運用しており、機能移行は未実施。
+- OnSiteLogistics からの `POST /api/v1/scans` を受け取る実装は feature ブランチで検証済み。今後は RaspberryPiServer 環境へ移植し、tool-management-system02 側の役割縮退（API 停止・DB データ移管）を進める。
+- 次フェーズの優先タスク:
+  - RaspberryPiServer 版 API／Socket.IO との互換性確認（データスキーマ、認証、エラーレスポンス）。
+  - USB＋API ハイブリッド運用の実装計画策定（INGEST/DIST の移行シナリオ整理）。
+  - 工程設定 UI のリファクタリングと station.json 管理の自動化（新サーバー稼働を前提に運用手順を更新）。
