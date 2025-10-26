@@ -318,6 +318,7 @@
 - **ファイアウォール許可**（初回のみ）
 
       sudo ufw allow from 192.168.128.0/24 to any port 8501 proto tcp
+
       sudo ufw status numbered
 
 - **トークン発行**（推奨）
@@ -339,7 +340,39 @@
   - 受信後は `docker exec -it pg psql -U app -d sensordb -c "SELECT * FROM part_locations ORDER BY updated_at DESC LIMIT 5;"` で登録内容を確認。
   - API 受信時は `SocketIO` の `part_location_updated` イベントが配信される。右ペインのステータスバーから要領書／所在一覧を切り替えられ、所在一覧は LIVE 接続中に即時更新される（接続断時も 20 秒間隔で REST から自動取得）。
 
-### 3.5 ログローテーション（toolmgmt/document-viewer）
+### 3.5 Window A（Raspberry Pi 4）クライアント設定
+
+1. **環境変数ファイルの作成**  
+   `config/window-a-client.env.sample` を参照し、必要な値を設定して `/etc/toolmgmt/window-a-client.env` などに配置します。
+
+        sudo install -o tools01 -g tools01 -m 640 \
+          ~/tool-management-system02/config/window-a-client.env.sample \
+          /etc/toolmgmt/window-a-client.env
+        sudoedit /etc/toolmgmt/window-a-client.env
+
+   主な項目：
+   - `DOCUMENT_VIEWER_URL=http://raspi-server.local:8501/viewer`
+   - `UPSTREAM_SOCKET_BASE=http://raspi-server.local:8501`
+   - `UPSTREAM_SOCKET_PATH=/socket.io`
+   - `UPSTREAM_SOCKET_AUTO=1`（Socket.IO を一時的に無効化したい場合は `0`）
+
+2. **systemd ドロップインで EnvironmentFile を読み込む**
+
+        sudo systemctl edit toolmgmt.service
+
+        [Service]
+        EnvironmentFile=-/etc/toolmgmt/window-a-client.env
+
+   保存後に `sudo systemctl daemon-reload` を実行します。
+
+3. **反映と確認**
+
+        sudo systemctl restart toolmgmt.service
+        sudo systemctl --no-pager status toolmgmt.service
+
+   ブラウザで `http://localhost:8501` を開き、右上の Socket ステータスが `LIVE` になり、`/api/v1/scans` 発行時に所在一覧・DocumentViewer が自動更新されるか確認してください。問題がある場合は `journalctl -u toolmgmt.service` および RaspberryPiServer 側の `docker compose logs app` を確認します。
+
+### 3.6 ログローテーション（toolmgmt/document-viewer）
 
 1. 初回セットアップ：
 
@@ -351,7 +384,7 @@
 3. ルール追加後は `sudo systemctl status cron`（または `anacron`）を確認し、デフォルトの logrotate が有効であることを確認する。
 4. ローテーション後のログは `/var/log/toolmgmt/*.log.*.gz` へ保存されるため、保管ポリシーに従って外部媒体へコピーする。
 
-### 3.6 生産計画／標準工数の同期（USB）
+### 3.7 生産計画／標準工数の同期（USB）
 
 USB メモリ経由で生産計画と標準工数の CSV を配布し、左上ダッシュボードに表示する仕組みを用意しています。
 
