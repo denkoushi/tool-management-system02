@@ -1,0 +1,6 @@
+[Unit]
+# systemd drop-in for Window A (Raspberry Pi 4) client configuration.
+
+[Service]
+# Load environment variables that define DocumentViewer/Socket.IO endpoints.
+EnvironmentFile=-/etc/toolmgmt/window-a-client.env

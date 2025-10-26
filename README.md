@@ -40,8 +40,7 @@
 
 ```bash
 cd ~/tool-management-system02
-sudo ./scripts/install_window_a_env.sh
-sudo systemctl edit toolmgmt.service   # EnvironmentFile を設定
+sudo ./scripts/install_window_a_env.sh --with-dropin
 sudo systemctl daemon-reload
 sudo systemctl restart toolmgmt.service
 ```

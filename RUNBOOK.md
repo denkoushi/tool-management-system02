@@ -353,7 +353,7 @@
    もしくは自動化スクリプトを利用できます。
 
         cd ~/tool-management-system02
-        sudo ./scripts/install_window_a_env.sh
+        sudo ./scripts/install_window_a_env.sh --with-dropin
 
    主な項目：
    - `DOCUMENT_VIEWER_URL=http://raspi-server.local:8501/viewer`
