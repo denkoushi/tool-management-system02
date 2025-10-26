@@ -7,6 +7,9 @@
   <title>アイテム管理システム</title>
   <script src="/static/js/socket.io.js"></script>
   <script>
+    window.TOOLMGMT_CONFIG = {{ {"socket": socket_client_config}|tojson }};
+  </script>
+  <script>
     (function(){
       const tokenRequired = {{ 'true' if api_token_required else 'false' }};
       const tokenHeader = {{ api_token_header|tojson }};
@@ -873,7 +876,23 @@
 <!-- ===== メインスクリプト（タブ独立運用 & UI同期） ===== -->
 <script>
   // WebSocket
-  const socket = io();
+  const toolmgmtConfig = window.TOOLMGMT_CONFIG || {};
+  const socketConfig = (toolmgmtConfig && typeof toolmgmtConfig === 'object') ? (toolmgmtConfig.socket || {}) : {};
+  const rawSocketBase = typeof socketConfig.base === 'string' ? socketConfig.base.trim() : '';
+  const socketBase = rawSocketBase ? rawSocketBase.replace(/\/+$/, '') : '';
+  const rawSocketPath = typeof socketConfig.path === 'string' ? socketConfig.path.trim() : '/socket.io';
+  const socketPath = rawSocketPath.startsWith('/') ? rawSocketPath : `/${rawSocketPath}`;
+  const socketAutoConnect = socketConfig.auto !== false;
+  const socketOptions = {
+    path: socketPath,
+    transports: ['websocket', 'polling'],
+    reconnection: true,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 8000,
+    autoConnect: socketAutoConnect,
+  };
+  const socket = socketBase ? io(socketBase, socketOptions) : io(socketOptions);
+  const socketDisabled = socketOptions.autoConnect === false;
 
   const dateTimeFormatter = new Intl.DateTimeFormat('ja-JP', { dateStyle: 'short', timeStyle: 'medium' });
   const partLocationElements = {
@@ -931,7 +950,13 @@
       offline: 'OFFLINE',
       loading: '接続確認中…',
       reconnect: '再接続中…',
+      disabled: 'DISABLED',
+      error: 'ERROR',
     };
+    if (socketDisabled && state !== 'disabled') {
+      state = 'disabled';
+      label = messages.disabled;
+    }
     el.dataset.state = state;
     el.textContent = label || messages[state] || '—';
   }
@@ -1033,7 +1058,9 @@
     if (partLocationElements.refreshBtn){
       partLocationElements.refreshBtn.disabled = true;
     }
-    setPartLocationStatus('loading', '更新中…');
+    if (!socketDisabled){
+      setPartLocationStatus('loading', '更新中…');
+    }
     try{
       const res = await fetch('/api/part_locations?limit=200');
       const data = await res.json();
@@ -1051,7 +1078,9 @@
       if (partLocationElements.refreshBtn){
         partLocationElements.refreshBtn.disabled = false;
       }
-      setPartLocationStatus(socket.connected ? 'live' : 'offline', socket.connected ? 'LIVE' : 'OFFLINE');
+      if (!socketDisabled){
+        setPartLocationStatus(socket.connected ? 'live' : 'offline', socket.connected ? 'LIVE' : 'OFFLINE');
+      }
       partLocationFetchInFlight = false;
     }
   }
@@ -1073,24 +1102,29 @@
 
   const partLocationInitialData = loadInitialPartLocations();
 
-  (function setupPartLocations(){
-    if (!partLocationElements.tableBody) return;
+(function setupPartLocations(){
+  if (!partLocationElements.tableBody) return;
+  if (socketDisabled){
+    setPartLocationStatus('disabled');
+  } else {
     setPartLocationStatus(socket.connected ? 'live' : 'loading', socket.connected ? 'LIVE' : '接続確認中…');
-    hydratePartLocations(partLocationInitialData);
-    if (partLocationElements.refreshBtn){
-      partLocationElements.refreshBtn.addEventListener('click', refreshPartLocations);
-    }
-    if (!isPartLocationsActive() && partLocationElements.message){
-      partLocationElements.message.innerHTML = '';
-    }
-  })();
+  }
+  hydratePartLocations(partLocationInitialData);
+  if (partLocationElements.refreshBtn){
+    partLocationElements.refreshBtn.addEventListener('click', refreshPartLocations);
+  }
+  if (!isPartLocationsActive() && partLocationElements.message){
+    partLocationElements.message.innerHTML = '';
+  }
+})();
 
-  setInterval(() => {
-    const now = Date.now();
-    const stale = now - partLocationLastRender > 20000;
-    if (stale || !socket.connected){
-      refreshPartLocations();
-    }
+setInterval(() => {
+  if (socketDisabled) return;
+  const now = Date.now();
+  const stale = now - partLocationLastRender > 20000;
+  if (stale || !socket.connected){
+    refreshPartLocations();
+  }
   }, 20000);
 
   socket.on('part_location_updated', (payload) => {
@@ -1102,24 +1136,26 @@
     if (isPartLocationsActive()){
       showPartLocationMessage('info', `更新: ${normalized.order_code} → ${normalized.location_code || '-'}`, 4000);
     }
-    if (socket.connected){
+    if (!socketDisabled && socket.connected){
       setPartLocationStatus('live', 'LIVE');
     }
   });
 
-  socket.on('connect', () => {
-    setPartLocationStatus('live', 'LIVE');
-  });
-  socket.on('connect_error', () => {
-    setPartLocationStatus('offline', 'OFFLINE');
-  });
-  socket.on('disconnect', () => {
-    setPartLocationStatus('offline', 'OFFLINE');
-  });
-  if (socket.io){
-    socket.io.on('reconnect_attempt', () => setPartLocationStatus('loading', '再接続中…'));
-    socket.io.on('reconnect', () => setPartLocationStatus('live', 'LIVE'));
-    socket.io.on('reconnect_error', () => setPartLocationStatus('offline', 'OFFLINE'));
+  if (!socketDisabled){
+    socket.on('connect', () => {
+      setPartLocationStatus('live', 'LIVE');
+    });
+    socket.on('connect_error', () => {
+      setPartLocationStatus('offline', 'OFFLINE');
+    });
+    socket.on('disconnect', () => {
+      setPartLocationStatus('offline', 'OFFLINE');
+    });
+    if (socket.io){
+      socket.io.on('reconnect_attempt', () => setPartLocationStatus('loading', '再接続中…'));
+      socket.io.on('reconnect', () => setPartLocationStatus('live', 'LIVE'));
+      socket.io.on('reconnect_error', () => setPartLocationStatus('offline', 'OFFLINE'));
+    }
   }
 
   (function setupRightPanelTabs(){

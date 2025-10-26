@@ -42,6 +42,26 @@ app.config['SECRET_KEY'] = 'your-secret-key-here'
 app.config['DOCUMENT_VIEWER_URL'] = os.getenv("DOCUMENT_VIEWER_URL", "http://127.0.0.1:5000")
 socketio = SocketIO(app, cors_allowed_origins="*")
 
+UPSTREAM_SOCKET_BASE = os.getenv(
+    "UPSTREAM_SOCKET_BASE",
+    os.getenv("RASPI_SERVER_SOCKET_URL", os.getenv("RASPI_SERVER_BASE", ""))
+)
+UPSTREAM_SOCKET_PATH = os.getenv("UPSTREAM_SOCKET_PATH", "/socket.io")
+UPSTREAM_SOCKET_AUTO = os.getenv("UPSTREAM_SOCKET_AUTO", "1")
+
+
+def _normalize_socket_base(value: Optional[str]) -> str:
+    if not value:
+        return ""
+    return value.rstrip("/")
+
+
+SOCKET_CLIENT_CONFIG = {
+    "base": _normalize_socket_base(UPSTREAM_SOCKET_BASE),
+    "path": UPSTREAM_SOCKET_PATH if UPSTREAM_SOCKET_PATH else "/socket.io",
+    "auto": _parse_bool(UPSTREAM_SOCKET_AUTO, True),
+}
+
 
 def _parse_bool(value: Optional[str], default: bool = True) -> bool:
     if value is None:
@@ -728,6 +748,7 @@ def index():
         production_view=production_view,
         station_config=station_config,
         part_locations=part_locations,
+        socket_client_config=SOCKET_CLIENT_CONFIG,
     )
 
 @app.route('/api/start_scan', methods=['POST'])

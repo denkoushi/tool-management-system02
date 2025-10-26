@@ -9,6 +9,7 @@
 - **iframe 埋め込みを基本**: TMS の右半分 (`.future-panel`) を DV の iframe で常時占有させ、ユーザー体験を「1 画面で 2 システムが並列動作する」構成にする。
 - **ヘッダ内トグルで複合表示**: 右ペインは「要領書」を既定とし、ステータスバー内のスイッチボタンから所在一覧（`part_locations`）へ切り替えられる。所在一覧は Socket.IO でリアルタイム更新し、接続断時は 20 秒間隔の REST フォールバックで自動再取得する。
 - **URL/ポート管理**: 既定値は `http://127.0.0.1:5000` を想定。将来ポート変更に備えて環境変数 (例: `DOCUMENT_VIEWER_URL`) を TMS 側に追加して設定可能にする。
+- **Socket.IO 接続先の切替**: `UPSTREAM_SOCKET_BASE`（ベース URL）と `UPSTREAM_SOCKET_PATH` で RaspberryPiServer（ラズパイ 5）を指定。既定では同一ホストを参照し、`UPSTREAM_SOCKET_AUTO=0` でクライアント側接続を抑止できる。
 - **フォーカスとイベント分離**: 左側のバーコード入力と右側のキーボードイベントが干渉しないように tabindex / pointer-event の制御、または iframe 内でキーボードフォーカスを明示的に管理。
 - **ヘルスチェック表示**: iframe 読み込み失敗時にアラートを表示する簡易監視を TMS に組み込み、DV 停止を即時検知できるようにする。
 - **サービスの起動／停止統一**: systemd を利用し、TMS (`toolmgmt.service`) と DV (`docviewer.service` など仮称) を個別ユニットとして管理。キオスク起動手順では「両サービスが稼働中であること」をチェックリスト化。
@@ -36,7 +37,12 @@
    - 左右 UI のキーボード操作・スキャン動作が干渉しないことを確認。
    - ネットワーク切断や DV 停止時の復旧手順を RUNBOOK に追加。
 
-## 4. 検討中・将来課題
+## 4. 接続検証メモ（暫定）
+- RaspberryPiServer 側で `docker compose exec -T app python /app/tests/socketio_listener.py` を起動し、`curl -X POST http://127.0.0.1:8501/api/v1/scans ...` を実行して Socket.IO ブロードキャストを確認する。
+- Window A で `UPSTREAM_SOCKET_BASE=http://raspi-server.local:8501` を設定し、画面右上のチップが `LIVE` になること、`part_location_updated` 受信時に所在一覧と DocumentViewer が自動更新されることを確認する。
+- 接続できない場合は `UPSTREAM_SOCKET_PATH`、`API_TOKEN`、RaspberryPiServer 側の `docker compose logs app` を確認し、必要なら `UPSTREAM_SOCKET_AUTO=0` で自動接続を一時的に無効化して REST フォールバックのみで動作させる。
+
+## 5. 検討中・将来課題
 - **起動シーケンス自動化**: キオスク起動時に DV の `/health` をチェックし、未起動なら自動スタート or 警告を出す。
 - **共通ログ／監視**: 両サービスのログを journalctl / systemd でまとめて確認できるようにし、障害時の原因切り分けを簡潔に。
 - **右側 UI の高度化**: 例えば TMS の貸出履歴と連動して DV へメタ情報を渡す、もしくは DV からの通知を TMS へ返すなど、双方向連携 API の検討。
