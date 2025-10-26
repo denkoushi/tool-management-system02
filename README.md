@@ -36,6 +36,15 @@
 > `Environment=UPSTREAM_SOCKET_BASE=http://raspi-server.local:8501`
 
 環境変数は `/etc/systemd/system/toolmgmt.service.d/override.conf` の `[Service]` セクションや `EnvironmentFile` で設定します。サンプルとして `config/window-a-client.env.sample` を用意しているので、必要に応じてコピーし調整してください。
+自動化したい場合は以下を利用できます。
+
+```bash
+cd ~/tool-management-system02
+sudo ./scripts/install_window_a_env.sh
+sudo systemctl edit toolmgmt.service   # EnvironmentFile を設定
+sudo systemctl daemon-reload
+sudo systemctl restart toolmgmt.service
+```
 
 ---
 

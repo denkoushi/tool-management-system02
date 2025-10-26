@@ -350,6 +350,11 @@
           /etc/toolmgmt/window-a-client.env
         sudoedit /etc/toolmgmt/window-a-client.env
 
+   もしくは自動化スクリプトを利用できます。
+
+        cd ~/tool-management-system02
+        sudo ./scripts/install_window_a_env.sh
+
    主な項目：
    - `DOCUMENT_VIEWER_URL=http://raspi-server.local:8501/viewer`
    - `UPSTREAM_SOCKET_BASE=http://raspi-server.local:8501`
