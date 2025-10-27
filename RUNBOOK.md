@@ -430,7 +430,7 @@
 
 ### 3.7 生産計画／標準工数の同期（USB）
 
-USB メモリ経由で生産計画と標準工数の CSV を配布し、左上ダッシュボードに表示する仕組みを用意しています。
+`RASPI_SERVER_BASE` を設定すると、生産計画・標準工数データは RaspberryPiServer の REST API (`/api/v1/production-plan`, `/api/v1/standard-times`) から自動取得されます。API へ到達できない場合のフォールバックとして、従来どおり USB メモリ経由で CSV を配布する仕組みを維持しています。
 
 1. **USB 内の配置場所（`master/` 直下）**
 
@@ -462,7 +462,8 @@ USB メモリ経由で生産計画と標準工数の CSV を配布し、左上�
 ### 3.7 工程設定（station.json）
 
 1. **設定ファイルとフォーマット**
-   - 既定パス: `/var/lib/toolmgmt/station.json`（`STATION_CONFIG_PATH` で変更可）
+   - `RASPI_SERVER_BASE` を設定した場合、工程設定は RaspberryPiServer (`/api/v1/station-config`) に保存され、Window A 側からの変更は即時にサーバーへ送信されます。
+   - API にアクセスできない場合のフォールバックとしてローカルファイル `/var/lib/toolmgmt/station.json` を参照します（`STATION_CONFIG_PATH` で変更可）。
    - 例:
 
         {
@@ -475,7 +476,7 @@ USB メモリ経由で生産計画と標準工数の CSV を配布し、左上�
 
 2. **UI 操作手順（推奨）**
    - 画面「🛠 メンテナンス」タブ → 「工程設定」で候補追加・削除・初期化と現在の工程の保存が可能。
-   - 保存成功時は station.json が即座に更新され、DocumentViewer iframe へも postMessage で通知されるため、右ペインを開き直さなくても反映される。
+   - 保存成功時は RaspberryPiServer への POST とローカルキャッシュ更新が行われ、DocumentViewer iframe へも postMessage で通知される。
 
 3. **CLI 操作手順**
 

@@ -55,6 +55,7 @@
 ## 8. リンク集
 - ドキュメント運用ガイドライン: `docs/documentation-guidelines.md`
 - 要件とロードマップ: `docs/requirements.md`
+- データソース移行計画: `docs/data-source-migration.md`
 - セキュリティ概要: `docs/security-overview.md`
 - セキュリティ要求対応: `docs/security-requirements-response.md`
 

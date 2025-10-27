@@ -7,6 +7,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from raspi_server_client import (
+    RaspiServerAuthError,
+    RaspiServerClient,
+    RaspiServerClientError,
+)
+
 
 def _is_writable(path: Path) -> bool:
     """Return True if station config file (or its parent directory) is writable."""
@@ -23,6 +29,10 @@ try:
 except PermissionError:
     # 読み取り専用環境では作成できない場合がある
     pass
+
+
+def _create_client() -> RaspiServerClient:
+    return RaspiServerClient.from_env()
 
 
 def _now_iso() -> str:
@@ -58,8 +68,46 @@ def _sanitize_available(values: Optional[List[str]]) -> List[str]:
     return cleaned
 
 
+def _merge_error(existing: Optional[str], message: Optional[str]) -> Optional[str]:
+    parts = [msg for msg in (message, existing) if msg]
+    if not parts:
+        return None
+    merged: List[str] = []
+    for msg in parts:
+        if msg not in merged:
+            merged.append(msg)
+    return " / ".join(merged)
+
+
 def load_station_config() -> Dict[str, object]:
-    """Load station configuration with fallbacks."""
+    client = _create_client()
+    if client.is_configured():
+        try:
+            payload = client.get_station_config()
+            process = str(payload.get("process", "") or "").strip()
+            available = _sanitize_available(payload.get("available"))
+            if process and process not in available:
+                available.append(process)
+            return {
+                "process": process,
+                "available": available,
+                "updated_at": payload.get("updated_at"),
+                "source": "raspi_server",
+                "error": None,
+                "path": f"{client.base_url}/api/v1/station-config",
+                "writable": True,
+            }
+        except (RaspiServerAuthError, RaspiServerClientError) as exc:
+            error = f"RaspberryPiServer: {exc}"
+            local = _load_local_station_config()
+            local["error"] = _merge_error(local.get("error"), error)
+            return local
+
+    return _load_local_station_config()
+
+
+def _load_local_station_config() -> Dict[str, object]:
+    """Load station configuration with local file fallback."""
     config = _default_config()
     path = STATION_CONFIG_PATH
 
@@ -99,29 +147,59 @@ def load_station_config() -> Dict[str, object]:
 
 
 def save_station_config(process: Optional[str] = None, available: Optional[List[str]] = None) -> Dict[str, object]:
-    """Persist station configuration and return the updated structure."""
+    client = _create_client()
+    current = load_station_config()
+    sanitized_process = current.get("process", "")
+    if process is not None:
+        sanitized_process = process.strip()
+    sanitized_available = current.get("available", [])
+    if available is not None:
+        sanitized_available = _sanitize_available(available)
+    if sanitized_process:
+        if sanitized_process not in sanitized_available:
+            sanitized_available.append(sanitized_process)
+    else:
+        sanitized_available = _sanitize_available(sanitized_available)
+
+    if client.is_configured():
+        try:
+            payload = {
+                "process": sanitized_process,
+                "available": sanitized_available,
+            }
+            saved = client.update_station_config(payload)
+            process_value = str(saved.get("process", "") or "").strip()
+            response_available = _sanitize_available(saved.get("available"))
+            if process_value and process_value not in response_available:
+                response_available.append(process_value)
+            return {
+                "process": process_value,
+                "available": response_available,
+                "updated_at": saved.get("updated_at"),
+                "source": "raspi_server",
+                "error": None,
+                "path": f"{client.base_url}/api/v1/station-config",
+                "writable": True,
+            }
+        except (RaspiServerAuthError, RaspiServerClientError) as exc:
+            error = f"RaspberryPiServer: {exc}"
+            if not _is_writable(STATION_CONFIG_PATH):
+                raise RaspiServerClientError(error) from exc
+            local_saved = _save_local_station_config(sanitized_process, sanitized_available)
+            local_saved["error"] = _merge_error(local_saved.get("error"), error)
+            return local_saved
+
+    return _save_local_station_config(sanitized_process, sanitized_available)
+
+
+def _save_local_station_config(process: str, available: List[str]) -> Dict[str, object]:
+    """Persist station configuration to local file."""
     if not _is_writable(STATION_CONFIG_PATH):
         raise PermissionError(f"station.json に書き込みできません: {STATION_CONFIG_PATH}")
-    current = load_station_config()
-    if current.get("source") == "error":
-        current = _default_config()
-
-    new_process = current.get("process", "")
-    if process is not None:
-        new_process = process.strip()
-
-    new_available = current.get("available", [])
-    if available is not None:
-        new_available = _sanitize_available(available)
-    if new_process:
-        if new_process not in new_available:
-            new_available.append(new_process)
-    else:
-        new_available = _sanitize_available(new_available)
 
     payload: Dict[str, object] = {
-        "process": new_process,
-        "available": new_available,
+        "process": process,
+        "available": available,
         "updated_at": _now_iso(),
     }
 

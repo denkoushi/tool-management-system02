@@ -5,8 +5,8 @@
 ## 1. 現状の優先度
 
 1. **工程設定 UX / 保守性強化**  
-   - station.json の CRUD を UI/API で完結させる。  
-   - DocumentViewer への即時反映、設定エラー時の復旧手順簡素化。
+   - RaspberryPiServer 経由の工程設定 REST を安定運用し、フォールバック時の UI 表示と監査ログを整備する。  
+   - DocumentViewer への即時反映と設定エラー時の復旧手順を最新化。
 2. **API トークン運用の高度化**  
    - 複数トークン管理、履歴保持、UI からの再発行を検討。  
    - 初期セットアップ手順への統合、監査ログの整備。
@@ -31,10 +31,9 @@
 - 設定編集 API・管理 UI の追加（工程リスト CRUD、初期化機能の整備）。
 - station.json 欠損・破損時の自動復旧、UI 上でのエラーメッセージ改善。
 
-### 2.2 データ配布・計画連携
-- 生産計画 API エンドポイントの設計、キャッシュ更新ロジック、失敗時のフォールバックメッセージ。 
-- 認証・監査設計（API トークンまたは別トークン）。
-- USB とリモート配布の併用フェーズにおける運用手順更新。
+- RaspberryPiServer の REST API を Window A から利用開始したため、USB→サーバー取り込みパイプライン（tool-ingest-sync）とキャッシュ更新トリガーを整備する。失敗時はダッシュボードへ警告を表示し、RUNBOOK へ復旧手順を追加する。 
+- 認証・監査：サーバーへの Bearer トークンを `RASPI_SERVER_API_TOKEN` / `api_token_store` で統一管理し、アクセス失敗を監査ログに記録する。
+- USB と REST 併用フェーズの運用手順更新（RUNBOOK/README のフォールバック手順、日次点検リスト）。
 - 中央ストレージ（PostgreSQL など）への集約検討。PDF を含むすべてを DB 化するのではなく、まず CSV メタ情報から段階的に移行し、ネットワーク障害時のフォールバックや認証強化を含む運用設計を策定する。移行期間中の二重管理リスクやセキュリティ要件を踏まえて段階的に進める。
 - サイネージ向けに `part_locations` を提供するエンドポイント／Socket.IO チャネルの公開方法とキャッシュ戦略を決定し、Window C の端末構成と合わせて実装する。
 - 所在一覧 UI はヘッダ内トグル（要領書⇔所在）と Socket.IO / 20 秒間隔の REST フォールバックを備える。今後は Window C への引き渡し方法とスケーラビリティを検討。
@@ -77,6 +76,7 @@
 - API トークン認証・監査ログ、セキュリティ対策（UFW、SSH 鍵化、fail2ban 等）。
 - DocumentViewer 右ペイン UI、工程設定 UI の最新化。 
 - OnSiteLogistics（ハンディリーダ）から `POST /api/v1/scans` を受け付け、`part_locations` upsert と `Socket.IO` ブロードキャストを実装。`feature/scan-intake` ブランチで稼働し、RUNBOOK 3.4 に連携手順を整備。
+- Window A から RaspberryPiServer の `/api/v1/production-plan`, `/api/v1/standard-times`, `/api/v1/part-locations`, `/api/v1/station-config` を利用するクライアント統合を完了。フォールバックと単体テストを整備。
 
 ## 5. 運用上のメモ
 
@@ -85,10 +85,10 @@
 - ドキュメントを更新する際は `docs/documentation-guidelines.md` に従い、情報の所在が重複しないように整理する。
 - エージェント・自動化作業の基本指示は `docs/AGENTS.md` を参照。
 
-## 6. 現在の進捗メモ（2025-10-26 時点）
-- RaspberryPiServer 上での API／Socket.IO へ切り替える準備中。現状は Window A 上の既存構成で運用しており、機能移行は未実施。
-- OnSiteLogistics からの `POST /api/v1/scans` を受け取る実装は feature ブランチで検証済み。今後は RaspberryPiServer 環境へ移植し、tool-management-system02 側の役割縮退（API 停止・DB データ移管）を進める。
+## 6. 現在の進捗メモ（2025-10-27 時点）
+- Window A クライアントは RaspberryPiServer の REST API と Socket.IO へ接続済み。API 障害時はローカル CSV / PostgreSQL / station.json へフォールバックし、UI に警告を表示する。
+- OnSiteLogistics からの `POST /api/v1/scans` はサーバー側で処理し、Window A は所在一覧を REST で参照する構成へ移行。今後は USB 取り込み→サーバー更新→クライアント自動反映の一連フローを整備する。
 - 次フェーズの優先タスク:
-  - RaspberryPiServer 版 API／Socket.IO との互換性確認（データスキーマ、認証、エラーレスポンス）。
-  - USB＋API ハイブリッド運用の実装計画策定（INGEST/DIST の移行シナリオ整理）。
-  - 工程設定 UI のリファクタリングと station.json 管理の自動化（新サーバー稼働を前提に運用手順を更新）。
+  - RaspberryPiServer 側の ingest スクリプトを刷新し、CSV 取り込み時に `/api/v1/production-plan` 等へ即時反映させる。
+  - REST 成功／失敗ログを RUNBOOK に追記し、14 日検証手順へ組み込む。
+  - 工程設定 UI の文言調整と `RASPI_SERVER_API_TOKEN` 運用ルールを API トークン管理フローへ統合する。

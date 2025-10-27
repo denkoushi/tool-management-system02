@@ -30,10 +30,14 @@
 | `UPSTREAM_SOCKET_BASE` | 所在イベント (`part_location_updated` など) を受信する Socket.IO サーバーのベース URL。RaspberryPiServer を指す。 | _(未指定: 同一ホスト)_ |
 | `UPSTREAM_SOCKET_PATH` | 上記 Socket.IO のパス。 | `/socket.io` |
 | `UPSTREAM_SOCKET_AUTO` | Socket.IO 自動接続フラグ。`0` / `false` で無効化。 | `1` |
+| `RASPI_SERVER_BASE` | RaspberryPiServer REST API のベース URL。`/api/v1/...` を参照する際に利用。 | _(未指定: ローカル CSV / station.json を使用)_ |
+| `RASPI_SERVER_API_TOKEN` | RaspberryPiServer へ接続する際に送信する Bearer トークン。未指定の場合は `api_token_store` のアクティブトークンを再利用。 | _(空)_ |
+| `RASPI_SERVER_TIMEOUT` | REST リクエストのタイムアウト（秒）。 | `4.0` |
 
 > 例: RaspberryPiServer を参照する場合  
 > `Environment=DOCUMENT_VIEWER_URL=http://raspi-server.local:8501/viewer`  
-> `Environment=UPSTREAM_SOCKET_BASE=http://raspi-server.local:8501`
+> `Environment=UPSTREAM_SOCKET_BASE=http://raspi-server.local:8501`  
+> `Environment=RASPI_SERVER_BASE=http://raspi-server.local:8501`
 
 環境変数は `/etc/systemd/system/toolmgmt.service.d/override.conf` の `[Service]` セクションや `EnvironmentFile` で設定します。サンプルとして `config/window-a-client.env.sample` を用意しているので、必要に応じてコピーし調整してください。
 自動化したい場合は以下を利用できます。
@@ -176,9 +180,15 @@ sudo systemctl restart toolmgmt.service
         SUDO
         sudo visudo -cf /etc/sudoers.d/toolmgmt-usbsync
 
-10. **リモート配布（任意）**
+10. **RaspberryPiServer 連携とフォールバック**
 
-    USB の代わりにサーバー上の CSV を取得したい場合は、環境変数 `PLAN_REMOTE_BASE_URL` を設定してください。例：`https://example.com/toolmgmt/plan` に `production_plan.csv` / `standard_times.csv` を配置しておくと、アプリ起動時にダウンロードされ `/var/lib/toolmgmt/plan/` が上書きされます。既定では 600 秒ごとに更新確認を行い（`PLAN_REMOTE_REFRESH_SECONDS` で調整）、失敗した場合はローカルの最終データを使います。
+    `RASPI_SERVER_BASE` を指定すると、生産計画・標準工数・所在一覧・工程設定は **すべて RaspberryPiServer の REST API** から取得します。API への接続に失敗した場合は自動的に従来のローカル CSV / PostgreSQL / station.json へフォールバックし、ダッシュボード上に「RaspberryPiServer: ...」として警告を表示します。
+
+    - 認証トークンは `RASPI_SERVER_API_TOKEN` を設定するか、`api_token_store` のアクティブトークンを再利用します。
+    - タイムアウトは `RASPI_SERVER_TIMEOUT`（秒）で調整できます（デフォルト 4.0 秒）。
+    - フォールバック用にローカル CSV を維持したい場合は従来どおり USB 同期や `PLAN_REMOTE_BASE_URL` を併用してください。
+
+    旧来の CSV ダウンロード機構 (`PLAN_REMOTE_BASE_URL`) も残しており、API 連携のバックアップとして利用できます。例：`https://example.com/toolmgmt/plan` に `production_plan.csv` / `standard_times.csv` を配置しておくと、アプリ起動時に `/var/lib/toolmgmt/plan/` が最新化されます（既定 600 秒間隔、`PLAN_REMOTE_REFRESH_SECONDS` で調整）。
 
     - 認証が必要な場合は `PLAN_REMOTE_TOKEN` に Bearer トークンを指定。
     - LAN 上の共有を参照したい場合は `PLAN_REMOTE_BASE_URL=file:///path/to/share` 形式で `file://` を指定。

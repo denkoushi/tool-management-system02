@@ -32,6 +32,11 @@ from api_token_store import (
     API_TOKEN_HEADER,
 )
 from plan_cache import maybe_refresh_plan_cache
+from raspi_server_client import (
+    RaspiServerClient,
+    RaspiServerAuthError,
+    RaspiServerClientError,
+)
 
 
 # =========================
@@ -56,6 +61,12 @@ def _normalize_socket_base(value: Optional[str]) -> str:
     return value.rstrip("/")
 
 
+def _parse_bool(value: Optional[str], default: bool = True) -> bool:
+    if value is None:
+        return default
+    return value.strip().lower() not in {"0", "false", "off", "no", ""}
+
+
 SOCKET_CLIENT_CONFIG = {
     "base": _normalize_socket_base(UPSTREAM_SOCKET_BASE),
     "path": UPSTREAM_SOCKET_PATH if UPSTREAM_SOCKET_PATH else "/socket.io",
@@ -63,10 +74,9 @@ SOCKET_CLIENT_CONFIG = {
 }
 
 
-def _parse_bool(value: Optional[str], default: bool = True) -> bool:
-    if value is None:
-        return default
-    return value.strip().lower() not in {"0", "false", "off", "no", ""}
+def _create_raspi_client() -> RaspiServerClient:
+    """Instantiate a RaspberryPiServer client using environment defaults."""
+    return RaspiServerClient.from_env()
 
 # --- API 認証/監査設定 ---
 API_TOKEN_ENFORCED = _parse_bool(os.getenv("API_TOKEN_ENFORCE", "1"), True)
@@ -229,13 +239,80 @@ def load_plan_dataset(key: str) -> dict:
     return result
 
 
+def _normalize_remote_plan_dataset(client: RaspiServerClient, key: str, payload: dict) -> dict:
+    cfg = PLAN_DATASETS[key]
+    entries = payload.get("entries") or []
+    rows = []
+    for entry in entries:
+        normalized = {}
+        for column in cfg["columns"]:
+            value = entry.get(column, "")
+            normalized[column] = "" if value is None else str(value)
+        rows.append(normalized)
+
+    endpoint = "production-plan" if key == "production_plan" else "standard-times"
+    return {
+        "rows": rows,
+        "error": payload.get("error"),
+        "updated_at": payload.get("updated_at"),
+        "label": cfg["label"],
+        "path": f"{client.base_url}/api/v1/{endpoint}",
+        "source": "raspi_server",
+    }
+
+
+def _merge_errors(existing: Optional[str], new_message: Optional[str]) -> Optional[str]:
+    parts = [msg for msg in (new_message, existing) if msg]
+    if not parts:
+        return None
+    # Remove duplicates while preserving order
+    seen = []
+    for item in parts:
+        if item not in seen:
+            seen.append(item)
+    return " / ".join(seen)
+
+
 def build_production_view() -> dict:
     try:
         maybe_refresh_plan_cache()
     except Exception as exc:  # pylint: disable=broad-except
         print(f"[plan-cache] refresh skipped due to error: {exc}")
-    plan_data = load_plan_dataset("production_plan")
-    standard_data = load_plan_dataset("standard_times")
+
+    client = _create_raspi_client()
+    plan_data: Optional[dict] = None
+    standard_data: Optional[dict] = None
+    remote_errors: dict[str, str] = {}
+
+    if client.is_configured():
+        for key in ("production_plan", "standard_times"):
+            try:
+                payload = client.get_plan_dataset(key)
+                normalized = _normalize_remote_plan_dataset(client, key, payload)
+                if normalized["error"]:
+                    remote_errors[key] = str(normalized["error"])
+                    continue
+                if key == "production_plan":
+                    plan_data = normalized
+                else:
+                    standard_data = normalized
+            except (RaspiServerAuthError, RaspiServerClientError) as exc:
+                remote_errors[key] = str(exc)
+
+    if plan_data is None:
+        plan_data = load_plan_dataset("production_plan")
+        if remote_errors.get("production_plan"):
+            plan_data["error"] = _merge_errors(
+                plan_data.get("error"),
+                f"RaspberryPiServer: {remote_errors['production_plan']}",
+            )
+    if standard_data is None:
+        standard_data = load_plan_dataset("standard_times")
+        if remote_errors.get("standard_times"):
+            standard_data["error"] = _merge_errors(
+                standard_data.get("error"),
+                f"RaspberryPiServer: {remote_errors['standard_times']}",
+            )
 
     plan_entries = []
     for row in plan_data["rows"]:
@@ -243,10 +320,12 @@ def build_production_view() -> dict:
         record["_sort_due"] = _parse_due_date(row.get("納期"))
         plan_entries.append(record)
 
-    plan_entries.sort(key=lambda item: (
-        item["_sort_due"] if item["_sort_due"] else datetime.max,
-        item.get("製番", ""),
-    ))
+    plan_entries.sort(
+        key=lambda item: (
+            item["_sort_due"] if item["_sort_due"] else datetime.max,
+            item.get("製番", ""),
+        )
+    )
     for item in plan_entries:
         item.pop("_sort_due", None)
 
@@ -276,6 +355,8 @@ def build_production_view() -> dict:
         "standard_error": standard_data["error"],
         "plan_updated_at": plan_data["updated_at"],
         "standard_updated_at": standard_data["updated_at"],
+        "plan_source": plan_data.get("source"),
+        "standard_source": standard_data.get("source"),
     }
 
 
@@ -287,6 +368,29 @@ def fetch_part_locations(limit: int = 200) -> list[dict[str, object]]:
         limit_value = 200
     limit_value = max(1, min(limit_value, 1000))
 
+    client = _create_raspi_client()
+    if client.is_configured():
+        try:
+            payload = client.get_part_locations(limit_value)
+            entries = payload.get("entries") or payload.get("items") or []
+            normalized: list[dict[str, object]] = []
+            for item in entries:
+                normalized.append({
+                    "order_code": item.get("order_code"),
+                    "location_code": item.get("location_code"),
+                    "device_id": item.get("device_id"),
+                    "last_scan_id": item.get("last_scan_id"),
+                    "scanned_at": item.get("scanned_at"),
+                    "updated_at": item.get("updated_at"),
+                })
+            return normalized
+        except (RaspiServerAuthError, RaspiServerClientError) as exc:
+            print(f"[part-locations] remote fetch failed: {exc}")
+
+    return _fetch_part_locations_local(limit_value)
+
+
+def _fetch_part_locations_local(limit_value: int) -> list[dict[str, object]]:
     conn = get_conn()
     try:
         with conn.cursor() as cur:

@@ -3,6 +3,14 @@
 本リポジトリ（tool-management-system02）で行った復旧・強化の履歴です。  
 ※ 日付は JST、内容は要点のみ。
 
+## 2025-10-27
+
+### RaspberryPiServer 連携の開始
+- Window A から RaspberryPiServer REST API への取得処理を実装。`RaspiServerClient` を新規追加し、`build_production_view()` / `fetch_part_locations()` / `station_config` が `/api/v1/...` を参照するよう切り替え（フォールバックは従来どおり維持）。
+- 工程設定 UI からの保存時に RaspberryPiServer へ POST し、ローカル `station.json` はバックアップ用途に限定。
+- pytest に REST 成功／失敗のモックテストを追加し、station 設定のリモート・フォールバックのカバレッジを拡張。
+- README / RUNBOOK / docs/requirements.md / docs/data-source-migration.md を更新し、`RASPI_SERVER_BASE` 系の環境変数・運用手順を追記。`requirements.txt` に `requests` を追加。
+
 ## 2025-09-20 〜 2025-09-21
 
 ### 復旧用ベースラインの確立
