@@ -49,6 +49,9 @@ sudo systemctl restart toolmgmt.service
 
 ## 1) 依存関係（セットアップ手順）
 
+> **新規クライアント構築（推奨手順）**: Window A 向けにまっさらなラズパイ 4 を準備する場合は、RUNBOOK の「3.5 Window A クライアント新規構築」を参照してください。Docker 等を利用しないクライアント構成に最適化しています。
+> 以下は旧 ZIP 構成の復旧を含むフルセットアップ手順です。
+
 1. **APT パッケージの更新と基本ツール**
 
         sudo apt update && sudo apt upgrade -y

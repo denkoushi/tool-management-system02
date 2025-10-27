@@ -340,42 +340,81 @@
   - 受信後は `docker exec -it pg psql -U app -d sensordb -c "SELECT * FROM part_locations ORDER BY updated_at DESC LIMIT 5;"` で登録内容を確認。
   - API 受信時は `SocketIO` の `part_location_updated` イベントが配信される。右ペインのステータスバーから要領書／所在一覧を切り替えられ、所在一覧は LIVE 接続中に即時更新される（接続断時も 20 秒間隔で REST から自動取得）。
 
-### 3.5 Window A（Raspberry Pi 4）クライアント設定
+### 3.5 Window A（Raspberry Pi 4）クライアント新規構築
 
-1. **環境変数ファイルの作成**  
-   `config/window-a-client.env.sample` を参照し、必要な値を設定して `/etc/toolmgmt/window-a-client.env` などに配置します。
+> **目的**: DocumentViewer や工具管理 UI を含む Window A クライアントを、まっさらなラズパイ 4 上に再構築する手順を統一する。
 
-        sudo install -o tools01 -g tools01 -m 640 \
-          ~/tool-management-system02/config/window-a-client.env.sample \
-          /etc/toolmgmt/window-a-client.env
-        sudoedit /etc/toolmgmt/window-a-client.env
+1. **OS 更新と基本パッケージ**
 
-   もしくは自動化スクリプトを利用できます。
+        sudo apt update && sudo apt upgrade -y
+        sudo apt install -y git curl python3-venv python3-dev build-essential swig pkg-config
+        sudo apt install -y pcscd pcsc-tools libpcsclite1 libpcsclite-dev libccid
+        sudo systemctl enable --now pcscd
+
+2. **必要リポジトリの取得**（tool-management-system02 と DocumentViewer）
+
+        cd ~
+        git clone https://github.com/denkoushi/tool-management-system02.git
+        cd tool-management-system02
+        git checkout feature/client-socket-cutover
+        python3 -m venv venv
+        source venv/bin/activate
+        pip install -U pip
+        pip install -r requirements.txt
+        deactivate
+
+        cd ~
+        git clone https://github.com/denkoushi/DocumentViewer.git
+        cd DocumentViewer
+        python3 -m venv venv
+        source venv/bin/activate
+        pip install -U pip
+        pip install -r app/requirements.txt
+        deactivate
+
+3. **環境変数ファイルの展開**（Window A 用設定）
 
         cd ~/tool-management-system02
         sudo ./scripts/install_window_a_env.sh --with-dropin
+        sudoedit /etc/toolmgmt/window-a-client.env
 
-   主な項目：
+   主な設定例：
    - `DOCUMENT_VIEWER_URL=http://raspi-server.local:8501/viewer`
    - `UPSTREAM_SOCKET_BASE=http://raspi-server.local:8501`
    - `UPSTREAM_SOCKET_PATH=/socket.io`
-   - `UPSTREAM_SOCKET_AUTO=1`（Socket.IO を一時的に無効化したい場合は `0`）
+   - `UPSTREAM_SOCKET_AUTO=1`
 
-2. **systemd ドロップインで EnvironmentFile を読み込む**
+4. **DocumentViewer 用環境ファイルとログ準備**
 
-        sudo systemctl edit toolmgmt.service
+        cd ~/DocumentViewer
+        sudo ./scripts/setup_docviewer_env.sh \
+          --user tools01 \
+          --log-dir /var/log/document-viewer \
+          --force
+        sudoedit /etc/default/docviewer   # 必要に応じて API トークン等を調整
 
-        [Service]
-        EnvironmentFile=-/etc/toolmgmt/window-a-client.env
+5. **サービス再起動**
 
-   保存後に `sudo systemctl daemon-reload` を実行します。
-
-3. **反映と確認**
-
+        sudo systemctl daemon-reload
+        sudo systemctl restart docviewer.service
         sudo systemctl restart toolmgmt.service
-        sudo systemctl --no-pager status toolmgmt.service
 
-   ブラウザで `http://localhost:8501` を開き、右上の Socket ステータスが `LIVE` になり、`/api/v1/scans` 発行時に所在一覧・DocumentViewer が自動更新されるか確認してください。問題がある場合は `journalctl -u toolmgmt.service` および RaspberryPiServer 側の `docker compose logs app` を確認します。
+6. **動作確認**
+
+   - ブラウザで `http://localhost:8501` を開き、右上の Socket ステータスが `LIVE` になるか確認。
+   - `/api/v1/scans` 実行時に所在一覧・DocumentViewer が更新されるかテスト。
+   - DocumentViewer 側ログ: `tail -n 20 /var/log/document-viewer/client.log`
+   - TMS 側ログ: `journalctl -u toolmgmt.service -n 20`
+
+7. **（任意）USB 同期用 sudoers 設定**
+
+        sudo tee /etc/sudoers.d/toolmgmt-usbsync >/dev/null <<'SUDO'
+        tools01 ALL=(root) NOPASSWD: /bin/bash /home/tools01/tool-management-system02/scripts/usb_master_sync.sh
+        tools01 ALL=(root) NOPASSWD: /bin/bash /home/tools01/DocumentViewer/scripts/usb-import.sh
+        SUDO
+        sudo visudo -cf /etc/sudoers.d/toolmgmt-usbsync
+
+> 旧復旧用（Docker 併用）の手順は `README.md` のアーカイブセクションを参照。クライアント用途では上記の手順で十分です。
 
 ### 3.6 ログローテーション（toolmgmt/document-viewer）
 
