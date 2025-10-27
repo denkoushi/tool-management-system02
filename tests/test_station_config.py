@@ -22,14 +22,16 @@ def test_station_config_remote_success(tmp_path, monkeypatch):
         def is_configured(self):
             return True
 
-        def get_station_config(self):
+        def get_json(self, path, **kwargs):
+            assert path == "/api/v1/station-config"
             return {
                 "process": "切削",
                 "available": ["切削", "検査"],
                 "updated_at": "2025-01-01T00:00:00Z",
             }
 
-        def update_station_config(self, payload):
+        def post_json(self, path, payload):
+            assert path == "/api/v1/station-config"
             return {
                 "process": payload["process"],
                 "available": payload["available"],
@@ -58,10 +60,10 @@ def test_station_config_remote_fallback(tmp_path, monkeypatch):
         def is_configured(self):
             return True
 
-        def get_station_config(self):
+        def get_json(self, path, **kwargs):
             raise module.RaspiServerClientError("down")
 
-        def update_station_config(self, payload):
+        def post_json(self, path, payload):
             raise module.RaspiServerClientError("down")
 
     monkeypatch.setattr(module, "_create_client", lambda: FailingClient())

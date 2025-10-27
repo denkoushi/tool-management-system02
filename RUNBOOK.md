@@ -498,9 +498,6 @@
 
 ### 3.8 リモート配布（任意）
 
-- 環境変数 `PLAN_REMOTE_BASE_URL` を設定すると、`/var/lib/toolmgmt/plan/` を自動更新する。例: `https://example.com/toolmgmt/plan` 配下に `production_plan.csv`, `standard_times.csv` を配置。
-- 600 秒ごと（`PLAN_REMOTE_REFRESH_SECONDS`）に更新を確認。`PLAN_REMOTE_TOKEN` を設定すると Bearer トークンとして送信する。
-- `file://` スキームも利用可能（例: `PLAN_REMOTE_BASE_URL=file:///mnt/share`）。
 - 取得に失敗した場合はログに `[plan-cache]` が出力され、ローカルの前回データをそのまま使う。
 
 ---
@@ -515,7 +512,6 @@
         pip install -r requirements.txt -r requirements-dev.txt
         pytest -q
 
-- リモート配布を模擬する場合: `PLAN_REMOTE_BASE_URL=file:///path/to/sample make test`
 - CI 導入時は `make test-smoke` をジョブに登録し、将来的には実機スモークテストを追加する。
 
 

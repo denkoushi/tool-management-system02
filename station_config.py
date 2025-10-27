@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from raspi_server_client import (
+from raspi_client import (
     RaspiServerAuthError,
     RaspiServerClient,
     RaspiServerClientError,
@@ -83,7 +83,7 @@ def load_station_config() -> Dict[str, object]:
     client = _create_client()
     if client.is_configured():
         try:
-            payload = client.get_station_config()
+            payload = client.get_json("/api/v1/station-config")
             process = str(payload.get("process", "") or "").strip()
             available = _sanitize_available(payload.get("available"))
             if process and process not in available:
@@ -167,7 +167,7 @@ def save_station_config(process: Optional[str] = None, available: Optional[List[
                 "process": sanitized_process,
                 "available": sanitized_available,
             }
-            saved = client.update_station_config(payload)
+            saved = client.post_json("/api/v1/station-config", payload)
             process_value = str(saved.get("process", "") or "").strip()
             response_available = _sanitize_available(saved.get("available"))
             if process_value and process_value not in response_available:

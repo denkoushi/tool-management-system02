@@ -31,8 +31,7 @@ from api_token_store import (
     API_TOKEN_FILE,
     API_TOKEN_HEADER,
 )
-from plan_cache import maybe_refresh_plan_cache
-from raspi_server_client import (
+from raspi_client import (
     RaspiServerClient,
     RaspiServerAuthError,
     RaspiServerClientError,
@@ -94,20 +93,6 @@ if not audit_logger.handlers:
     audit_logger.setLevel(logging.INFO)
 
 # --- 生産計画/標準工数データ設定 ---
-PLAN_DATA_DIR = Path(os.getenv("PLAN_DATA_DIR", "/var/lib/toolmgmt/plan"))
-PLAN_DATASETS = {
-    "production_plan": {
-        "filename": "production_plan.csv",
-        "columns": ["納期", "個数", "部品番号", "部品名", "製番", "工程名"],
-        "label": "生産計画"
-    },
-    "standard_times": {
-        "filename": "standard_times.csv",
-        "columns": ["部品名", "機械標準工数", "製造オーダー番号", "部品番号", "工程名"],
-        "label": "標準工数"
-    },
-}
-
 # --- シャットダウンAPI用設定 ---
 SHUTDOWN_TOKEN = os.getenv("SHUTDOWN_TOKEN")  # 任意。必要なら systemd に環境変数を追加して使う
 ALLOWED_SHUTDOWN_ADDRS = {"127.0.0.1", "::1"}
@@ -196,21 +181,6 @@ def _parse_due_date(value: str) -> Optional[datetime]:
     return None
 
 
-def load_plan_dataset(key: str) -> dict:
-    cfg = PLAN_DATASETS[key]
-    path = PLAN_DATA_DIR / cfg["filename"]
-    result = {
-        "rows": [],
-        "error": None,
-        "updated_at": None,
-        "path": str(path),
-        "label": cfg["label"],
-    }
-
-    if not path.exists():
-        result["error"] = f"{cfg['label']}ファイルが見つかりません ({path})"
-        return result
-
     try:
         with path.open("r", encoding="utf-8-sig", newline="") as fh:
             reader = csv.DictReader(fh)
@@ -239,90 +209,54 @@ def load_plan_dataset(key: str) -> dict:
     return result
 
 
-def _normalize_remote_plan_dataset(client: RaspiServerClient, key: str, payload: dict) -> dict:
-    cfg = PLAN_DATASETS[key]
-    entries = payload.get("entries") or []
-    rows = []
-    for entry in entries:
-        normalized = {}
-        for column in cfg["columns"]:
-            value = entry.get(column, "")
-            normalized[column] = "" if value is None else str(value)
-        rows.append(normalized)
-
-    endpoint = "production-plan" if key == "production_plan" else "standard-times"
-    return {
-        "rows": rows,
-        "error": payload.get("error"),
-        "updated_at": payload.get("updated_at"),
-        "label": cfg["label"],
-        "path": f"{client.base_url}/api/v1/{endpoint}",
-        "source": "raspi_server",
-    }
-
-
-def _merge_errors(existing: Optional[str], new_message: Optional[str]) -> Optional[str]:
-    parts = [msg for msg in (new_message, existing) if msg]
-    if not parts:
-        return None
-    # Remove duplicates while preserving order
-    seen = []
-    for item in parts:
-        if item not in seen:
-            seen.append(item)
-    return " / ".join(seen)
 
 
 def build_production_view() -> dict:
-    try:
-        maybe_refresh_plan_cache()
-    except Exception as exc:  # pylint: disable=broad-except
-        print(f"[plan-cache] refresh skipped due to error: {exc}")
-
     client = _create_raspi_client()
-    plan_data: Optional[dict] = None
-    standard_data: Optional[dict] = None
-    remote_errors: dict[str, str] = {}
+    if not client.is_configured():
+        error = "RASPI_SERVER_BASE is not configured"
+        return {
+            "entries": [],
+            "plan_entries": [],
+            "standard_entries": [],
+            "plan_error": error,
+            "standard_error": error,
+            "plan_updated_at": None,
+            "standard_updated_at": None,
+            "plan_source": "raspi_server",
+            "standard_source": "raspi_server",
+        }
 
-    if client.is_configured():
-        for key in ("production_plan", "standard_times"):
-            try:
-                payload = client.get_plan_dataset(key)
-                normalized = _normalize_remote_plan_dataset(client, key, payload)
-                if normalized["error"]:
-                    remote_errors[key] = str(normalized["error"])
-                    continue
-                if key == "production_plan":
-                    plan_data = normalized
-                else:
-                    standard_data = normalized
-            except (RaspiServerAuthError, RaspiServerClientError) as exc:
-                remote_errors[key] = str(exc)
+    def _fetch_dataset(endpoint: str, label: str):
+        try:
+            payload = client.get_json(endpoint, allow_statuses={200, 404})
+        except (RaspiServerAuthError, RaspiServerClientError) as exc:
+            return [], f"{label}: {exc}", None
+        entries = payload.get("entries") or []
+        error = payload.get("error")
+        if error:
+            error = f"{label}: {error}"
+        updated = payload.get("updated_at")
+        return entries, error, updated
 
-    if plan_data is None:
-        plan_data = load_plan_dataset("production_plan")
-        if remote_errors.get("production_plan"):
-            plan_data["error"] = _merge_errors(
-                plan_data.get("error"),
-                f"RaspberryPiServer: {remote_errors['production_plan']}",
-            )
-    if standard_data is None:
-        standard_data = load_plan_dataset("standard_times")
-        if remote_errors.get("standard_times"):
-            standard_data["error"] = _merge_errors(
-                standard_data.get("error"),
-                f"RaspberryPiServer: {remote_errors['standard_times']}",
-            )
+    plan_entries_raw, plan_error, plan_updated_at = _fetch_dataset(
+        "/api/v1/production-plan",
+        "生産計画",
+    )
+    standard_entries_raw, standard_error, standard_updated_at = _fetch_dataset(
+        "/api/v1/standard-times",
+        "標準工数",
+    )
 
     plan_entries = []
-    for row in plan_data["rows"]:
+    for row in plan_entries_raw:
         record = dict(row)
         record["_sort_due"] = _parse_due_date(row.get("納期"))
         plan_entries.append(record)
 
     plan_entries.sort(
         key=lambda item: (
-            item["_sort_due"] if item["_sort_due"] else datetime.max,
+            item.get("_sort_due") if item.get("_sort_due") else datetime.max,
             item.get("製番", ""),
         )
     )
@@ -330,7 +264,7 @@ def build_production_view() -> dict:
         item.pop("_sort_due", None)
 
     standard_entries = []
-    for row in standard_data["rows"]:
+    for row in standard_entries_raw:
         record = dict(row)
         record["_sort_key"] = (
             record.get("部品番号", ""),
@@ -351,17 +285,16 @@ def build_production_view() -> dict:
         "entries": plan_entries,
         "plan_entries": plan_entries,
         "standard_entries": standard_entries,
-        "plan_error": plan_data["error"],
-        "standard_error": standard_data["error"],
-        "plan_updated_at": plan_data["updated_at"],
-        "standard_updated_at": standard_data["updated_at"],
-        "plan_source": plan_data.get("source"),
-        "standard_source": standard_data.get("source"),
+        "plan_error": plan_error,
+        "standard_error": standard_error,
+        "plan_updated_at": plan_updated_at,
+        "standard_updated_at": standard_updated_at,
+        "plan_source": "raspi_server",
+        "standard_source": "raspi_server",
     }
 
 
 def fetch_part_locations(limit: int = 200) -> list[dict[str, object]]:
-    """Return recent part location entries sorted by newest update."""
     try:
         limit_value = int(limit or 0)
     except (TypeError, ValueError):
@@ -369,55 +302,34 @@ def fetch_part_locations(limit: int = 200) -> list[dict[str, object]]:
     limit_value = max(1, min(limit_value, 1000))
 
     client = _create_raspi_client()
-    if client.is_configured():
-        try:
-            payload = client.get_part_locations(limit_value)
-            entries = payload.get("entries") or payload.get("items") or []
-            normalized: list[dict[str, object]] = []
-            for item in entries:
-                normalized.append({
-                    "order_code": item.get("order_code"),
-                    "location_code": item.get("location_code"),
-                    "device_id": item.get("device_id"),
-                    "last_scan_id": item.get("last_scan_id"),
-                    "scanned_at": item.get("scanned_at"),
-                    "updated_at": item.get("updated_at"),
-                })
-            return normalized
-        except (RaspiServerAuthError, RaspiServerClientError) as exc:
-            print(f"[part-locations] remote fetch failed: {exc}")
+    if not client.is_configured():
+        print("[part-locations] RASPI_SERVER_BASE is not configured")
+        return []
 
-    return _fetch_part_locations_local(limit_value)
-
-
-def _fetch_part_locations_local(limit_value: int) -> list[dict[str, object]]:
-    conn = get_conn()
     try:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                SELECT order_code, location_code, device_id, last_scan_id, scanned_at, updated_at
-                FROM part_locations
-                ORDER BY updated_at DESC
-                LIMIT %s
-                """,
-                (limit_value,),
-            )
-            rows = cur.fetchall()
-    finally:
-        conn.close()
+        payload = client.get_json(
+            "/api/v1/part-locations",
+            params={"limit": limit_value},
+        )
+    except (RaspiServerAuthError, RaspiServerClientError) as exc:
+        print(f"[part-locations] remote fetch failed: {exc}")
+        return []
 
+    entries = payload.get("entries") or []
     results: list[dict[str, object]] = []
-    for order_code, location_code, device_id, last_scan_id, scanned_at, updated_at in rows:
-        results.append({
-            "order_code": order_code,
-            "location_code": location_code,
-            "device_id": device_id,
-            "last_scan_id": last_scan_id,
-            "scanned_at": _to_utc_iso(scanned_at),
-            "updated_at": _to_utc_iso(updated_at),
-        })
+    for item in entries:
+        results.append(
+            {
+                "order_code": item.get("order_code"),
+                "location_code": item.get("location_code"),
+                "device_id": item.get("device_id"),
+                "last_scan_id": item.get("last_scan_id"),
+                "scanned_at": item.get("scanned_at"),
+                "updated_at": item.get("updated_at"),
+            }
+        )
     return results
+
 
 
 def _extract_provided_token() -> str:

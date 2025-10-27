@@ -180,25 +180,17 @@ sudo systemctl restart toolmgmt.service
         SUDO
         sudo visudo -cf /etc/sudoers.d/toolmgmt-usbsync
 
-10. **RaspberryPiServer 連携とフォールバック**
+10. **RaspberryPiServer 連携**
 
-    `RASPI_SERVER_BASE` を指定すると、生産計画・標準工数・所在一覧・工程設定は **すべて RaspberryPiServer の REST API** から取得します。API への接続に失敗した場合は自動的に従来のローカル CSV / PostgreSQL / station.json へフォールバックし、ダッシュボード上に「RaspberryPiServer: ...」として警告を表示します。
+    `RASPI_SERVER_BASE` を指定することで、生産計画・標準工数・所在一覧・工程設定は **すべて RaspberryPiServer の REST API** から取得します。API に到達できない場合はダッシュボード上に警告を表示し、テーブルは空表示となります（ローカル CSV/DB へのフォールバックは提供しません）。
 
     - 認証トークンは `RASPI_SERVER_API_TOKEN` を設定するか、`api_token_store` のアクティブトークンを再利用します。
     - タイムアウトは `RASPI_SERVER_TIMEOUT`（秒）で調整できます（デフォルト 4.0 秒）。
-    - フォールバック用にローカル CSV を維持したい場合は従来どおり USB 同期や `PLAN_REMOTE_BASE_URL` を併用してください。
-
-    旧来の CSV ダウンロード機構 (`PLAN_REMOTE_BASE_URL`) も残しており、API 連携のバックアップとして利用できます。例：`https://example.com/toolmgmt/plan` に `production_plan.csv` / `standard_times.csv` を配置しておくと、アプリ起動時に `/var/lib/toolmgmt/plan/` が最新化されます（既定 600 秒間隔、`PLAN_REMOTE_REFRESH_SECONDS` で調整）。
-
-    - 認証が必要な場合は `PLAN_REMOTE_TOKEN` に Bearer トークンを指定。
-    - LAN 上の共有を参照したい場合は `PLAN_REMOTE_BASE_URL=file:///path/to/share` 形式で `file://` を指定。
-    - 取得状況は標準出力に `[plan-cache] ...` として記録されます。
+    - API 応答の可用性は `journalctl -u toolmgmt.service` やブラウザコンソールで確認し、失敗時は RaspberryPiServer 側のログとあわせて調査してください。
 
 11. **テスト（pytest）**
 
         make test
-
-    `PLAN_REMOTE_BASE_URL` などの環境変数を与えたい場合は `PLAN_REMOTE_BASE_URL=... make test` のように実行します。簡易動作確認であれば `make test-smoke` を利用してください（現状 `make test` と同じです）。
 
     仮想環境上で次を実行してください（Pi ではシステム Python への `pip install` が禁止されているため）。
 

@@ -11,6 +11,16 @@
 - pytest に REST 成功／失敗のモックテストを追加し、station 設定のリモート・フォールバックのカバレッジを拡張。
 - README / RUNBOOK / docs/requirements.md / docs/data-source-migration.md を更新し、`RASPI_SERVER_BASE` 系の環境変数・運用手順を追記。`requirements.txt` に `requests` を追加。
 
+## 2025-10-27 (Window A REST 固定化)
+
+- Window A を RaspberryPiServer REST 前提に更新。ローカル CSV/DB のフォールバックや plan_cache モジュールを廃止し、`RASPI_SERVER_BASE` 未設定時は警告表示のみとした。
+- `raspi_client.py` を新設し、plan/part-locations/station-config 取得を統一。`plan_cache.py` と関連テストを削除。
+- README / RUNBOOK / docs を更新し、`PLAN_REMOTE_BASE_URL` 等の旧設定を撤去。pytest スイートをリモート専用の動作に合わせて更新。
+- Window A から RaspberryPiServer REST API への取得処理を実装。`RaspiServerClient` を新規追加し、`build_production_view()` / `fetch_part_locations()` / `station_config` が `/api/v1/...` を参照するよう切り替え（フォールバックは従来どおり維持）。
+- 工程設定 UI からの保存時に RaspberryPiServer へ POST し、ローカル `station.json` はバックアップ用途に限定。
+- pytest に REST 成功／失敗のモックテストを追加し、station 設定のリモート・フォールバックのカバレッジを拡張。
+- README / RUNBOOK / docs/requirements.md / docs/data-source-migration.md を更新し、`RASPI_SERVER_BASE` 系の環境変数・運用手順を追記。`requirements.txt` に `requests` を追加。
+
 ## 2025-09-20 〜 2025-09-21
 
 ### 復旧用ベースラインの確立

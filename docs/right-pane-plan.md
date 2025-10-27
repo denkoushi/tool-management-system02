@@ -7,7 +7,7 @@
 
 ## 2. 右側エリアの表示方針（ベストプラクティス）
 - **iframe 埋め込みを基本**: TMS の右半分 (`.future-panel`) を DV の iframe で常時占有させ、ユーザー体験を「1 画面で 2 システムが並列動作する」構成にする。
-- **ヘッダ内トグルで複合表示**: 右ペインは「要領書」を既定とし、ステータスバー内のスイッチボタンから所在一覧（`part_locations`）へ切り替えられる。所在一覧は Socket.IO でリアルタイム更新し、接続断時は 20 秒間隔の REST フォールバックで自動再取得する。
+- **ヘッダ内トグルで複合表示**: 右ペインは「要領書」を既定とし、ステータスバー内のスイッチボタンから所在一覧（`part_locations`）へ切り替えられる。所在一覧は Socket.IO でリアルタイム更新し、接続断時は 20 秒間隔の REST ポーリングで自動再取得する。
 - **URL/ポート管理**: 既定値は `http://127.0.0.1:5000` を想定。将来ポート変更に備えて環境変数 (例: `DOCUMENT_VIEWER_URL`) を TMS 側に追加して設定可能にする。
 - **Socket.IO 接続先の切替**: `UPSTREAM_SOCKET_BASE`（ベース URL）と `UPSTREAM_SOCKET_PATH` で RaspberryPiServer（ラズパイ 5）を指定。既定では同一ホストを参照し、`UPSTREAM_SOCKET_AUTO=0` でクライアント側接続を抑止できる。
 - **環境ファイルの配備**: `config/window-a-client.env.sample` を元に `sudo ./scripts/install_window_a_env.sh --with-dropin` を実行すると、Window A 用の設定ファイルと systemd ドロップインを同時に展開できる。
@@ -41,7 +41,7 @@
 ## 4. 接続検証メモ（暫定）
 - RaspberryPiServer 側で `docker compose exec -T app python /app/tests/socketio_listener.py` を起動し、`curl -X POST http://127.0.0.1:8501/api/v1/scans ...` を実行して Socket.IO ブロードキャストを確認する。
 - Window A で `UPSTREAM_SOCKET_BASE=http://raspi-server.local:8501` を設定し、画面右上のチップが `LIVE` になること、`part_location_updated` 受信時に所在一覧と DocumentViewer が自動更新されることを確認する。
-- 接続できない場合は `UPSTREAM_SOCKET_PATH`、`API_TOKEN`、RaspberryPiServer 側の `docker compose logs app` を確認し、必要なら `UPSTREAM_SOCKET_AUTO=0` で自動接続を一時的に無効化して REST フォールバックのみで動作させる。
+- 接続できない場合は `UPSTREAM_SOCKET_PATH`、`API_TOKEN`、RaspberryPiServer 側の `docker compose logs app` を確認し、必要なら `UPSTREAM_SOCKET_AUTO=0` で自動接続を一時的に無効化して REST ポーリングのみで動作させる。
 
 ## 5. 検討中・将来課題
 - **起動シーケンス自動化**: キオスク起動時に DV の `/health` をチェックし、未起動なら自動スタート or 警告を出す。

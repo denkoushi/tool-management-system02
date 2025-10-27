@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 import importlib
@@ -6,20 +7,6 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-
-
-def _prepare_sample_data(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    repo_root = Path(__file__).resolve().parents[1]
-    sample_dir = repo_root / "docs" / "sample-data"
-    tmp_plan_dir = tmp_path / "plan"
-    tmp_plan_dir.mkdir()
-
-    for file_name in ("production_plan.csv", "standard_times.csv"):
-        data = (sample_dir / file_name).read_text(encoding="utf-8")
-        (tmp_plan_dir / file_name).write_text(data, encoding="utf-8")
-
-    monkeypatch.setenv("PLAN_DATA_DIR", str(tmp_plan_dir))
-    return repo_root
 
 
 def _ensure_socketio_stub():
@@ -89,29 +76,29 @@ def _import_app_flask(repo_root: Path):
     return importlib.import_module("app_flask")
 
 
-def test_build_production_view_local(tmp_path, monkeypatch):
-    repo_root = _prepare_sample_data(tmp_path, monkeypatch)
+def test_build_production_view_requires_config(monkeypatch, tmp_path):
+    repo_root = Path(__file__).resolve().parents[1]
+    monkeypatch.delenv("RASPI_SERVER_BASE", raising=False)
     app_flask = _import_app_flask(repo_root)
 
-    production_view = app_flask.build_production_view()
-
-    assert production_view["plan_entries"], "生産計画のエントリが読み込めていません"
-    assert production_view["standard_entries"], "標準工数のエントリが読み込めていません"
-    assert production_view.get("plan_source") != "raspi_server"
+    view = app_flask.build_production_view()
+    assert view["plan_entries"] == []
+    assert "configured" in (view["plan_error"] or "")
 
 
-def test_build_production_view_remote_success(tmp_path, monkeypatch):
-    repo_root = _prepare_sample_data(tmp_path, monkeypatch)
+def test_build_production_view_remote_success(monkeypatch, tmp_path):
+    repo_root = Path(__file__).resolve().parents[1]
     app_flask = _import_app_flask(repo_root)
 
     class StubClient:
-        base_url = "http://raspi.local"
+        def __init__(self):
+            self.base_url = "http://raspi.local"
 
         def is_configured(self):
             return True
 
-        def get_plan_dataset(self, key: str):
-            if key == "production_plan":
+        def get_json(self, path, **kwargs):
+            if path == "/api/v1/production-plan":
                 return {
                     "entries": [
                         {
@@ -126,61 +113,55 @@ def test_build_production_view_remote_success(tmp_path, monkeypatch):
                     "updated_at": "2025-01-05T00:00:00Z",
                     "error": None,
                 }
-            return {
-                "entries": [
-                    {
-                        "部品名": "テスト部品",
-                        "機械標準工数": "10",
-                        "製造オーダー番号": "JOB-XYZ",
-                        "部品番号": "PART-001",
-                        "工程名": "切削",
-                    }
-                ],
-                "updated_at": "2025-01-05T00:00:00Z",
-                "error": None,
-            }
-
-        def get_part_locations(self, limit: int):
-            return {"entries": []}
+            if path == "/api/v1/standard-times":
+                return {
+                    "entries": [
+                        {
+                            "部品名": "テスト部品",
+                            "機械標準工数": "10",
+                            "製造オーダー番号": "JOB-XYZ",
+                            "部品番号": "PART-001",
+                            "工程名": "切削",
+                        }
+                    ],
+                    "updated_at": "2025-01-05T00:00:00Z",
+                    "error": None,
+                }
+            raise AssertionError(f"unexpected path {path}")
 
     monkeypatch.setattr(app_flask, "_create_raspi_client", lambda: StubClient())
 
     production_view = app_flask.build_production_view()
 
-    assert production_view["plan_source"] == "raspi_server"
     assert production_view["plan_entries"][0]["納期"] == "2025-01-05"
     assert production_view["standard_entries"][0]["部品番号"] == "PART-001"
     assert production_view["plan_error"] is None
 
 
-def test_build_production_view_remote_fallback(tmp_path, monkeypatch):
-    repo_root = _prepare_sample_data(tmp_path, monkeypatch)
+def test_build_production_view_remote_error(monkeypatch, tmp_path):
+    repo_root = Path(__file__).resolve().parents[1]
     app_flask = _import_app_flask(repo_root)
 
-    error_message = "network unavailable"
-
     class FailingClient:
-        base_url = "http://raspi.local"
+        def __init__(self):
+            self.base_url = "http://raspi.local"
 
         def is_configured(self):
             return True
 
-        def get_plan_dataset(self, key: str):
-            raise app_flask.RaspiServerClientError(error_message)
-
-        def get_part_locations(self, limit: int):
-            raise app_flask.RaspiServerClientError(error_message)
+        def get_json(self, path, **kwargs):
+            raise app_flask.RaspiServerClientError("network unavailable")
 
     monkeypatch.setattr(app_flask, "_create_raspi_client", lambda: FailingClient())
 
     production_view = app_flask.build_production_view()
 
-    assert production_view["plan_entries"], "フォールバックで生産計画を読み込めませんでした"
-    assert "RaspberryPiServer" in (production_view["plan_error"] or "")
+    assert production_view["plan_entries"] == []
+    assert "network" in (production_view["plan_error"] or "")
 
 
 def test_fetch_part_locations_remote(monkeypatch, tmp_path):
-    repo_root = _prepare_sample_data(tmp_path, monkeypatch)
+    repo_root = Path(__file__).resolve().parents[1]
     app_flask = _import_app_flask(repo_root)
 
     class StubClient:
@@ -189,10 +170,8 @@ def test_fetch_part_locations_remote(monkeypatch, tmp_path):
         def is_configured(self):
             return True
 
-        def get_plan_dataset(self, key: str):
-            raise app_flask.RaspiServerClientError("skip plan")
-
-        def get_part_locations(self, limit: int):
+        def get_json(self, path, **kwargs):
+            assert path == "/api/v1/part-locations"
             return {
                 "entries": [
                     {

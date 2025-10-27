@@ -5,14 +5,14 @@
 ## 1. 現状の優先度
 
 1. **工程設定 UX / 保守性強化**  
-   - RaspberryPiServer 経由の工程設定 REST を安定運用し、フォールバック時の UI 表示と監査ログを整備する。  
+   - RaspberryPiServer 経由の工程設定 REST を安定運用し、エラー時の UI 表示と監査ログを整備する。  
    - DocumentViewer への即時反映と設定エラー時の復旧手順を最新化。
 2. **API トークン運用の高度化**  
    - 複数トークン管理、履歴保持、UI からの再発行を検討。  
    - 初期セットアップ手順への統合、監査ログの整備。
 3. **データ配布（USB + リモート）の両立**  
    - USB 運用を維持しつつリモート API を設計。  
-   - 認証、フォールバック、UI メッセージの整理。
+   - 認証やエラー表示、UI メッセージの整理。
 4. **テスト戦略の拡張**  
    - pytest / シェルスモークで USB・工程設定などの最小検証を自動化。  
    - CI 導入に向けた準備。
@@ -33,10 +33,10 @@
 
 - RaspberryPiServer の REST API を Window A から利用開始したため、USB→サーバー取り込みパイプライン（tool-ingest-sync）とキャッシュ更新トリガーを整備する。失敗時はダッシュボードへ警告を表示し、RUNBOOK へ復旧手順を追加する。 
 - 認証・監査：サーバーへの Bearer トークンを `RASPI_SERVER_API_TOKEN` / `api_token_store` で統一管理し、アクセス失敗を監査ログに記録する。
-- USB と REST 併用フェーズの運用手順更新（RUNBOOK/README のフォールバック手順、日次点検リスト）。
-- 中央ストレージ（PostgreSQL など）への集約検討。PDF を含むすべてを DB 化するのではなく、まず CSV メタ情報から段階的に移行し、ネットワーク障害時のフォールバックや認証強化を含む運用設計を策定する。移行期間中の二重管理リスクやセキュリティ要件を踏まえて段階的に進める。
+- USB と REST 併用フェーズの運用手順更新（RUNBOOK/README のエラー確認手順、日次点検リスト）。
+- 中央ストレージ（PostgreSQL など）への集約検討。PDF を含むすべてを DB 化するのではなく、まず CSV メタ情報から段階的に移行し、ネットワーク障害時の復旧手順や認証強化を含む運用設計を策定する。移行期間中の二重管理リスクやセキュリティ要件を踏まえて段階的に進める。
 - サイネージ向けに `part_locations` を提供するエンドポイント／Socket.IO チャネルの公開方法とキャッシュ戦略を決定し、Window C の端末構成と合わせて実装する。
-- 所在一覧 UI はヘッダ内トグル（要領書⇔所在）と Socket.IO / 20 秒間隔の REST フォールバックを備える。今後は Window C への引き渡し方法とスケーラビリティを検討。
+- 所在一覧 UI はヘッダ内トグル（要領書⇔所在）と Socket.IO / 20 秒間隔の REST 更新を備える。今後は Window C への引き渡し方法とスケーラビリティを検討。
 - アイテム番号のみに依存しない視認性向上のため、部品番号をキーに部品名称・顧客名・製品型番など外部マスタ（生産管理システム）と連携するリレーション設計を進める。データ同期手段、キャッシュ方針、更新頻度、セキュリティ要求を整理する。
 - PostgreSQL は最新所在のみ upsert する構造であれば数十万件規模でも性能に余裕がある。`order_code` 主キーで高速参照できる一方、履歴テーブルを追加する際は `updated_at` などのインデックス設計と Raspberry Pi の I/O 制約（必要なら外部 DB）を併せて検討する。
 - USB ベースの要領書／工具マスタ配布は段階的に API 連携へ移行する。ハンディリーダで構築した HTTP + 再送基盤やトークン運用を流用し、ETL/API 設計・キャッシュ戦略を整備する。
@@ -76,7 +76,7 @@
 - API トークン認証・監査ログ、セキュリティ対策（UFW、SSH 鍵化、fail2ban 等）。
 - DocumentViewer 右ペイン UI、工程設定 UI の最新化。 
 - OnSiteLogistics（ハンディリーダ）から `POST /api/v1/scans` を受け付け、`part_locations` upsert と `Socket.IO` ブロードキャストを実装。`feature/scan-intake` ブランチで稼働し、RUNBOOK 3.4 に連携手順を整備。
-- Window A から RaspberryPiServer の `/api/v1/production-plan`, `/api/v1/standard-times`, `/api/v1/part-locations`, `/api/v1/station-config` を利用するクライアント統合を完了。フォールバックと単体テストを整備。
+- Window A から RaspberryPiServer の `/api/v1/production-plan`, `/api/v1/standard-times`, `/api/v1/part-locations`, `/api/v1/station-config` を利用するクライアント統合を完了。REST エラー時の表示と単体テストを整備。
 
 ## 5. 運用上のメモ
 
@@ -86,7 +86,7 @@
 - エージェント・自動化作業の基本指示は `docs/AGENTS.md` を参照。
 
 ## 6. 現在の進捗メモ（2025-10-27 時点）
-- Window A クライアントは RaspberryPiServer の REST API と Socket.IO へ接続済み。API 障害時はローカル CSV / PostgreSQL / station.json へフォールバックし、UI に警告を表示する。
+- Window A クライアントは RaspberryPiServer の REST API と Socket.IO へ接続済み。API 障害時は UI に警告を表示し、復旧後に再取得する。
 - OnSiteLogistics からの `POST /api/v1/scans` はサーバー側で処理し、Window A は所在一覧を REST で参照する構成へ移行。今後は USB 取り込み→サーバー更新→クライアント自動反映の一連フローを整備する。
 - 次フェーズの優先タスク:
   - RaspberryPiServer 側の ingest スクリプトを刷新し、CSV 取り込み時に `/api/v1/production-plan` 等へ即時反映させる。
