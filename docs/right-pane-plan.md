@@ -10,7 +10,10 @@
 - **ヘッダ内トグルで複合表示**: 右ペインは「要領書」を既定とし、ステータスバー内のスイッチボタンから所在一覧（`part_locations`）へ切り替えられる。所在一覧は Socket.IO でリアルタイム更新し、接続断時は 20 秒間隔の REST ポーリングで自動再取得する。
 - **URL/ポート管理**: 既定値は `http://127.0.0.1:5000` を想定。将来ポート変更に備えて環境変数 (例: `DOCUMENT_VIEWER_URL`) を TMS 側に追加して設定可能にする。
 - **Socket.IO 接続先の切替**: `UPSTREAM_SOCKET_BASE`（ベース URL）と `UPSTREAM_SOCKET_PATH` で RaspberryPiServer（ラズパイ 5）を指定。既定では同一ホストを参照し、`UPSTREAM_SOCKET_AUTO=0` でクライアント側接続を抑止できる。
-- **環境ファイルの配備**: `config/window-a-client.env.sample` を元に `sudo ./scripts/install_window_a_env.sh --with-dropin` を実行すると、Window A 用の設定ファイルと systemd ドロップインを同時に展開できる。
+- **環境ファイルの配備**: `config/window-a-client.env.sample` を元に `sudo ./scripts/install_window_a_env.sh --with-dropin` を実行すると、Window A 用の設定ファイルと systemd ドロップインを同時に展開できる。初期構築時は以下の前提を満たすこと。
+  - `sudo apt install -y build-essential python3-dev swig libpcsclite-dev pcscd postgresql-client` を事前に実行し、`pyscard` のビルドと `psql` クライアントが利用できる状態を整える。
+  - 依存ライブラリは RaspberryPiServer 側と同じバージョンを利用する。特に `psycopg2-binary` は **2.9.10** を使用し、`source venv/bin/activate && pip install -r requirements.txt -r requirements-dev.txt` を再実行する。
+  - systemd drop-in の `EnvironmentFile` は `-/etc/toolmgmt/window-a-client.env` ではなく `=/etc/toolmgmt/window-a-client.env` とし、読み込みに失敗した際に黙って無視されないようにする（2025-10-28 修正）。
 - **フォーカスとイベント分離**: 左側のバーコード入力と右側のキーボードイベントが干渉しないように tabindex / pointer-event の制御、または iframe 内でキーボードフォーカスを明示的に管理。
 - **ヘルスチェック表示**: iframe 読み込み失敗時にアラートを表示する簡易監視を TMS に組み込み、DV 停止を即時検知できるようにする。
 - **サービスの起動／停止統一**: systemd を利用し、TMS (`toolmgmt.service`) と DV (`docviewer.service` など仮称) を個別ユニットとして管理。キオスク起動手順では「両サービスが稼働中であること」をチェックリスト化。
@@ -38,10 +41,16 @@
    - 左右 UI のキーボード操作・スキャン動作が干渉しないことを確認。
    - ネットワーク切断や DV 停止時の復旧手順を RUNBOOK に追加。
 
-## 4. 接続検証メモ（暫定）
+## 4. 接続・構築検証メモ（2025-10-28 更新）
 - RaspberryPiServer 側で `docker compose exec -T app python /app/tests/socketio_listener.py` を起動し、`curl -X POST http://127.0.0.1:8501/api/v1/scans ...` を実行して Socket.IO ブロードキャストを確認する。
 - Window A で `UPSTREAM_SOCKET_BASE=http://raspi-server.local:8501` を設定し、画面右上のチップが `LIVE` になること、`part_location_updated` 受信時に所在一覧と DocumentViewer が自動更新されることを確認する。
 - 接続できない場合は `UPSTREAM_SOCKET_PATH`、`API_TOKEN`、RaspberryPiServer 側の `docker compose logs app` を確認し、必要なら `UPSTREAM_SOCKET_AUTO=0` で自動接続を一時的に無効化して REST ポーリングのみで動作させる。
+- Window A（Pi4）をまっさらな状態から構築する手順
+  1. `git pull origin feature/client-socket-cutover` でリポジトリを最新化し、`requirements.txt` の更新（`psycopg2-binary==2.9.10`）を取得する。
+  2. `sudo apt install -y build-essential python3-dev swig libpcsclite-dev pcscd postgresql-client` を実行してビルドツール・PCSC ライブラリ・`psql` を整備する。
+  3. `source venv/bin/activate && pip install -r requirements.txt -r requirements-dev.txt && deactivate` を実行して Python 依存を揃える。
+  4. `sudo ./scripts/install_window_a_env.sh --with-dropin` が `tools01` ユーザー不在で失敗する場合は、`/etc/toolmgmt/window-a-client.env` と `/etc/systemd/system/toolmgmt.service.d/window-a.conf` を手動で配置し、所有者を `tools02:tools02`（env）と `root:root`（drop-in）に設定する。
+  5. `sudo systemctl daemon-reload` → `sudo systemctl restart toolmgmt.service` → `sudo journalctl -u toolmgmt.service -n 20 --no-pager` で DB 接続が成功し、`curl` + Socket.IO リスナーで 201／イベント受信を確認する。
 
 ## 5. 検討中・将来課題
 - **起動シーケンス自動化**: キオスク起動時に DV の `/health` をチェックし、未起動なら自動スタート or 警告を出す。
