@@ -1,12 +1,68 @@
-export function bootstrapLegacy({ socket } = {}) {
-  const legacySocket = socket || null;
-  const socket = legacySocket;
+export function bootstrapLegacy({ socket: injectedSocket } = {}) {
+  const socket = injectedSocket || window.TOOLMGMT_SOCKET || null;
   let activeTab = 'operations';
   let scanActive = false;
   let currentUserUid = '';
   let currentToolUid = '';
   const stationConfigInitial = window.stationConfigInitial || {};
-// タブ切り替え（借用/返却以外に移動したら UI を停止状態に戻す）
+
+  const appScan = (function(){
+    let active = false;
+    let ctx = null;
+
+    async function start(newCtx){
+      try{
+        if (active){
+          await fetch('/api/stop_scan',{method:'POST'});
+        }
+        ctx = newCtx;
+        active = true;
+        await fetch('/api/start_scan',{method:'POST'});
+      }catch(_){}
+    }
+
+    async function stop(){
+      try{
+        if (active){
+          await fetch('/api/stop_scan',{method:'POST'});
+        }
+      }catch(_){}
+      active = false;
+      ctx = null;
+      try{
+        scanActive = false;
+        if (typeof updateScanStatus === 'function') updateScanStatus(false);
+      }catch(_){}
+    }
+
+    function get(){
+      return ctx;
+    }
+
+    window.addEventListener('beforeunload', ()=>{
+      try{
+        if (navigator.sendBeacon){
+          const b = new Blob([], {type:'application/json'});
+          navigator.sendBeacon('/api/stop_scan', b);
+        } else {
+          fetch('/api/stop_scan',{method:'POST', keepalive:true});
+        }
+      }catch(_){}
+    });
+
+    return { start, stop, get };
+  })();
+  window.appScan = appScan;
+  document.addEventListener('click', (event) => {
+    const tabLike = event.target && event.target.closest('a[data-bs-toggle="tab"],[role="tab"],.tablinks,.tab-button,[data-tab-target],[data-tab]');
+    if (!tabLike) return;
+    const maybePromise = appScan.stop();
+    if (maybePromise && typeof maybePromise.catch === 'function') {
+      maybePromise.catch(() => {});
+    }
+  });
+
+  // タブ切り替え（借用/返却以外に移動したら UI を停止状態に戻す）
   function showTab(tabName) {
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
@@ -310,6 +366,151 @@ export function bootstrapLegacy({ socket } = {}) {
     }
   }
 
+  function formatIso(value){
+    if (!value) return '-';
+    try {
+      const dt = new Date(value);
+      if (Number.isNaN(dt.getTime())) return value;
+      return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`;
+    } catch (_) {
+      return value;
+    }
+  }
+
+  function renderTokenTable(tokens = []){
+    const tbody = document.querySelector('#apiTokenTable tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    if (!tokens.length){
+      const tr = document.createElement('tr');
+      const td = document.createElement('td');
+      td.colSpan = 6;
+      td.textContent = '有効なトークンがありません。';
+      tr.appendChild(td);
+      tbody.appendChild(tr);
+      return;
+    }
+
+    tokens.forEach((entry, index) => {
+      const tr = document.createElement('tr');
+      const status = entry.revoked_at ? '無効化済み' : (index === tokens.length - 1 ? '有効' : '履歴');
+      const cells = [
+        entry.station_id || '-',
+        formatIso(entry.issued_at),
+        formatIso(entry.revoked_at),
+        entry.note || '-',
+        status,
+        entry.token || '***',
+      ];
+      cells.forEach((text) => {
+        const td = document.createElement('td');
+        td.textContent = text;
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+  }
+
+  function setApiTokenMessage(level, message){
+    const container = document.getElementById('apiTokenMessage');
+    if (!container) return;
+    if (!message){
+      container.innerHTML = '';
+      return;
+    }
+    const classes = {
+      success: 'alert-success',
+      info: 'alert-info',
+      warning: 'alert-warning',
+      danger: 'alert-danger',
+    };
+    container.innerHTML = `<div class="alert ${classes[level] || classes.info}">${message}</div>`;
+  }
+
+  async function loadApiTokens(){
+    try{
+      const res = await fetch('/api/tokens');
+      const data = await res.json();
+      if (!res.ok){
+        throw new Error(data.error || 'API トークン一覧の取得に失敗しました');
+      }
+      renderTokenTable(data.tokens || []);
+      setApiTokenMessage('info', 'トークン一覧を更新しました');
+    }catch(err){
+      console.error('loadApiTokens', err);
+      setApiTokenMessage('danger', err.message || String(err));
+    }
+  }
+
+  async function issueApiToken(){
+    const stationInput = document.getElementById('apiTokenStationInput');
+    const noteInput = document.getElementById('apiTokenNoteInput');
+    const keepExisting = document.getElementById('apiTokenKeepExisting');
+    const issuedPre = document.getElementById('apiTokenIssued');
+
+    const stationId = (stationInput?.value || '').trim();
+    const note = noteInput?.value.trim() || undefined;
+    const keep = !!(keepExisting && keepExisting.checked);
+
+    if (!stationId){
+      setApiTokenMessage('warning', 'station_id を入力してください');
+      return;
+    }
+
+    try{
+      const res = await fetch('/api/tokens', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ station_id: stationId, note, keep_existing: keep }),
+      });
+      const data = await res.json();
+      if (!res.ok){
+        throw new Error(data.error || 'トークンの発行に失敗しました');
+      }
+      if (issuedPre){
+        issuedPre.textContent = `station_id: ${data.station_id}\nissued_at: ${data.issued_at}\ntoken: ${data.token}`;
+        issuedPre.style.display = 'block';
+      }
+      setApiTokenMessage('success', '新しいトークンを発行しました');
+      loadApiTokens();
+    }catch(err){
+      console.error('issueApiToken', err);
+      setApiTokenMessage('danger', err.message || String(err));
+    }
+  }
+
+  async function revokeApiToken(){
+    const tokenInput = document.getElementById('apiTokenRevokeTokenInput');
+    const stationInput = document.getElementById('apiTokenRevokeStationInput');
+    const allCheckbox = document.getElementById('apiTokenRevokeAll');
+
+    const token = (tokenInput?.value || '').trim();
+    const stationId = (stationInput?.value || '').trim();
+    const all = !!(allCheckbox && allCheckbox.checked);
+
+    if (!token && !stationId && !all){
+      setApiTokenMessage('warning', 'トークンまたは station_id、もしくは「すべて無効化」を指定してください');
+      return;
+    }
+
+    try{
+      const res = await fetch('/api/tokens/revoke', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ token: token || undefined, station_id: stationId || undefined, all }),
+      });
+      const data = await res.json();
+      if (!res.ok){
+        throw new Error(data.error || 'トークンの無効化に失敗しました');
+      }
+      setApiTokenMessage('success', `トークンを ${data.updated || 0} 件無効化しました`);
+      loadApiTokens();
+    }catch(err){
+      console.error('revokeApiToken', err);
+      setApiTokenMessage('danger', err.message || String(err));
+    }
+  }
+
   // リセット
   function resetState() {
     fetch('/api/reset',{method:'POST'}).then(r=>r.json()).then(()=>{
@@ -376,30 +577,32 @@ export function bootstrapLegacy({ socket } = {}) {
   }
 
   // WebSocket受信：借用/返却タブのときだけ UI 反映（文脈ガード）
-  socket.on('scan_update', function(data){
-    const ctx = (window.appScan && window.appScan.get && window.appScan.get())
-              || (document.getElementById('operations').classList.contains('active') ? 'loan' : 'register');
-    if (ctx !== 'loan') return;
+  if (socket) {
+    socket.on('scan_update', function(data){
+      const ctx = (window.appScan && window.appScan.get && window.appScan.get())
+                || (document.getElementById('operations').classList.contains('active') ? 'loan' : 'register');
+      if (ctx !== 'loan') return;
 
-    currentUserUid = data.user_uid || currentUserUid;
-    currentToolUid = data.tool_uid || currentToolUid;
+      currentUserUid = data.user_uid || currentUserUid;
+      currentToolUid = data.tool_uid || currentToolUid;
 
-    const u=document.getElementById('userDisplay');
-    const t=document.getElementById('toolDisplay');
-    if (data.user_name) u.textContent = data.user_name;
-    if (data.tool_name) t.textContent = data.tool_name;
+      const u=document.getElementById('userDisplay');
+      const t=document.getElementById('toolDisplay');
+      if (data.user_name) u.textContent = data.user_name;
+      if (data.tool_name) t.textContent = data.tool_name;
 
-    updateDisplays();
-    if (data.message) showMessage('scanMessage', data.message, 'info');
-  });
-  socket.on('transaction_complete', function(data){
-    document.getElementById('userDisplay').textContent = data.user_name;
-    document.getElementById('toolDisplay').textContent = data.tool_name;
-    showMessage('transactionResult', data.message, data.action==='borrow'?'success':'info');
-    loadLoansData();
-  });
-  socket.on('state_reset',  function(d){ currentUserUid=''; currentToolUid=''; updateDisplays(); showMessage('scanMessage',d.message,'info'); });
-  socket.on('error',        function(d){ showMessage('scanMessage', d.message,'danger'); });
+      updateDisplays();
+      if (data.message) showMessage('scanMessage', data.message, 'info');
+    });
+    socket.on('transaction_complete', function(data){
+      document.getElementById('userDisplay').textContent = data.user_name;
+      document.getElementById('toolDisplay').textContent = data.tool_name;
+      showMessage('transactionResult', data.message, data.action==='borrow'?'success':'info');
+      loadLoansData();
+    });
+    socket.on('state_reset',  function(d){ currentUserUid=''; currentToolUid=''; updateDisplays(); showMessage('scanMessage',d.message,'info'); });
+    socket.on('error',        function(d){ showMessage('scanMessage', d.message,'danger'); });
+  }
 
   // タグ情報確認（登録タブ）
   function checkTagInfo(){
@@ -429,7 +632,6 @@ export function bootstrapLegacy({ socket } = {}) {
     attachProductionRowHandlers();
     loadApiTokens();
   });
-})();
 
   window.showUsbOverlay = showUsbOverlay;
   window.hideUsbOverlay = hideUsbOverlay;
@@ -439,6 +641,10 @@ export function bootstrapLegacy({ socket } = {}) {
   window.manualReturnLoan = manualReturnLoan;
   window.deleteLoanEntry = deleteLoanEntry;
   window.resetState = resetState;
+  window.startScan = startScan;
+  window.stopScan = stopScan;
+  window.scanForUser = scanForUser;
+  window.scanForTool = scanForTool;
   window.checkTagInfo = checkTagInfo;
   window.registerUser = registerUser;
   window.registerTool = registerTool;
@@ -446,4 +652,7 @@ export function bootstrapLegacy({ socket } = {}) {
   window.addToolName = addToolName;
   window.deleteToolName = deleteToolName;
   window.showTab = showTab;
+  window.issueApiToken = issueApiToken;
+  window.loadApiTokens = loadApiTokens;
+  window.revokeApiToken = revokeApiToken;
 }

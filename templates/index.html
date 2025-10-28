@@ -824,46 +824,5 @@
 })();
 </script>
 
-<!-- ===== スキャン制御（タブ独立運用） ===== -->
-<script>
-  // 文脈付きスキャン制御（loan / register）
-  window.appScan = (function(){
-    let active=false, ctx=null;
-
-    async function start(newCtx){
-      try{ if(active){ await fetch('/api/stop_scan',{method:'POST'}); } ctx=newCtx; active=true; await fetch('/api/start_scan',{method:'POST'}); }
-      catch(_){}
-    }
-
-    async function stop(){
-      try{ if(active){ await fetch('/api/stop_scan',{method:'POST'}); } }
-      catch(_){}
-      // UI も停止状態に戻す（誤解防止）
-      active=false; ctx=null;
-      try{ window.scanActive=false; if (typeof updateScanStatus==='function') updateScanStatus(false); }catch(_){}
-    }
-
-    function get(){ return ctx; }
-
-    // ページ離脱時も停止（できるだけ通知）
-    window.addEventListener('beforeunload', ()=>{
-      try{
-        if(navigator.sendBeacon){
-          const b=new Blob([], {type:'application/json'}); navigator.sendBeacon('/api/stop_scan', b);
-        } else { fetch('/api/stop_scan',{method:'POST', keepalive:true}); }
-      } catch(_){}
-    });
-
-    return { start, stop, get };
-  })();
-
-  // タブ切替時は必ず停止（.tab-button を検知対象に含める）
-  document.addEventListener('click', (ev)=>{
-    const tabLike = ev.target.closest('a[data-bs-toggle="tab"],[role="tab"],.tablinks,.tab-button,[data-tab-target],[data-tab]');
-    if (tabLike) { window.appScan.stop(); }
-  });
-</script>
-<!-- ===== /スキャン制御 ===== -->
-
 </body>
 </html>
