@@ -1,4 +1,5 @@
 import { initApiTokens } from './apiTokensPanel.js';
+import { initMaintenancePanel } from './maintenancePanel.js';
 
 export function bootstrapLegacy({ socket: injectedSocket } = {}) {
   const socket = injectedSocket || window.TOOLMGMT_SOCKET || null;
@@ -66,12 +67,12 @@ export function bootstrapLegacy({ socket: injectedSocket } = {}) {
   });
 
   // タブ切り替え（借用/返却以外に移動したら UI を停止状態に戻す）
-  function showTab(tabName) {
+  function showTab(tabName, triggerEl) {
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
     const tabEl = document.getElementById(tabName);
     if (tabEl) tabEl.classList.add('active');
-    if (event && event.target) event.target.classList.add('active');
+    if (triggerEl) triggerEl.classList.add('active');
     activeTab = tabName;
 
     // 借用/返却タブ以外に移動したら見た目も停止状態へ（誤解防止）
@@ -89,69 +90,77 @@ export function bootstrapLegacy({ socket: injectedSocket } = {}) {
     }
   }
 
-  const usbOverlay = document.getElementById('usbSyncOverlay');
-  const usbOverlayMessage = document.getElementById('usbSyncOverlayMessage');
-
-  function showUsbOverlay(message){
-    if (!usbOverlay) return;
-    if (message && usbOverlayMessage) usbOverlayMessage.textContent = message;
-    usbOverlay.classList.add('is-visible');
-    document.body.classList.add('modal-locked');
-  }
-
-  function hideUsbOverlay(){
-    if (!usbOverlay) return;
-    usbOverlay.classList.remove('is-visible');
-    document.body.classList.remove('modal-locked');
-  }
-
-  function formatUsbSyncSteps(data){
-    if (!data || !Array.isArray(data.steps)){
-      return (data && data.stdout) ? data.stdout : '(結果データがありません)';
-    }
-    const blocks = data.steps.map(step => {
-      const title = step.title || step.name || '処理';
-      const code = Number(step.returncode || 0);
-      let statusLabel = code === 0 ? '成功' : '失敗';
-      if (code === 127) statusLabel = '未実施';
-      const lines = [`【${title}】 ${statusLabel} (code=${code})`];
-      if (step.stdout) lines.push(`stdout:\n${step.stdout.trim()}`);
-      if (step.stderr) lines.push(`stderr:\n${step.stderr.trim()}`);
-      return lines.join('\n\n');
-    });
-    return blocks.join('\n\n');
-  }
-
   const historySection = document.getElementById('historySection');
-
-  async function runUsbSync(){
-    const outputEl = document.getElementById('usbSyncOutput');
-    showUsbOverlay('工具マスタとドキュメントを同期しています...');
-    outputEl.textContent = '同期中...';
-    try{
-      const res = await fetch('/api/usb_sync',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({device:'/dev/sda1'})});
-      const data = await res.json();
-      const summary = formatUsbSyncSteps(data);
-      outputEl.textContent = summary;
-      if (data.status === 'success'){
-        showMessage('transactionResult','USB同期が完了しました','success');
-      } else {
-        showMessage('transactionResult','USB同期でエラーが発生しました','danger');
-      }
-    }catch(err){
-      outputEl.textContent = `error: ${err}`;
-      showMessage('transactionResult','USB同期でエラーが発生しました','danger');
-    } finally {
-      hideUsbOverlay();
-    }
-  }
 
   function toggleHistory(){
     if(!historySection) return;
     historySection.style.display = historySection.style.display === 'none' ? 'flex' : 'none';
   }
 
-  window.toggleHistory = toggleHistory;
+  function bindTabButtons(){
+    const buttons = document.querySelectorAll('.tab-button[data-tab-target]');
+    buttons.forEach((button) => {
+      button.addEventListener('click', (event) => {
+        event.preventDefault();
+        const target = button.dataset.tabTarget;
+        if (!target) return;
+        showTab(target, button);
+      });
+    });
+    const historyButton = document.querySelector('.tab-toggle-history[data-action="toggle-history"]');
+    if (historyButton) {
+      historyButton.addEventListener('click', (event) => {
+        event.preventDefault();
+        toggleHistory();
+      });
+    }
+  }
+
+  function bindScanControls(){
+    const startBtn = document.getElementById('startScanBtn');
+    if (startBtn) {
+      startBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        startScan();
+      });
+    }
+    const stopBtn = document.getElementById('stopScanBtn');
+    if (stopBtn) {
+      stopBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        stopScan();
+      });
+    }
+    const resetBtn = document.getElementById('resetScanBtn');
+    if (resetBtn) {
+      resetBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        resetState();
+      });
+    }
+  }
+
+  function bindRegistrationControls(){
+    const actionMap = [
+      { selector: '[data-action="tag-check"]', handler: checkTagInfo },
+      { selector: '[data-action="scan-user"]', handler: scanForUser },
+      { selector: '[data-action="register-user"]', handler: registerUser },
+      { selector: '[data-action="scan-tool"]', handler: scanForTool },
+      { selector: '[data-action="register-tool"]', handler: registerTool },
+      { selector: '[data-action="add-tool-name"]', handler: addToolName },
+      { selector: '[data-action="delete-tool-name"]', handler: deleteToolName },
+    ];
+
+    actionMap.forEach(({ selector, handler }) => {
+      const targets = document.querySelectorAll(selector);
+      targets.forEach((element) => {
+        element.addEventListener('click', (event) => {
+          event.preventDefault();
+          handler();
+        });
+      });
+    });
+  }
 
   // スキャン開始/停止：appScan ラッパ経由（loan 文脈）
   function startScan() {
@@ -485,31 +494,33 @@ export function bootstrapLegacy({ socket: injectedSocket } = {}) {
   document.addEventListener('DOMContentLoaded', function(){
     loadLoansData();
     loadToolNames();
-    refreshStationUI(stationConfigInitial);
-    fetchStationConfig();
     attachProductionRowHandlers();
+    bindTabButtons();
+    bindScanControls();
+    bindRegistrationControls();
+    const maintenance = initMaintenancePanel({
+      initialConfig: stationConfigInitial || {},
+      fetchImpl: window.fetch.bind(window),
+      showMessage: (level, message) => {
+        const map = { success: 'success', info: 'info', warning: 'warning', danger: 'danger' };
+        if (!message) {
+          const container = document.getElementById('stationConfigMessage');
+          if (container) container.innerHTML = '';
+          return;
+        }
+        showMessage('stationConfigMessage', message, map[level] || 'info');
+      },
+    });
+    maintenance.fetch();
     if (typeof apiTokenModule.loadTokens === 'function') {
       apiTokenModule.loadTokens();
     }
   });
 
-  window.showUsbOverlay = showUsbOverlay;
-  window.hideUsbOverlay = hideUsbOverlay;
-  window.runUsbSync = runUsbSync;
   window.handleViewerBarcode = handleViewerBarcode;
   window.loadLoansData = loadLoansData;
   window.manualReturnLoan = manualReturnLoan;
   window.deleteLoanEntry = deleteLoanEntry;
-  window.resetState = resetState;
-  window.startScan = startScan;
-  window.stopScan = stopScan;
-  window.scanForUser = scanForUser;
-  window.scanForTool = scanForTool;
-  window.checkTagInfo = checkTagInfo;
-  window.registerUser = registerUser;
-  window.registerTool = registerTool;
   window.loadToolNames = loadToolNames;
-  window.addToolName = addToolName;
-  window.deleteToolName = deleteToolName;
   window.showTab = showTab;
 }

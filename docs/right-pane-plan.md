@@ -41,6 +41,49 @@
    - 左右 UI のキーボード操作・スキャン動作が干渉しないことを確認。
    - ネットワーク切断や DV 停止時の復旧手順を RUNBOOK に追加。
 
+### 3.1 右ペイン JavaScript モジュール構成（2025-10-28 更新）
+| モジュール | 役割 | 主な依存・公開インターフェイス |
+| --- | --- | --- |
+| `static/js/rightPanel/index.js` | 右ペイン初期化エントリ。ESM のエントリポイント。 | `bootstrapRightPanel()` を呼び出し。 |
+| `static/js/rightPanel/bootstrap.js` | 初期化の調整役。 | `initRightPanel` で Socket.IO や初期データを取得し、`bootstrapLegacy` を呼び出す。 |
+| `static/js/rightPanel/initRightPanel.js` | Socket.IO クライアント生成と共通状態の準備。 | `createSocket`・`initPartLocations`・`initDocViewer` を使用し、socket/partLocations/docViewer を返す。 |
+| `static/js/rightPanel/partLocationsPanel.js` | 所在一覧の描画・ソケット監視・REST フォールバック。 | `socket.io-client`、`fetch`。`refresh()/setSocketStatus()` を公開。 |
+| `static/js/rightPanel/docViewerPanel.js` | DocumentViewer iframe の状態管理と postMessage 連携。 | iframe load/error、`window.handleViewerBarcode` を通して pageLegacy と連携。 |
+| `static/js/rightPanel/apiTokensPanel.js` | API トークン管理 UI。 | `loadTokens/issueToken/revokeToken` を公開、クリックはモジュール内でバインド。 |
+| `static/js/rightPanel/maintenancePanel.js` | USB 同期 + 工程設定 UI。 | `/api/usb_sync` と `/api/station_config` を担当。`refresh/fetch/runUsbSync` を返す。 |
+| `static/js/rightPanel/pageLegacy.js` | 既存 UI の橋渡し。タブ切替・スキャン開始/停止・登録系ハンドラを担当し、新モジュールと連携。 | `window.appScan` のみグローバル保持。各モジュールの戻り値を利用。 |
+
+### 3.2 テスト観点・検証メモ
+1. **所在一覧 (`partLocationsPanel.js`)**
+   - Socket.IO 接続時に `LIVE` へ遷移し、`part_location_updated` で即時差分反映されること。
+   - 接続断後 20 秒以内に REST フォールバックが走り、`OFFLINE` → `LIVE` へ戻ること。
+   - ハイライト対象が切り替わる際にクラスが正しくトグルされること（`is-flash` が 2.2 秒後解除）。
+2. **DocumentViewer (`docViewerPanel.js`)**
+   - フレームロード成功時に `ONLINE` 表示／失敗時にオーバーレイ表示へ切り替わること。
+   - `viewer-state` postMessage を受けてステータスチップが更新されること。
+   - `dv-barcode` が pageLegacy の `handleViewerBarcode` と連携し生産計画テーブルがハイライトされること。
+3. **API トークン管理 (`apiTokensPanel.js`)**
+   - 発行／無効化で `<pre>` やメッセージ欄が期待する内容へ更新されること。
+   - `keep_existing` チェック時に既存トークンが保持されるケース、`revoke all` 時に件数表示が期待通りになること。
+   - バリデーション（未入力・フォーマット不備）が UI メッセージで通知されること。
+4. **メンテナンス (`maintenancePanel.js`)**
+   - USB 同期ボタンでオーバーレイ表示、`steps` のサマリ整形、成功/失敗メッセージが確認できること。
+   - 工程設定の保存／候補追加／削除が `/api/station_config` 経由で反映され、チップやセレクトボックスへ即時反映されること。
+   - station_config 更新が失敗した場合、`stationConfigNotice` とメッセージ欄にエラーテキストが表示されること。
+5. **レガシー橋渡し (`pageLegacy.js`)**
+   - タブ切替でスキャン状態がリセットされること（`appScan.stop()` の自動呼び出し）。
+   - スキャン開始→停止でボタン状態とメッセージがトグルすること。
+   - 登録／マスタ系アクションが `data-action` ベースのイベントで機能し続けること。
+
+#### 自動テストの方針
+- **ユニットレベル**（Node.js + Jest など）  
+  - `partLocationsPanel` の normalize/render ロジック、`apiTokensPanel` のバリデーション関数、`maintenancePanel` のプレゼンテーション整形（`formatTimestamp` 等）をモック DOM 上で検証。
+- **統合テスト**（Playwright などブラウザ E2E）  
+  - Socket.IO をモックサーバーで疑似し、ビューの状態遷移をスナップショットで確認。
+  - DocumentViewer iframe はテスト用スタブを用意し、postMessage 送受信を確認。
+- **手動検証**  
+  - 実機（Window A）でのカードリーダー・バーコードスキャナ連携、USB メディア実際の入れ替えを伴うテストを RUNBOOK に沿って実施。
+
 ## 4. 接続・構築検証メモ（2025-10-28 更新）
 - RaspberryPiServer 側で `docker compose exec -T app python /app/tests/socketio_listener.py` を起動し、`curl -X POST http://127.0.0.1:8501/api/v1/scans ...` を実行して Socket.IO ブロードキャストを確認する。
 - Window A で `UPSTREAM_SOCKET_BASE=http://raspi-server.local:8501` を設定し、画面右上のチップが `LIVE` になること、`part_location_updated` 受信時に所在一覧と DocumentViewer が自動更新されることを確認する。

@@ -514,11 +514,11 @@
     </section>
     <div class="operation-shelf">
   <div class="tabs">
-    <button class="tab-button active" onclick="showTab('operations')">借用/返却</button>
-    <button class="tab-button" onclick="showTab('registration')">タグ登録</button>
-    <button class="tab-button" onclick="showTab('master')">マスタ</button>
-    <button class="tab-button" onclick="showTab('maintenance')">メンテ</button>
-    <button class="tab-button tab-toggle-history" onclick="toggleHistory()">履歴</button>
+    <button class="tab-button active" data-tab-target="operations">借用/返却</button>
+    <button class="tab-button" data-tab-target="registration">タグ登録</button>
+    <button class="tab-button" data-tab-target="master">マスタ</button>
+    <button class="tab-button" data-tab-target="maintenance">メンテ</button>
+    <button class="tab-button tab-toggle-history" data-action="toggle-history">履歴</button>
   </div>
 
   <!-- 借用/返却 -->
@@ -527,9 +527,9 @@
       <h2>①ユーザー → ②アイテム の順にスキャン</h2>
       <div class="operation-controls">
         <div class="button-row" style="margin:0;">
-          <button class="btn btn-primary" id="startScanBtn" onclick="startScan()">スキャン開始</button>
-          <button class="btn btn-secondary" id="stopScanBtn" onclick="stopScan()" disabled>停止</button>
-          <button class="btn btn-danger" onclick="resetState()">リセット</button>
+          <button class="btn btn-primary" id="startScanBtn" data-action="scan-start">スキャン開始</button>
+          <button class="btn btn-secondary" id="stopScanBtn" data-action="scan-stop" disabled>停止</button>
+          <button class="btn btn-danger" id="resetScanBtn" data-action="scan-reset">リセット</button>
         </div>
         <span id="scanStatus" class="status-indicator status-inactive">● 停止中</span>
       </div>
@@ -581,7 +581,7 @@
       <h3>🔍 タグ情報確認</h3>
       <p style="margin-bottom:8px; color:#64748b; font-size:12px;">NFCタグをスキャンして、現在の登録状況を確認できます</p>
       <div class="input-group" style="margin-bottom:8px;">
-        <button class="btn btn-primary" onclick="checkTagInfo()" style="background:#17a2b8; border-color:#17a2b8;">🔍 タグ情報を確認</button>
+        <button class="btn btn-primary" data-action="tag-check" style="background:#17a2b8; border-color:#17a2b8;">🔍 タグ情報を確認</button>
       </div>
       <div id="tagCheckResult"></div>
     </div>
@@ -591,7 +591,7 @@
       <div style="flex:1; min-width:240px;">
         <h3>👤 ユーザー登録</h3>
         <div class="input-group" style="margin-bottom:10px;">
-          <button class="btn btn-primary" onclick="scanForUser()">スキャンしてUID取得</button>
+          <button class="btn btn-primary" data-action="scan-user">スキャンしてUID取得</button>
         </div>
         <div class="input-group" style="margin-bottom:10px;">
           <label>UID（自動入力）</label>
@@ -601,7 +601,7 @@
           <label>氏名（例：山田太郎）</label>
           <input type="text" id="userNameInput" class="form-control" placeholder="山田太郎">
         </div>
-        <button class="btn btn-primary" onclick="registerUser()">💾 登録 / 更新（ユーザー）</button>
+        <button class="btn btn-primary" data-action="register-user">💾 登録 / 更新（ユーザー）</button>
         <div id="userRegResult"></div>
       </div>
 
@@ -609,7 +609,7 @@
       <div style="flex:1; min-width:240px;">
         <h3>📦 アイテム登録</h3>
         <div class="input-group" style="margin-bottom:10px;">
-          <button class="btn btn-primary" onclick="scanForTool()">スキャンしてUID取得</button>
+          <button class="btn btn-primary" data-action="scan-tool">スキャンしてUID取得</button>
         </div>
         <div class="input-group" style="margin-bottom:10px;">
           <label>UID（自動入力）</label>
@@ -621,7 +621,7 @@
             <option value="">（選択してください）</option>
           </select>
         </div>
-        <button class="btn btn-primary" onclick="registerTool()">💾 登録 / 更新（アイテム）</button>
+        <button class="btn btn-primary" data-action="register-tool">💾 登録 / 更新（アイテム）</button>
         <div id="toolRegResult"></div>
       </div>
     </div>
@@ -636,7 +636,7 @@
         <label>アイテム名を追加</label>
         <input type="text" id="newToolNameInput" class="form-control" placeholder="新しいアイテム名">
       </div>
-      <button class="btn btn-primary" onclick="addToolName()">➕ 追加</button>
+      <button class="btn btn-primary" data-action="add-tool-name">➕ 追加</button>
     </div>
 
     <div id="masterResult"></div>
@@ -649,7 +649,7 @@
           <option value="">（選択してください）</option>
         </select>
       </div>
-      <button class="btn btn-danger" onclick="deleteToolName()">🗑️ 削除</button>
+      <button class="btn btn-danger" data-action="delete-tool-name">🗑️ 削除</button>
   </div>
 </div>
   
@@ -661,7 +661,7 @@
       <p style="color:#6b7280; font-size:14px;">ラベル <code>TOOLMASTER</code> の USB メモリを挿入してから実行すると、マスターデータ（工具名・ユーザー・タグ紐づけ）を同期します。</p>
       <div class="button-row"><label style="font-size:13px;color:#6b7280;">USB 同期（手動）：ラベル <code>TOOLMASTER</code> の USB メモリを挿入してから実行してください。</label></div>
       <div class="button-row" style="gap:8px;align-items:center;flex-wrap:wrap;">
-        <button class="btn btn-primary" onclick="runUsbSync()">USB 同期を実行</button>
+        <button class="btn btn-primary" data-action="usb-sync">USB 同期を実行</button>
         <pre id="usbSyncOutput" style="background:#111827; color:#e5e7eb; padding:8px 10px; border-radius:6px; margin:0; font-size:11px; min-width:200px; max-width:320px; max-height:120px; overflow:auto; white-space:pre-wrap;">(まだ実行していません)</pre>
       </div>
     </div>
@@ -679,7 +679,7 @@
             {% endfor %}
           </select>
         </div>
-        <button class="btn btn-primary" onclick="saveStationProcess()">💾 保存</button>
+        <button class="btn btn-primary" data-action="station-save">💾 保存</button>
       </div>
 
       <div class="input-row">
@@ -687,7 +687,7 @@
           <label>工程候補を追加</label>
           <input type="text" id="stationNewProcessInput" class="form-control" placeholder="例：研磨">
         </div>
-        <button class="btn btn-secondary" onclick="addStationProcess()">候補に追加</button>
+        <button class="btn btn-secondary" data-action="station-add">候補に追加</button>
       </div>
 
       <div class="station-chip-list" id="stationAvailableList"></div>
