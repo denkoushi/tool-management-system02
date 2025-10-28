@@ -512,7 +512,4 @@ export function bootstrapLegacy({ socket: injectedSocket } = {}) {
   window.addToolName = addToolName;
   window.deleteToolName = deleteToolName;
   window.showTab = showTab;
-  window.issueApiToken = apiTokenModule.issueToken || (() => {});
-  window.loadApiTokens = apiTokenModule.loadTokens || (() => {});
-  window.revokeApiToken = apiTokenModule.revokeToken || (() => {});
 }

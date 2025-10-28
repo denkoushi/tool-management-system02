@@ -714,7 +714,7 @@
       <p style="color:#6b7280; font-size:14px;">ステーションごとの API トークンを発行・一覧・無効化できます。新しいトークンは即座に有効になります（古いトークンは無効化してください）。</p>
 
       <div class="button-row" style="margin-bottom:6px;">
-        <button class="btn btn-secondary" onclick="loadApiTokens()">一覧を更新</button>
+        <button class="btn btn-secondary" id="apiTokenRefreshBtn">一覧を更新</button>
       </div>
 
       <div class="scrollable" style="max-height:200px; overflow:auto; border:1px solid #e2e8f0; border-radius:8px;">
@@ -750,7 +750,7 @@
         <label style="display:flex;align-items:center;gap:6px;">
           <input type="checkbox" id="apiTokenKeepExisting"> 既存トークンを無効化せず追加する
         </label>
-        <button class="btn btn-primary" onclick="issueApiToken()">新しいトークンを発行</button>
+        <button class="btn btn-primary" id="apiTokenIssueBtn">新しいトークンを発行</button>
       </div>
       <pre id="apiTokenIssued" style="display:none;background:#1f2937;color:#f8fafc;padding:10px;border-radius:8px;font-size:12px;overflow:auto;"></pre>
 
@@ -769,7 +769,7 @@
         <label style="display:flex;align-items:center;gap:6px;">
           <input type="checkbox" id="apiTokenRevokeAll"> すべてのトークンを無効化する
         </label>
-        <button class="btn btn-danger" onclick="revokeApiToken()">無効化を実行</button>
+        <button class="btn btn-danger" id="apiTokenRevokeBtn">無効化を実行</button>
       </div>
     </div>
   </div>

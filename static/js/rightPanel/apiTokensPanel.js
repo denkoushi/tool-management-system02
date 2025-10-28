@@ -9,6 +9,9 @@ export function initApiTokens({ fetchImpl = window.fetch.bind(window) } = {}) {
     revokeTokenInput: document.getElementById('apiTokenRevokeTokenInput'),
     revokeStationInput: document.getElementById('apiTokenRevokeStationInput'),
     revokeAllCheckbox: document.getElementById('apiTokenRevokeAll'),
+    refreshBtn: document.getElementById('apiTokenRefreshBtn'),
+    issueBtn: document.getElementById('apiTokenIssueBtn'),
+    revokeBtn: document.getElementById('apiTokenRevokeBtn'),
   };
 
   const state = {
@@ -165,6 +168,26 @@ export function initApiTokens({ fetchImpl = window.fetch.bind(window) } = {}) {
       setMessage('danger', err.message || String(err));
     }
   }
+
+  function bindEvents() {
+    if (elements.refreshBtn) {
+      elements.refreshBtn.addEventListener('click', () => loadTokens());
+    }
+    if (elements.issueBtn) {
+      elements.issueBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        issueToken();
+      });
+    }
+    if (elements.revokeBtn) {
+      elements.revokeBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        revokeToken();
+      });
+    }
+  }
+
+  bindEvents();
 
   return {
     loadTokens,
