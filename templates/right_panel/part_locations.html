@@ -1,0 +1,41 @@
+<section class="future-panel-body future-panel-body--locations" id="partLocationsPanel">
+  <div class="part-locations-shell">
+    <div class="part-locations-header">
+      <div>
+        <h3 class="part-locations-title">アイテム所在一覧</h3>
+        <p class="part-locations-subtitle">ハンディリーダの最新スキャンをリアルタイムに反映します</p>
+      </div>
+      <div class="part-locations-meta">
+        <div class="view-switch" role="tablist">
+          <button type="button" data-target="docViewerPanel">要領書</button>
+          <button type="button" data-target="partLocationsPanel">
+            所在一覧
+            <span class="tab-badge">{{ part_locations|length }}</span>
+          </button>
+        </div>
+        <span id="partLocationSocketStatus" class="part-location-chip" data-state="loading">接続確認中…</span>
+        <span id="partLocationCount" class="part-location-chip">件数: {{ part_locations|length }}</span>
+        <span id="partLocationLastUpdated" class="part-location-chip">最終更新: -</span>
+        <button type="button" id="partLocationRefreshBtn" class="btn-reload">最新を取得</button>
+      </div>
+    </div>
+    <div id="partLocationsMessage" class="part-locations-message"></div>
+    <div class="part-locations-table-wrapper">
+      <table class="part-locations-table" id="partLocationsTable">
+        <thead>
+          <tr>
+            <th style="width:28%;">アイテム番号</th>
+            <th style="width:22%;">棚位置</th>
+            <th style="width:16%;">デバイス</th>
+            <th style="width:17%;">スキャン時刻</th>
+            <th style="width:17%;">更新時刻</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div id="partLocationsEmpty" class="part-locations-empty">
+      まだ所在データが登録されていません。ハンディリーダからスキャンを送信すると表示されます。
+    </div>
+  </div>
+</section>

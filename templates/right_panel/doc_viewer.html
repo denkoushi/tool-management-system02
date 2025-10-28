@@ -1,0 +1,41 @@
+<section class="future-panel-body future-panel-body--doc active"
+         id="docViewerPanel"
+         data-doc-viewer-url="{{ doc_viewer_url|default('', true) }}"
+         data-doc-viewer-online="{{ 'true' if doc_viewer_online else 'false' }}"
+         data-station-process="{{ station_config.process|default('', true) }}">
+  <div class="doc-viewer-header">
+    <div class="view-switch" role="tablist">
+      <button type="button" class="active" data-target="docViewerPanel">要領書</button>
+      <button type="button" data-target="partLocationsPanel">
+        所在一覧
+        <span class="tab-badge" id="partLocationsTabBadge">{{ part_locations|length }}</span>
+      </button>
+    </div>
+    <div class="doc-viewer-status-group">
+      <div id="docViewerStatus"
+           class="doc-viewer-status {{ 'doc-viewer-status--online' if doc_viewer_online else 'doc-viewer-status--offline' }}">
+        <span class="doc-viewer-status__dot"></span>
+        <span class="doc-viewer-status__label">{{ '接続済み' if doc_viewer_online else '未接続' }}</span>
+      </div>
+      <span id="docViewerStateChip" class="doc-viewer-chip">状態: 未表示</span>
+      <span id="docViewerPartChip" class="doc-viewer-chip doc-viewer-chip--part" data-empty="true">部品番号: -</span>
+    </div>
+    <div class="doc-viewer-header-actions">
+      <button type="button" id="docViewerReloadBtn" class="btn-reload">再読み込み</button>
+      <button type="button" id="docViewerReturnBtn" class="btn-reload">待機画面に戻る</button>
+    </div>
+  </div>
+  <div class="doc-viewer-wrapper">
+    <iframe id="docViewerFrame" title="Document Viewer"
+            src="{{ doc_viewer_url if doc_viewer_online else '' }}"
+            loading="lazy"></iframe>
+    <div id="docViewerOverlay" class="doc-viewer-overlay">
+      {% if doc_viewer_online %}
+        読み込み中…
+      {% else %}
+        DocumentViewer サービスが見つかりません。<br>
+        起動後に「再読み込み」を押してください。
+      {% endif %}
+    </div>
+  </div>
+</section>
