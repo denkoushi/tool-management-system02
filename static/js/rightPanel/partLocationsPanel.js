@@ -235,6 +235,11 @@ export function initPartLocations({
   }
 
   hydrate(initialData);
+  if (socketOptions && socketOptions.autoConnect === false) {
+    setSocketStatus('disabled', 'DISABLED');
+  } else {
+    setSocketStatus(socket && socket.connected ? 'live' : 'loading', socket && socket.connected ? 'LIVE' : '接続確認中…');
+  }
   attachListeners();
 
   return {
@@ -242,5 +247,6 @@ export function initPartLocations({
     hydrate,
     render,
     setSocketStatus,
+    getLastRender: () => state.lastRender,
   };
 }
