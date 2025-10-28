@@ -12,6 +12,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
         (
             "config/window-a-client.env.sample",
             {
+                "RASPI_SERVER_BASE",
+                "RASPI_SERVER_API_TOKEN",
                 "DOCUMENT_VIEWER_URL",
                 "UPSTREAM_SOCKET_BASE",
                 "UPSTREAM_SOCKET_PATH",
