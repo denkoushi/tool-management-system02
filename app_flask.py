@@ -18,6 +18,7 @@ import psycopg2
 from smartcard.CardRequest import CardRequest
 from smartcard.util import toHexString
 import os
+from urllib.parse import urlparse
 import subprocess
 import urllib.request
 from usb_sync import run_usb_sync
@@ -378,7 +379,28 @@ def require_api_token(action_name: str):
 
     return decorator
 
-DB = dict(host="127.0.0.1", port=5432, dbname="sensordb", user="app", password="app")
+def _build_db_config() -> dict:
+    url = os.getenv("DATABASE_URL")
+    if url:
+        parsed = urlparse(url)
+        return {
+            "host": parsed.hostname or "127.0.0.1",
+            "port": parsed.port or 5432,
+            "dbname": (parsed.path or "/sensordb").lstrip("/") or "sensordb",
+            "user": parsed.username or "app",
+            "password": parsed.password or "app",
+        }
+
+    return {
+        "host": os.getenv("DB_HOST", "127.0.0.1"),
+        "port": int(os.getenv("DB_PORT", "5432")),
+        "dbname": os.getenv("DB_NAME", "sensordb"),
+        "user": os.getenv("DB_USER", "app"),
+        "password": os.getenv("DB_PASSWORD", "app"),
+    }
+
+
+DB = _build_db_config()
 GET_UID = [0xFF, 0xCA, 0x00, 0x00, 0x00]  # PC/SC: GET DATA (UID/IDm)
 
 # グローバル状態
