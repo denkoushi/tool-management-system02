@@ -44,7 +44,24 @@ from raspi_client import (
 # =========================
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
-app.config['DOCUMENT_VIEWER_URL'] = os.getenv("DOCUMENT_VIEWER_URL", "http://127.0.0.1:5000")
+def _resolve_doc_viewer_url() -> str:
+    """Return the iframe URL for DocumentViewer.
+
+    優先順:
+      1. DOCUMENT_VIEWER_URL を明示指定
+      2. RASPI_SERVER_BASE が指定されている場合は /viewer を付与
+      3. ZIP 復旧用のローカルホスト既定値
+    """
+    explicit = os.getenv("DOCUMENT_VIEWER_URL")
+    if explicit:
+        return explicit
+    raspi_base = os.getenv("RASPI_SERVER_BASE")
+    if raspi_base:
+        return f"{raspi_base.rstrip('/')}/viewer"
+    return "http://127.0.0.1:5000"
+
+
+app.config['DOCUMENT_VIEWER_URL'] = _resolve_doc_viewer_url()
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 UPSTREAM_SOCKET_BASE = os.getenv(

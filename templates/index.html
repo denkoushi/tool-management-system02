@@ -1604,8 +1604,16 @@ setInterval(() => {
       }
     };
 
-    if (initialOnline && frame && docViewerUrl) {
-      frame.src = docViewerUrl;
+    if (!docViewerUrl) {
+      setStatus('offline', '未設定');
+      showOverlay('DocumentViewer の URL が設定されていません。<br>環境変数 <code>DOCUMENT_VIEWER_URL</code> または <code>RASPI_SERVER_BASE</code> を確認してください。');
+    } else if (frame) {
+      if (initialOnline) {
+        frame.src = docViewerUrl;
+      } else {
+        setStatus('offline', '未接続');
+        reloadFrame();
+      }
     } else if (!initialOnline) {
       setStatus('offline', '未接続');
     }

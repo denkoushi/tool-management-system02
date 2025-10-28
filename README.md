@@ -26,7 +26,7 @@
 
 | 変数名 | 役割 | 既定値 |
 | --- | --- | --- |
-| `DOCUMENT_VIEWER_URL` | 右ペイン iframe が参照する DocumentViewer のベース URL。 | `http://127.0.0.1:5000` |
+| `DOCUMENT_VIEWER_URL` | 右ペイン iframe が参照する DocumentViewer のベース URL。未設定時は `RASPI_SERVER_BASE` に `/viewer` を付与して自動解決。 | `http://127.0.0.1:5000` |
 | `UPSTREAM_SOCKET_BASE` | 所在イベント (`part_location_updated` など) を受信する Socket.IO サーバーのベース URL。RaspberryPiServer を指す。 | _(未指定: 同一ホスト)_ |
 | `UPSTREAM_SOCKET_PATH` | 上記 Socket.IO のパス。 | `/socket.io` |
 | `UPSTREAM_SOCKET_AUTO` | Socket.IO 自動接続フラグ。`0` / `false` で無効化。 | `1` |
@@ -35,9 +35,9 @@
 | `RASPI_SERVER_TIMEOUT` | REST リクエストのタイムアウト（秒）。 | `4.0` |
 
 > 例: RaspberryPiServer を参照する場合  
-> `Environment=DOCUMENT_VIEWER_URL=http://raspi-server.local:8501/viewer`  
+> `Environment=RASPI_SERVER_BASE=http://raspi-server.local:8501`  
 > `Environment=UPSTREAM_SOCKET_BASE=http://raspi-server.local:8501`  
-> `Environment=RASPI_SERVER_BASE=http://raspi-server.local:8501`
+> `Environment=DOCUMENT_VIEWER_URL=` （省略可。明示指定する場合は `/viewer` を付与）
 
 環境変数は `/etc/systemd/system/toolmgmt.service.d/override.conf` の `[Service]` セクションや `EnvironmentFile` で設定します。サンプルとして `config/window-a-client.env.sample` を用意しているので、必要に応じてコピーし調整してください。
 自動化したい場合は以下を利用できます。
