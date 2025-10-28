@@ -3,4 +3,4 @@
 
 [Service]
 # Load environment variables that define DocumentViewer/Socket.IO endpoints.
-EnvironmentFile=-/etc/toolmgmt/window-a-client.env
+EnvironmentFile=/etc/toolmgmt/window-a-client.env

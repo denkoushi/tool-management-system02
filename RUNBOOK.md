@@ -379,34 +379,25 @@
         sudoedit /etc/toolmgmt/window-a-client.env
 
    主な設定例：
-   - `DOCUMENT_VIEWER_URL=http://raspi-server.local:8501/viewer`
+   - `RASPI_SERVER_BASE=http://raspi-server.local:8501`
+   - `RASPI_SERVER_API_TOKEN=raspi-token-20251027`
+   - `DOCUMENT_VIEWER_URL=` （空でも可。自動的に `/viewer` を参照）
    - `UPSTREAM_SOCKET_BASE=http://raspi-server.local:8501`
    - `UPSTREAM_SOCKET_PATH=/socket.io`
    - `UPSTREAM_SOCKET_AUTO=1`
 
-4. **DocumentViewer 用環境ファイルとログ準備**
-
-        cd ~/DocumentViewer
-        sudo ./scripts/setup_docviewer_env.sh \
-          --user tools01 \
-          --log-dir /var/log/document-viewer \
-          --force
-        sudoedit /etc/default/docviewer   # 必要に応じて API トークン等を調整
-
-5. **サービス再起動**
+4. **サービス再起動**
 
         sudo systemctl daemon-reload
-        sudo systemctl restart docviewer.service
         sudo systemctl restart toolmgmt.service
 
-6. **動作確認**
+5. **動作確認**
 
    - ブラウザで `http://localhost:8501` を開き、右上の Socket ステータスが `LIVE` になるか確認。
    - `/api/v1/scans` 実行時に所在一覧・DocumentViewer が更新されるかテスト。
-   - DocumentViewer 側ログ: `tail -n 20 /var/log/document-viewer/client.log`
    - TMS 側ログ: `journalctl -u toolmgmt.service -n 20`
 
-7. **（任意）USB 同期用 sudoers 設定**
+6. **（任意）USB 同期用 sudoers 設定**
 
         sudo tee /etc/sudoers.d/toolmgmt-usbsync >/dev/null <<'SUDO'
         tools01 ALL=(root) NOPASSWD: /bin/bash /home/tools01/tool-management-system02/scripts/usb_master_sync.sh
