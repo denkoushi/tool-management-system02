@@ -423,7 +423,7 @@ def emit_station_config_update(config: dict) -> None:
 
 
 def check_doc_viewer_health(url: str, timeout: float = 1.0) -> bool:
-    """Return True if DocumentViewer /health endpoint responds."""
+    """Return True if DocumentViewer ビューアが稼働しているか判定する。"""
     if not url:
         return False
 
