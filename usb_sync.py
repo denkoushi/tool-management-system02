@@ -6,6 +6,7 @@ from typing import Dict, List, Optional
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MASTER_SCRIPT = os.path.join(BASE_DIR, 'scripts', 'usb_master_sync.sh')
+DEFAULT_LABEL = os.environ.get('USB_SYNC_LABEL', 'TOOLMASTER')
 
 
 def _resolve_docviewer_script() -> Optional[str]:
@@ -37,6 +38,71 @@ def _run_command(name: str, cmd: List[str]) -> Dict[str, str]:
     }
 
 
+def _detect_device_by_label(label: str) -> Optional[str]:
+    if not label:
+        return None
+
+    label_path = os.path.join('/dev/disk/by-label', label)
+    if os.path.exists(label_path):
+        resolved = os.path.realpath(label_path)
+        if os.path.exists(resolved):
+            return resolved
+        return label_path
+
+    try:
+        lsblk = subprocess.run(
+            ['lsblk', '-lnp', '-o', 'PATH,LABEL'],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False,
+        )
+    except Exception:
+        return None
+
+    for line in lsblk.stdout.splitlines():
+        parts = line.strip().split()
+        if len(parts) != 2:
+            continue
+        path, found_label = parts
+        if found_label == label and os.path.exists(path):
+            return path
+    return None
+
+
+def _resolve_device(initial: Optional[str]) -> str:
+    candidates: List[str] = []
+
+    env_device = os.environ.get('USB_SYNC_DEVICE')
+    if env_device:
+        candidates.append(env_device)
+
+    if initial:
+        candidates.append(initial)
+
+    label_device = _detect_device_by_label(DEFAULT_LABEL)
+    if label_device:
+        candidates.append(label_device)
+
+    # Fallback: try /dev/sdb1 if /dev/sda1 not available (common on RPi with SSD)
+    candidates.append('/dev/sdb1')
+
+    for candidate in candidates:
+        if not candidate:
+            continue
+        if os.path.islink(candidate):
+            real_path = os.path.realpath(candidate)
+            if os.path.exists(real_path):
+                return real_path
+        if os.path.exists(candidate):
+            return candidate
+
+    raise FileNotFoundError(
+        f"USB デバイスが見つかりません。環境変数 USB_SYNC_DEVICE でデバイスパスを指定するか、"
+        f"{DEFAULT_LABEL} ラベル付きの USB を接続してください。"
+    )
+
+
 def run_usb_sync(device: str = '/dev/sda1') -> Dict[str, object]:
     steps: List[Dict[str, str]] = []
     combined_stdout: List[str] = []
@@ -46,10 +112,27 @@ def run_usb_sync(device: str = '/dev/sda1') -> Dict[str, object]:
     if not os.path.isfile(MASTER_SCRIPT):
         raise FileNotFoundError(f'マスター同期スクリプトが見つかりません: {MASTER_SCRIPT}')
 
+    try:
+        resolved_device = _resolve_device(device)
+    except FileNotFoundError as err:
+        return {
+            'returncode': 1,
+            'steps': steps + [{
+                'name': 'tool_master',
+                'title': '工具マスタ同期',
+                'command': '',
+                'returncode': 1,
+                'stdout': '',
+                'stderr': str(err),
+            }],
+            'stdout': '',
+            'stderr': str(err),
+        }
+
     commands: List[Dict[str, object]] = [
         {
             'name': 'tool_master',
-            'cmd': ['sudo', 'bash', MASTER_SCRIPT, device],
+            'cmd': ['sudo', 'bash', MASTER_SCRIPT, resolved_device],
             'title': '工具マスタ同期',
         }
     ]
@@ -59,7 +142,7 @@ def run_usb_sync(device: str = '/dev/sda1') -> Dict[str, object]:
         commands.append(
             {
                 'name': 'docviewer',
-                'cmd': ['sudo', 'bash', docviewer_script, device],
+                'cmd': ['sudo', 'bash', docviewer_script, resolved_device],
                 'title': 'ドキュメントビューア同期',
             }
         )
