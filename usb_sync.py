@@ -19,7 +19,11 @@ def _resolve_docviewer_script() -> Optional[str]:
 
     candidates.append(os.path.join(os.path.dirname(BASE_DIR), 'DocumentViewer', 'scripts', 'usb-import.sh'))
     candidates.append('/home/tools01/DocumentViewer/scripts/usb-import.sh')
+    candidates.append('/home/tools02/DocumentViewer/scripts/usb-import.sh')
     candidates.append('/home/pi/DocumentViewer/scripts/usb-import.sh')
+    home = os.path.expanduser('~')
+    if home:
+        candidates.append(os.path.join(home, 'DocumentViewer', 'scripts', 'usb-import.sh'))
 
     for path in candidates:
         if path and os.path.isfile(path):
