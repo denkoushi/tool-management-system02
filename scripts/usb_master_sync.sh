@@ -3,16 +3,49 @@
 
 set -euo pipefail
 
-MOUNT_POINT="/media/tool-master"
-USB_DIR="${MOUNT_POINT}/master"
-LOCAL_META="/var/lib/toolmgmt/master_sync/meta.json"
-LOG_TAG="tool-master-sync"
-LOG_FILE="/var/log/toolmgmt/usbsync.log"
+ENV_FILES=()
+if [[ -n "${USB_SYNC_ENV_FILE:-}" ]]; then
+  ENV_FILES+=("${USB_SYNC_ENV_FILE}")
+fi
+ENV_FILES+=("/etc/toolmgmt/window-a-client.env" "/etc/toolmgmt/tool-master-sync.env")
+for env_file in "${ENV_FILES[@]}"; do
+  if [[ -f "${env_file}" ]]; then
+    # shellcheck disable=SC1090
+    source "${env_file}"
+  fi
+done
+
+MOUNT_POINT="${MOUNT_POINT:-/media/tool-master}"
+USB_DIR="${USB_DIR:-${MOUNT_POINT}/master}"
+LOCAL_META="${LOCAL_META:-/var/lib/toolmgmt/master_sync/meta.json}"
+LOG_TAG="${LOG_TAG:-tool-master-sync}"
+LOG_FILE="${LOG_FILE:-/var/log/toolmgmt/usbsync.log}"
 CLAMAV_SCAN="${CLAMAV_SCAN:-clamscan}"
 
-DB_NAME="sensordb"
-DB_USER="app"
-DB_HOST="127.0.0.1"
+PSQL_BIN="${PSQL_BIN:-psql}"
+DB_NAME="${DB_NAME:-sensordb}"
+DB_USER="${DB_USER:-app}"
+DB_HOST="${DB_HOST:-127.0.0.1}"
+DB_PORT="${DB_PORT:-5432}"
+PSQL_CONN_URL="${PSQL_CONN_URL:-}"
+if [[ -z "${PSQL_CONN_URL}" && -n "${PG_URI:-}" ]]; then
+  PSQL_CONN_URL="${PG_URI}"
+fi
+if [[ -z "${PSQL_CONN_URL}" && -n "${DATABASE_URL:-}" ]]; then
+  PSQL_CONN_URL="${DATABASE_URL}"
+fi
+if [[ -n "${PSQL_CONN_URL}" ]]; then
+  DB_PASSWORD="${DB_PASSWORD:-${PGPASSWORD:-}}"
+else
+  DB_PASSWORD="${DB_PASSWORD:-${PGPASSWORD:-app}}"
+fi
+
+PLAN_LOCAL_DIR="${PLAN_LOCAL_DIR:-/var/lib/toolmgmt/plan}"
+PLAN_OWNER="${PLAN_OWNER:-tools01}"
+PLAN_GROUP="${PLAN_GROUP:-${PLAN_OWNER}}"
+PLAN_INSTALL_ARGS=()
+PLAN_OWNER_AVAILABLE=0
+PLAN_GROUP_AVAILABLE=0
 
 DEVICE="${1:-}"
 if [[ -z "${DEVICE}" ]]; then
@@ -32,6 +65,26 @@ log() {
   {
     printf '%s [%s] %s\n' "$timestamp" "${level^^}" "$message"
   } >> "$LOG_FILE" 2>/dev/null || true
+}
+
+resolve_plan_permissions() {
+  PLAN_INSTALL_ARGS=(-m 640)
+  PLAN_OWNER_AVAILABLE=0
+  PLAN_GROUP_AVAILABLE=0
+
+  if [[ -n "${PLAN_OWNER}" ]] && id -u "${PLAN_OWNER}" >/dev/null 2>&1; then
+    PLAN_INSTALL_ARGS+=(-o "${PLAN_OWNER}")
+    PLAN_OWNER_AVAILABLE=1
+  else
+    log "PLAN_OWNER ${PLAN_OWNER} が見つからないため所有者設定をスキップします" warning
+  fi
+
+  if [[ -n "${PLAN_GROUP}" ]] && getent group "${PLAN_GROUP}" >/dev/null 2>&1; then
+    PLAN_INSTALL_ARGS+=(-g "${PLAN_GROUP}")
+    PLAN_GROUP_AVAILABLE=1
+  else
+    log "PLAN_GROUP ${PLAN_GROUP} が見つからないためグループ設定をスキップします" warning
+  fi
 }
 
 cleanup() {
@@ -236,10 +289,6 @@ run_clamav_scan() {
   return 2
 }
 
-PLAN_LOCAL_DIR="/var/lib/toolmgmt/plan"
-PLAN_OWNER="${PLAN_OWNER:-tools01}"
-PLAN_GROUP="${PLAN_GROUP:-tools01}"
-
 validate_plan_header() {
   local file_path="$1"
   shift
@@ -270,8 +319,18 @@ sync_plan_files() {
     "standard_times.csv"
   )
 
+  resolve_plan_permissions
+
   mkdir -p "$PLAN_LOCAL_DIR"
-  chown "$PLAN_OWNER:$PLAN_GROUP" "$PLAN_LOCAL_DIR" || true
+  if (( PLAN_OWNER_AVAILABLE == 1 )); then
+    local owner_spec="$PLAN_OWNER"
+    if (( PLAN_GROUP_AVAILABLE == 1 )); then
+      owner_spec="${PLAN_OWNER}:${PLAN_GROUP}"
+    fi
+    if ! chown "$owner_spec" "$PLAN_LOCAL_DIR"; then
+      log "$PLAN_LOCAL_DIR の所有者変更に失敗しました (owner=${owner_spec})" warning
+    fi
+  fi
 
   for name in "${plan_files[@]}"; do
     local src="$USB_DIR/$name"
@@ -300,7 +359,7 @@ sync_plan_files() {
       fi
     fi
 
-    if install -m 640 -o "$PLAN_OWNER" -g "$PLAN_GROUP" "$src" "$dest"; then
+    if install "${PLAN_INSTALL_ARGS[@]}" "$src" "$dest"; then
       log "$name を計画ディレクトリへ更新しました"
     else
       log "$name のコピーに失敗しました" warning
@@ -339,7 +398,29 @@ if (( validation_failed == 0 )); then
 fi
 
 psql_cmd() {
-  PGPASSWORD="${PGPASSWORD:-app}" psql -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" -v ON_ERROR_STOP=1 "$@"
+  local -a base=("${PSQL_BIN}" -v ON_ERROR_STOP=1)
+
+  if [[ -n "${PSQL_CONN_URL}" ]]; then
+    base+=("${PSQL_CONN_URL}")
+  else
+    base+=(-h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME")
+    if [[ -n "${DB_PORT}" ]]; then
+      base+=(-p "$DB_PORT")
+    fi
+  fi
+
+  local password_env=""
+  if [[ -n "${PSQL_CONN_URL}" ]]; then
+    password_env="${DB_PASSWORD}"
+  else
+    password_env="${DB_PASSWORD:-app}"
+  fi
+
+  if [[ -n "${password_env}" ]]; then
+    PGPASSWORD="${password_env}" "${base[@]}" "$@"
+  else
+    "${base[@]}" "$@"
+  fi
 }
 
 import_from_usb() {

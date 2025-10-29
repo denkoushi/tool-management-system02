@@ -149,6 +149,13 @@
 2. **Pi での初期設定**
    - `sudo bash scripts/install_usb_master_sync.sh` を実行し、`/usr/local/bin/tool_master_sync.sh` と `tool-master-sync@.service` / udev ルールを配置。
    - 設定は 1 度だけで OK。以後は USB を挿すだけで同期が走ります。
+   - `/etc/toolmgmt/window-a-client.env`（必要に応じて作成）に PostgreSQL 接続先と CSV 所有者を設定。例:
+
+        DATABASE_URL=postgresql://app:app_password@raspi-server.local:15432/appdb
+        PLAN_OWNER=tools01
+        PLAN_GROUP=tools01
+
+     端末ユーザーが `tools02` など別名の場合は、`PLAN_OWNER`/`PLAN_GROUP` を実際のアカウントへ置き換えてください。
 3. **同期の流れ**
    - USB を挿入 → `/media/tool-master/` に自動マウント → `master/*.csv` を取り込み（USB の更新が新しければ Pi を上書き）。
    - 取り込み対象の CSV/JSON は拡張子と MIME タイプをホワイトリスト検証し、許可外のファイルや形式が見つかった場合は同期を中断し `/var/log/toolmgmt/usbsync.log` に記録。

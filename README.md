@@ -305,6 +305,16 @@ UI は `templates/index.html`、静的ファイルは `static/` 配下から提�
 1. **初期セットアップ**
    1. USB メモリを ext4 等でフォーマットし、ラベルを `TOOLMASTER` に設定します。例: `sudo e2label /dev/sdX1 TOOLMASTER`
    2. Pi 上で `sudo bash scripts/install_usb_master_sync.sh` を実行し、`/usr/local/bin/tool_master_sync.sh` と udev/systemd 連携を導入します。
+   3. `/etc/toolmgmt/window-a-client.env`（存在しない場合は新規作成）にサーバー接続情報と CSV の所有者を記述します。例:
+
+      ```ini
+      # RaspberryPiServer (Pi 5) の API/DB と一致させる
+      DATABASE_URL=postgresql://app:app_password@raspi-server.local:15432/appdb
+      PLAN_OWNER=tools01
+      PLAN_GROUP=tools01
+      ```
+
+      `PLAN_OWNER` / `PLAN_GROUP` には計画 CSV を扱う端末側ユーザーを指定してください（例: `tools02`）。
 2. **通常運用**
    1. USB を挿すと自動で `/media/tool-master/` にマウントされます。
    2. `master/` と `docviewer/` の `meta.json`（およびファイル更新日時）を比較し、USB 側が新しければ **Pi に取り込み**。
