@@ -381,6 +381,9 @@
         pip install -r app/requirements.txt
         deactivate
 
+        # DocumentViewer のローカル格納ディレクトリ（USB importer が参照）
+        mkdir -p ~/DocumentViewer/documents ~/DocumentViewer/imports/failed
+
 3. **環境変数ファイルの展開**（Window A 用設定）
 
         cd ~/tool-management-system02

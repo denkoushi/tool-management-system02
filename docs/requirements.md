@@ -54,6 +54,8 @@
 - 初期構築ガイドの詳細化（CLI コマンド、設定ファイル例、障害対応）。
 - Decision ログの要約版と相互参照の維持。 
 - スクリーンショット・図版の追加（UI 安定後）。
+- Window A クライアント構築手順に DocumentViewer リポジトリの配置先（`~/DocumentViewer`）と
+  `documents/`・`imports/failed/` ディレクトリの作成を追記し、USB 同期時の取り込み失敗を防止する（RUNBOOK 3.5）。
 
 ### 2.6 テスト／CI
 - テストデータセットと USB モックの整備。 

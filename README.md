@@ -317,6 +317,8 @@ UI は `templates/index.html`、静的ファイルは `static/` 配下から提�
       `PLAN_OWNER` / `PLAN_GROUP` には計画 CSV を扱う端末側ユーザーを指定してください（例: `tools02`）。
       USB デバイスはラベル `TOOLMASTER` を自動検出します。別ラベルの場合は
       `USB_SYNC_LABEL=<ラベル名>` や `USB_SYNC_DEVICE=/dev/sdX1` を環境に設定してください。
+      端末側で DocumentViewer を併用する場合は `~/DocumentViewer/scripts/usb-import.sh` が存在すること、
+      さらに `mkdir -p ~/DocumentViewer/documents ~/DocumentViewer/imports/failed` で取り込み先を準備しておくこと。
 2. **通常運用**
    1. USB を挿すと自動で `/media/tool-master/` にマウントされます。
    2. `master/` と `docviewer/` の `meta.json`（およびファイル更新日時）を比較し、USB 側が新しければ **Pi に取り込み**。
