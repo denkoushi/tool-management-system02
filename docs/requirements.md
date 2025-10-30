@@ -56,6 +56,11 @@
 - スクリーンショット・図版の追加（UI 安定後）。
 - Window A クライアント構築手順に DocumentViewer リポジトリの配置先（`~/DocumentViewer`）と
   `documents/`・`imports/failed/` ディレクトリの作成を追記し、USB 同期時の取り込み失敗を防止する（RUNBOOK 3.5）。
+- ログ整備は以下をベースラインとし、追加機能は個別の運用要件が発生したときに RAT（Requirements Acceptance Ticket）を記録してから実施する。
+  - Pi4: `scripts/check_e2e_scan.sh` + cron で疎通ログを `/var/log/toolmgmt/e2e.log` に記録。
+  - Pi5: `scripts/check_app_logs.sh` で Docker `app` ログの WARN/ERROR を点検。
+  - DocumentViewer: `scripts/show_import_log.sh` で `/var/log/document-viewer/import.log` を参照。
+  これ以外のログ系タスクは「保留（Backlog）」扱いとし、要件に紐づけてから着手する。
 
 ### 2.6 テスト／CI
 - テストデータセットと USB モックの整備。 

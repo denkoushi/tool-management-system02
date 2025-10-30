@@ -14,7 +14,7 @@ mkdir -p "${LOG_DIR}"
 timestamp="$(date '+%Y-%m-%dT%H:%M:%S%z')"
 {
   printf '=== %s ===\n' "${timestamp}"
-  if "${CHECK_SCRIPT}" >> "${LOG_FILE}" 2>&1; then
+  if "${CHECK_SCRIPT}"; then
     printf '[OK] check_e2e_scan.sh completed successfully\n'
   else
     status=$?
