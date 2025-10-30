@@ -28,6 +28,7 @@
 3. **TMS テンプレート改修**（第一段階完了）
    - `templates/index.html` を DocumentViewer 埋め込み用レイアウトに刷新し、状態表示と再読み込みボタンを追加済み。
    - iframe 読み込み状態を UI に反映（ローディング表示／エラー表示切替など）まで完了。
+   - 生産計画セクションに「サーバー再読込」ボタンを追加し、`/api/plan/refresh`（RaspberryPiServer の `/internal/plan-cache/refresh` を呼び出すラッパ）を POST して手動同期できるようにした。処理結果は `productionHighlightMessage` にトースト表示し、API 監査ログへも記録する。
    - 今後、DocumentViewer からのイベント連携や左右レイアウトの最終調整を継続。
 4. **TMS API・設定追加**
    - Flask の設定値に DV のベース URL を注入（`app.config` / `.env` / 設定ファイル）。

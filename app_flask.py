@@ -36,6 +36,7 @@ from raspi_client import (
     RaspiServerClient,
     RaspiServerAuthError,
     RaspiServerClientError,
+    RaspiServerConfigError,
 )
 
 
@@ -349,7 +350,6 @@ def fetch_part_locations(limit: int = 200) -> list[dict[str, object]]:
     return results
 
 
-
 def _extract_provided_token() -> str:
     header_token = request.headers.get(API_TOKEN_HEADER)
     if header_token:
@@ -395,6 +395,69 @@ def require_api_token(action_name: str):
         return wrapper
 
     return decorator
+
+
+@app.route("/api/plan/refresh", methods=["POST"])
+@require_api_token("plan_refresh")
+def api_plan_refresh():
+    client = _create_raspi_client()
+    if not client.is_configured():
+        log_api_action(
+            "plan_refresh",
+            status="error",
+            detail={"reason": "raspi_server_not_configured"},
+        )
+        return jsonify({"error": "RASPI_SERVER_BASE is not configured"}), 503
+
+    try:
+        payload = client.post_json("/internal/plan-cache/refresh")
+    except RaspiServerAuthError as exc:
+        log_api_action(
+            "plan_refresh",
+            status="denied",
+            detail={"reason": "auth_error"},
+        )
+        return jsonify({"error": str(exc)}), 401
+    except RaspiServerClientError as exc:
+        log_api_action(
+            "plan_refresh",
+            status="error",
+            detail={"reason": str(exc)},
+        )
+        return jsonify({"error": str(exc)}), 502
+    except RaspiServerConfigError as exc:
+        log_api_action(
+            "plan_refresh",
+            status="error",
+            detail={"reason": str(exc)},
+        )
+        return jsonify({"error": str(exc)}), 503
+
+    summary = payload.get("refreshed") if isinstance(payload, dict) else None
+    log_api_action(
+        "plan_refresh",
+        detail={
+            "summary": summary,
+            "loaded_at": payload.get("loaded_at") if isinstance(payload, dict) else None,
+        },
+    )
+    response = {
+        "status": payload.get("status", "ok") if isinstance(payload, dict) else "ok",
+        "refreshed": summary,
+        "loaded_at": payload.get("loaded_at") if isinstance(payload, dict) else None,
+    }
+    if response["status"] != "ok":
+        return (
+            jsonify(
+                {
+                    "error": "plan refresh returned non-ok status",
+                    "details": response,
+                }
+            ),
+            502,
+        )
+    return jsonify(response)
+
 
 def _build_db_config() -> dict:
     url = os.getenv("DATABASE_URL")

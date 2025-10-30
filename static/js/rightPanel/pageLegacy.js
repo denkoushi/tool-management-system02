@@ -197,13 +197,44 @@ export function bootstrapLegacy({ socket: injectedSocket } = {}) {
     if (currentUserUid) { u.classList.add('completed'); } else { u.classList.remove('completed','active'); }
     if (currentToolUid) { t.classList.add('completed'); } else { t.classList.remove('completed'); currentUserUid ? t.classList.add('active') : t.classList.remove('active'); }
   }
-  function showMessage(id, msg, type) {
+  function showMessage(id, msg, type, duration = 5000) {
     const el = document.getElementById(id);
+    if (!el) return;
     el.innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
-    setTimeout(()=>{ el.innerHTML=''; }, 5000);
+    el.style.display = 'block';
+    if (duration !== 0) {
+      setTimeout(() => {
+        el.innerHTML = '';
+        el.style.display = 'none';
+      }, duration);
+    }
   }
 
   const productionHighlightState = { part: null, order: null };
+
+  async function refreshPlanCache(button) {
+    const targetId = 'productionHighlightMessage';
+    if (button) button.disabled = true;
+    showMessage(targetId, 'サーバーの計画キャッシュを更新しています…', 'info', 6000);
+    try {
+      const res = await fetch('/api/plan/refresh', { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.status !== 'ok') {
+        throw new Error(data.error || '再読込に失敗しました');
+      }
+      showMessage(
+        targetId,
+        'サーバーの計画キャッシュを更新しました。ページを再読み込みすると最新状況が反映されます。',
+        'success',
+        8000,
+      );
+    } catch (error) {
+      const message = error && error.message ? error.message : '再読込に失敗しました';
+      showMessage(targetId, message, 'danger', 8000);
+    } finally {
+      if (button) button.disabled = false;
+    }
+  }
 
   function highlightProductionRows(part, order){
     const planBody = document.querySelector('#productionPlanTable tbody');
@@ -307,6 +338,15 @@ export function bootstrapLegacy({ socket: injectedSocket } = {}) {
     };
     attach('#productionPlanTable');
     attach('#standardTimesTable');
+  }
+
+  function bindPlanRefreshControl() {
+    const button = document.getElementById('planRefreshBtn');
+    if (!button) return;
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      refreshPlanCache(button);
+    });
   }
 
   // 一覧
@@ -495,6 +535,7 @@ export function bootstrapLegacy({ socket: injectedSocket } = {}) {
     loadLoansData();
     loadToolNames();
     attachProductionRowHandlers();
+    bindPlanRefreshControl();
     bindTabButtons();
     bindScanControls();
     bindRegistrationControls();

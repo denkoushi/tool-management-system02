@@ -193,6 +193,19 @@
   .doc-viewer-status--offline{color:#fecaca;border-color:rgba(248,113,113,.45);background:rgba(248,113,113,.18);}
   .btn-reload{background:none;border:1px solid rgba(148,163,184,.35);color:#e2e8f0;font-size:12px;padding:6px 10px;border-radius:6px;cursor:pointer;transition:background .15s, border .15s;}
   .btn-reload:hover{background:rgba(148,163,184,.18);border-color:rgba(148,163,184,.55);}
+  .btn-plan-refresh{
+    background:rgba(148,163,184,.18);
+    border:1px solid rgba(148,163,184,.4);
+    color:#e2e8f0;
+    font-size:11px;
+    font-weight:600;
+    padding:4px 10px;
+    border-radius:6px;
+    cursor:pointer;
+    transition:background .15s, border .15s;
+  }
+  .btn-plan-refresh:hover{background:rgba(255,255,255,.16);border-color:rgba(148,163,184,.6);}
+  .btn-plan-refresh:disabled{opacity:.6;cursor:not-allowed;}
   .doc-viewer-wrapper{flex:1;position:relative;}
   #docViewerFrame{width:100%;height:100%;border:0;background:#0f172a;}
   .doc-viewer-overlay{position:absolute;inset:6px;border-radius:var(--radius);background:rgba(15,23,42,.72);color:#f8fafc;display:flex;align-items:center;justify-content:center;text-align:center;padding:12px;font-size:var(--fs-sm);line-height:1.4;box-shadow:0 12px 32px rgba(15,23,42,.35);}
@@ -424,6 +437,7 @@
         <div class="production-dashboard__meta">
           {% if production_view.plan_updated_at %}<span>生産計画: <strong>{{ production_view.plan_updated_at }}</strong></span>{% endif %}
           {% if production_view.standard_updated_at %}<span>標準工数: <strong>{{ production_view.standard_updated_at }}</strong></span>{% endif %}
+          <button type="button" id="planRefreshBtn" class="btn-plan-refresh">サーバー再読込</button>
         </div>
       </div>
       <div class="production-dashboard__body">
