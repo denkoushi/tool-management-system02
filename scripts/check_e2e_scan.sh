@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
-
 # Quick end-to-end sanity check for Window A (Pi4).
-# 1. ping raspi-server.local via mDNS
-# 2. POST /api/v1/scans and report HTTP status
 
 set -euo pipefail
 
@@ -47,7 +44,11 @@ response=$(curl -sS -w '\nHTTP %{http_code}\n' \
 body=$(printf '%s' "${response}" | sed '$d')
 status=$(printf '%s' "${response}" | tail -n1 | awk '{print $2}')
 
-printf '%s\n' "${body}" | jq '.' >/dev/null 2>&1 || warn "   jq not installed。生レスポンス: ${body}"
+if command -v jq >/dev/null 2>&1; then
+  printf '%s\n' "${body}" | jq '.'
+else
+  warn "   jq not installed。生レスポンス: ${body}"
+fi
 
 if [[ "${status}" == "201" ]]; then
   info "   HTTP 201 (accepted)"

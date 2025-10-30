@@ -436,6 +436,7 @@
 2. 反映確認：`sudo logrotate --debug /etc/logrotate.d/toolmgmt | head -n 20`
 3. ルール追加後は `sudo systemctl status cron`（または `anacron`）を確認し、デフォルトの logrotate が有効であることを確認する。
 4. ローテーション後のログは `/var/log/toolmgmt/*.log.*.gz` へ保存されるため、保管ポリシーに従って外部媒体へコピーする。
+5. 日次点検時は Pi4 で `sudo tail -n 20 /var/log/document-viewer/import.log` を実行し、直近の取り込み結果とエラー有無を記録する（詳細は `docs/checklists/daily-end-to-end.md`）。
 
 ### 3.7 生産計画／標準工数の同期（USB）
 
@@ -786,3 +787,13 @@
 
 - `templates/index.html` のスタイルをコンパクト化済み。テーブルの行高と余白を圧縮し、**貸出中／履歴**の可視件数を増やしています。
 - 一覧ヘッダはスクロール時も見えるよう **固定化** しています（`position: sticky`）。
+
+#### 3.6.1 日次疎通チェック（任意）
+- `scripts/e2e_scan_log.sh` を `cron` に登録すると、毎朝の ping / REST 検証ログを `/var/log/toolmgmt/e2e.log` に蓄積できる。
+  1. `sudo tee /etc/cron.d/toolmgmt-e2e >/dev/null <<'CRON'
+  0 7 * * * root /home/tools01/tool-management-system02/scripts/e2e_scan_log.sh
+  CRON`
+  2. `sudo chmod 644 /etc/cron.d/toolmgmt-e2e`
+  3. `sudo systemctl restart cron`
+- ログは `less /var/log/toolmgmt/e2e.log` で確認。異常時は `grep '[NG]'` で判定できる。
+- 複数端末で実行する場合は `/var/log/toolmgmt` の権限を環境に合わせて調整する。

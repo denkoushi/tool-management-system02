@@ -39,7 +39,7 @@ RaspberryPiServer (Pi5) と Window A (Pi4) の間で、USB → REST → Socket.I
 
 4. **Viewer 表示確認（Pi4）**
    - ブラウザで `http://localhost:8501/viewer` を開き、`testpart.pdf` が表示されること。
-   - 必要に応じて `sudo tail -n 20 /var/log/document-viewer/import.log` を確認。
+   - `sudo tail -n 20 /var/log/document-viewer/import.log` を確認し、直近の実行でエラーが出ていないこと・必要に応じてタイムスタンプが最新であることを記録。
 
 ## ログ確認コマンド一覧
 - Pi5 アプリケーションログ: `cd ~/RaspberryPiServer && sudo docker compose logs app -n 50`
@@ -49,3 +49,7 @@ RaspberryPiServer (Pi5) と Window A (Pi4) の間で、USB → REST → Socket.I
 - mDNS が解決できない場合は `/etc/hosts` を空にし、Avahi の再起動 (`sudo systemctl restart avahi-daemon`) を試す。
 - REST がタイムアウトする場合は Pi5 の Docker サービス状態 (`sudo systemctl status docker`) を確認。
 - Viewer が更新されない場合はブラウザの Socket.IO ステータスを確認し、必要であればページを再読込みする。
+
+## 自動化メモ
+- `scripts/e2e_scan_log.sh` を `cron` で実行すると `/var/log/toolmgmt/e2e.log` に結果を蓄積できる。
+- ログは `grep "[NG]" /var/log/toolmgmt/e2e.log` で異常検知可能。
