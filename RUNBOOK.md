@@ -387,6 +387,9 @@
         # DocumentViewer のローカル格納ディレクトリ（USB importer が参照）
         mkdir -p ~/DocumentViewer/documents ~/DocumentViewer/imports/failed
 
+        # 手動チェック用スクリプト（任意）
+        ./scripts/check_e2e_scan.sh
+
 3. **環境変数ファイルの展開**（Window A 用設定）
 
         cd ~/tool-management-system02
