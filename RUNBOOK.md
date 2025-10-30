@@ -381,6 +381,9 @@
         pip install -r app/requirements.txt
         deactivate
 
+        # RaspberryPiServer への名前解決確認（mDNS）
+        ping -c 2 raspi-server.local || echo "※ Pi5 のホスト名を 'raspi-server' に設定し、クライアント側の mDNS/Avahi を確認してください"
+
         # DocumentViewer のローカル格納ディレクトリ（USB importer が参照）
         mkdir -p ~/DocumentViewer/documents ~/DocumentViewer/imports/failed
 
