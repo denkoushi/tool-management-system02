@@ -113,5 +113,47 @@
 3. **USB 共有運用**  
    - `usb_master_sync.sh` と DocumentViewer importer の直列動作確認、ログ整備、エラーメッセージ統一。
 
+## 6. 次に着手するモジュール化タスク（2025-10-30 更新）
+
+| 優先度 | 対象モジュール | 目的 | 主な Todo |
+| --- | --- | --- | --- |
+| 高 | 左ペイン「借用/返却」ビュー (`templates/index.html` 内) | 右ペインと同様にテンプレートを分割し、再利用しやすい構造へ改修する | 1. `templates/left_panel/operations.html`（仮）への抽出<br>2. `static/js/rightPanel/pageLegacy.js` で依存している DOM ID を洗い替え<br>3. pytest + Jinja を用いたレンダリングテストを追加 |
+| 中 | 登録・マスタ関連フォーム | REST API 化後の再利用を見据えてフロントロジックを整理 | 1. `data-action` ベースのイベントハンドラを ES モジュール化<br>2. API コールを共通ラッパに集約し、エラー処理を統一<br>3. 成功/失敗トーストを `showMessage` の改良版へ置き換え |
+| 中 | API トークン管理 UI | 他端末からも利用できるコンポーネントとして切り出す | 1. テンプレートを `templates/partials/` へ移動<br>2. `static/js/rightPanel/apiTokensPanel.js` を単体実行可能な ES モジュールへ整理<br>3. レスポンスモックを用いた単体テストを追加 |
+| 低 | スタイルガイド整備 | 将来的な CSS ツール導入に備えてデザイントークンを整理 | 1. 共通スタイルを `static/css/`（新設）へ移管<br>2. 長期的には PostCSS / Tailwind 等の導入を検討 |
+
+> 各タスクは着手時に専用ブランチを作成し、完了後に `docs/right-pane-plan.md` と `docs/implementation-plan.md` の進捗を更新する。
+
+- 進捗: 2025-10-30 時点で借用/返却タブの HTML を `templates/left_panel/operations.html` へ切り出し済み。今後は JS モジュール化と共通レイアウト化を継続する。
+
+### 6.1 左ペイン借用/返却ビュー 抜き出し案
+
+**テンプレート構成案**
+- `templates/layout/base.html`（新規）  
+  - `<head>` と全体レイアウト、共通スタイル/スクリプト読込を集約。
+- `templates/left_panel/operations.html`（新規）  
+  - 現在 `index.html` に直書きされている借用/返却タブ一式を移動。  
+  - `scanStatus` や `openLoansTable` などの DOM ID は維持し、インクルード先で `{{ include(...) }}` を利用。
+- `templates/left_panel/registration.html` / `master.html` / `maintenance.html`（段階的追加）  
+  - それぞれのタブを独立ファイル化し、今後の機能別モジュール化に備える。
+
+**JavaScript 再編案**
+- `static/js/modules/operationsPanel.js`（新規）  
+  - 既存 `pageLegacy.js` から借用/返却タブに関係する関数（`startScan`, `stopScan`, `loadLoansData`, `manualReturnLoan` 等）を移行。  
+  - 初期化関数 `initOperationsPanel({ fetchImpl, socket })` を公開し、イベントバインドを内部に隠蔽する。
+- `pageLegacy.js` は橋渡しのみに縮小し、各モジュールの `init` を呼び出す役割へ移行。
+- Socket.IO 経由のイベント (`transaction_complete`, `state_reset` 等) は `operationsPanel` 内で購読し、`socketClient.js` から DI する。
+
+**API/I/O の整理**
+- REST エンドポイント呼出（例: `/api/loans`, `/api/loan/manual-return` 等）は `static/js/modules/httpClient.js`（新規）に凝集。  
+  - 共通で `fetchJSON(path, { method, body })` を提供し、401/500 のエラー表示を統一。
+- トースト表示は右ペインで利用している `showMessage` を改修し、`modules/ui/flash.js` などに切り出して左右で共通利用する。
+
+**テスト戦略**
+- pytest + Jinja2 のサンプルデータで `left_panel/operations.html` をレンダリングし、主要 DOM ID が存在することを確認するスナップショットテストを追加。
+- JS は `vitest` もしくは `jest` で `operationsPanel` の主要関数（貸出データ整形、テーブル更新、トースト表示）をモック DOM 上で検証する。
+
+この抜き出し案をベースにブランチ `feature/operations-panel-extraction` を作成し、段階的にテンプレートと JS の分割を進める。
+
 ---
 このプランに沿ってタスクを順次進め、各ステップ完了後にドキュメントへ反映していきます。

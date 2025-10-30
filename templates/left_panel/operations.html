@@ -1,0 +1,51 @@
+<!-- 借用/返却 -->
+<div id="operations" class="tab-content active">
+  <div class="operation-header">
+    <h2>①ユーザー → ②アイテム の順にスキャン</h2>
+    <div class="operation-controls">
+      <div class="button-row" style="margin:0;">
+        <button class="btn btn-primary" id="startScanBtn" data-action="scan-start">スキャン開始</button>
+        <button class="btn btn-secondary" id="stopScanBtn" data-action="scan-stop" disabled>停止</button>
+        <button class="btn btn-danger" id="resetScanBtn" data-action="scan-reset">リセット</button>
+      </div>
+      <span id="scanStatus" class="status-indicator status-inactive">● 停止中</span>
+    </div>
+  </div>
+
+  <div class="scan-progress">
+    <div class="scan-step">
+      <label>①ユーザー</label>
+      <div id="userDisplay" class="scan-display"></div>
+    </div>
+    <div class="scan-step">
+      <label>②アイテム</label>
+      <div id="toolDisplay" class="scan-display"></div>
+    </div>
+  </div>
+
+  <div id="scanMessage"></div>
+  <div id="transactionResult"></div>
+
+  <hr class="section-divider">
+
+  <div class="bottom-tables">
+    <div class="table-section">
+      <div class="section-title">📋 貸出中</div>
+      <div class="scrollable-section">
+        <table class="data-table" id="openLoansTable">
+          <thead><tr><th>アイテム</th><th>借用者</th><th>借用日時</th><th>操作</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="table-section" id="historySection" style="margin-top:min(10px,2vh);display:none;">
+      <div class="section-title">履歴</div>
+      <div class="scrollable-section">
+        <table class="data-table" id="historyTable">
+          <thead><tr><th>区分</th><th>アイテム</th><th>ユーザー</th><th>日時</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
