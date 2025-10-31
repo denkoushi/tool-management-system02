@@ -158,6 +158,20 @@
      端末ユーザーが `tools02` など別名の場合は、`PLAN_OWNER`/`PLAN_GROUP` を実際のアカウントへ置き換えてください。
      USB ラベルは既定で `TOOLMASTER` を検出します。別ラベルやデバイスパスの場合は環境変数
      `USB_SYNC_LABEL` や `USB_SYNC_DEVICE` を設定してください。
+
+
+### 3.2 構内物流タスク（ベータ）
+
+- 右ペイン上部のトグルから **「構内物流」** を選択すると、Pi Zero から送信される搬送タスクを一覧で確認できます。  
+- `最新を取得` ボタンは Window A から RaspberryPiServer へ `GET /api/logistics/jobs?limit=100` を呼び出します。`RASPI_SERVER_BASE` と API トークンが正しく配布されている必要があります。
+- Socket.IO (`logistics_job_updated`) が受信できる場合はステータスチップが `LIVE` → 最新 1 件がハイライトされ、メッセージ欄に `搬送更新: JOB-XXXX → status` が表示されます。
+- REST 応答が取得できない場合（API トークン未設定・ラズパイ 5 停止など）はエラーとして「構内物流タスクの取得に失敗しました」と表示され、ステータスは `ERROR` になります。
+- 手動確認コマンド例：
+
+      curl -s -H "Authorization: Bearer ${API_TOKEN}" \
+        "http://raspi-server.local:8501/api/logistics/jobs?limit=5" | jq
+
+- RaspberryPiServer 側の JSON ストレージは `/srv/rpi-server/data/logistics/jobs.json`（既定）です。詳細は RaspberryPiServer リポジトリの RUNBOOK を参照してください。
 3. **同期の流れ**
    - USB を挿入 → `/media/tool-master/` に自動マウント → `master/*.csv` を取り込み（USB の更新が新しければ Pi を上書き）。
    - 取り込み対象の CSV/JSON は拡張子と MIME タイプをホワイトリスト検証し、許可外のファイルや形式が見つかった場合は同期を中断し `/var/log/toolmgmt/usbsync.log` に記録。

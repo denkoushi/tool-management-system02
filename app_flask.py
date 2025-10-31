@@ -350,6 +350,44 @@ def fetch_part_locations(limit: int = 200) -> list[dict[str, object]]:
     return results
 
 
+def fetch_logistics_jobs(limit: int = 100) -> list[dict[str, object]]:
+    try:
+        limit_value = int(limit or 0)
+    except (TypeError, ValueError):
+        limit_value = 100
+    limit_value = max(1, min(limit_value, 500))
+
+    client = _create_raspi_client()
+    if not client.is_configured():
+        print("[logistics] RASPI_SERVER_BASE is not configured")
+        return []
+
+    try:
+        payload = client.get_json(
+            "/api/logistics/jobs",
+            params={"limit": limit_value},
+        )
+    except (RaspiServerAuthError, RaspiServerClientError) as exc:
+        print(f"[logistics] remote fetch failed: {exc}")
+        return []
+
+    items = payload.get("items") or []
+    results: list[dict[str, object]] = []
+    for entry in items:
+        results.append(
+            {
+                "job_id": entry.get("job_id"),
+                "part_code": entry.get("part_code"),
+                "from_location": entry.get("from_location"),
+                "to_location": entry.get("to_location"),
+                "status": entry.get("status"),
+                "requested_at": entry.get("requested_at"),
+                "updated_at": entry.get("updated_at"),
+            }
+        )
+    return results
+
+
 def _extract_provided_token() -> str:
     header_token = request.headers.get(API_TOKEN_HEADER)
     if header_token:
@@ -854,6 +892,7 @@ def index():
     production_view = build_production_view()
     station_config = load_station_config()
     part_locations = fetch_part_locations()
+    logistics_jobs = fetch_logistics_jobs()
     token_info = get_token_info()
     return render_template(
         'index.html',
@@ -866,6 +905,7 @@ def index():
         production_view=production_view,
         station_config=station_config,
         part_locations=part_locations,
+        logistics_jobs=logistics_jobs,
         socket_client_config=SOCKET_CLIENT_CONFIG,
     )
 
@@ -1095,6 +1135,26 @@ def api_part_locations_list():
     limit_value = max(1, min(limit_value, 1000))
     items = fetch_part_locations(limit_value)
     log_api_action("part_location_list", detail={"count": len(items), "limit": limit_value})
+    return jsonify({
+        "items": items,
+        "limit": limit_value,
+    })
+
+
+@app.route('/api/logistics/jobs', methods=['GET'])
+@require_api_token("logistics_jobs_list")
+def api_logistics_jobs_list():
+    raw_limit = request.args.get('limit', 100)
+    try:
+        limit_value = int(raw_limit)
+    except (TypeError, ValueError):
+        limit_value = 100
+    limit_value = max(1, min(limit_value, 500))
+    items = fetch_logistics_jobs(limit_value)
+    log_api_action(
+        "logistics_jobs_list",
+        detail={"count": len(items), "limit": limit_value},
+    )
     return jsonify({
         "items": items,
         "limit": limit_value,

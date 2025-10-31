@@ -10,7 +10,11 @@
           <button type="button" data-target="docViewerPanel">要領書</button>
           <button type="button" data-target="partLocationsPanel">
             所在一覧
-            <span class="tab-badge">{{ part_locations|length }}</span>
+            <span class="tab-badge partlocations-tab-badge">{{ part_locations|length }}</span>
+          </button>
+          <button type="button" data-target="logisticsPanel">
+            構内物流
+            <span class="tab-badge logistics-tab-badge">0</span>
           </button>
         </div>
         <span id="partLocationSocketStatus" class="part-location-chip" data-state="loading">接続確認中…</span>

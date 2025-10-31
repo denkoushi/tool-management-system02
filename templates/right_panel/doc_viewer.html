@@ -8,7 +8,11 @@
       <button type="button" class="active" data-target="docViewerPanel">要領書</button>
       <button type="button" data-target="partLocationsPanel">
         所在一覧
-        <span class="tab-badge" id="partLocationsTabBadge">{{ part_locations|length }}</span>
+        <span class="tab-badge partlocations-tab-badge" id="partLocationsTabBadge">{{ part_locations|length }}</span>
+      </button>
+      <button type="button" data-target="logisticsPanel">
+        構内物流
+        <span class="tab-badge logistics-tab-badge">0</span>
       </button>
     </div>
     <div class="doc-viewer-status-group">

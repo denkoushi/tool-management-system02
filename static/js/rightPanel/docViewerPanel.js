@@ -11,7 +11,15 @@ export function initDocViewer({
   initialOnline = false,
 }) {
   const panel = document.getElementById(panelId);
-  if (!panel) return null;
+  if (!panel) {
+    console.warn('[docViewer] panel not found, returning no-op handlers');
+    return {
+      reload() {},
+      updateStateChips() {},
+      notifyStationChange() {},
+      setUrl() {},
+    };
+  }
 
   const frame = document.getElementById(iframeId);
   const overlay = document.getElementById(overlayId);
@@ -21,7 +29,8 @@ export function initDocViewer({
   const partChip = document.getElementById(partChipId);
   const reloadBtn = document.getElementById(reloadBtnId);
   const returnBtn = document.getElementById(returnBtnId);
-  let docViewerUrl = initialUrl.trim();
+  const datasetUrl = panel.dataset.docViewerUrl ? panel.dataset.docViewerUrl.trim() : '';
+  let docViewerUrl = (initialUrl || datasetUrl || '').trim();
 
   function setStatus(state, label) {
     if (!statusEl) return;

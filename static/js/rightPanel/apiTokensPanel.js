@@ -127,7 +127,7 @@ export function initApiTokens({ fetchImpl = window.fetch.bind(window) } = {}) {
       }
       if (issuedPre) {
         issuedPre.textContent = `station_id: ${data.station_id}\nissued_at: ${data.issued_at}\ntoken: ${data.token}`;
-        issuedPre.style.display = 'block';
+        issuedPre.classList.remove('is-hidden');
       }
       setMessage('success', '新しいトークンを発行しました');
       await loadTokens();

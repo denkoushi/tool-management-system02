@@ -1,0 +1,53 @@
+<!-- タグ登録 -->
+<div id="registration" class="tab-content">
+  <h2>🔖 タグ登録</h2>
+
+  <div class="info-card">
+    <h3 class="info-card__title">🔍 タグ情報確認</h3>
+    <p class="info-card__body">NFCタグをスキャンして、現在の登録状況を確認できます</p>
+    <div class="input-group">
+      <button class="btn btn-info" data-action="tag-check">🔍 タグ情報を確認</button>
+    </div>
+    <div id="tagCheckResult"></div>
+  </div>
+
+  <div class="card-grid">
+    <!-- ユーザー登録 -->
+    <div class="card-grid__item">
+      <h3>👤 ユーザー登録</h3>
+      <div class="input-group">
+        <button class="btn btn-primary" data-action="scan-user">スキャンしてUID取得</button>
+      </div>
+      <div class="input-group">
+        <label>UID（自動入力）</label>
+        <input type="text" id="userUidInput" class="form-control" readonly>
+      </div>
+      <div class="input-group">
+        <label>氏名（例：山田太郎）</label>
+        <input type="text" id="userNameInput" class="form-control" placeholder="山田太郎">
+      </div>
+      <button class="btn btn-primary" data-action="register-user">💾 登録 / 更新（ユーザー）</button>
+      <div id="userRegResult"></div>
+    </div>
+
+    <!-- アイテム登録 -->
+    <div class="card-grid__item">
+      <h3>📦 アイテム登録</h3>
+      <div class="input-group">
+        <button class="btn btn-primary" data-action="scan-tool">スキャンしてUID取得</button>
+      </div>
+      <div class="input-group">
+        <label>UID（自動入力）</label>
+        <input type="text" id="toolUidInput" class="form-control" readonly>
+      </div>
+      <div class="input-group">
+        <label>アイテム名（マスタから選択）</label>
+        <select id="toolNameSelect" class="form-control">
+          <option value="">（選択してください）</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" data-action="register-tool">💾 登録 / 更新（アイテム）</button>
+      <div id="toolRegResult"></div>
+    </div>
+  </div>
+</div>

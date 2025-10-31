@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <title>Right Panel Preview</title>
+  <style>
+  :root{
+    color-scheme: light;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:#f8fafc;
+    color:#0f172a;
+  }
+  h2,h3{margin:0;}
+  .preview-layout{
+    display:flex;
+    gap:20px;
+    padding:20px;
+    align-items:flex-start;
+  }
+  .preview-panel{
+    flex:1;
+    background:#fff;
+    border-radius:12px;
+    border:1px solid rgba(148,163,184,.35);
+    box-shadow:0 20px 35px rgba(15,23,42,.12);
+    padding:18px;
+    min-height:460px;
+  }
+  .preview-controls{
+    width:240px;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    background:#fff;
+    border-radius:12px;
+    border:1px solid rgba(148,163,184,.35);
+    padding:16px;
+    box-shadow:0 20px 35px rgba(15,23,42,.12);
+  }
+  button{
+    cursor:pointer;
+    border-radius:8px;
+    border:1px solid rgba(71,85,105,.2);
+    padding:8px 12px;
+    font-size:14px;
+    background:#0ea5e9;
+    color:#fff;
+  }
+  button:hover{background:#0284c7;}
+  button[disabled]{opacity:.6;cursor:not-allowed;}
+  .doc-viewer-header{
+    display:flex;
+    gap:14px;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:12px;
+  }
+  .doc-viewer-status{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    padding:6px 10px;
+    border-radius:999px;
+    font-size:12px;
+    font-weight:600;
+    background:#e2e8f0;
+  }
+  .doc-viewer-status--online{background:rgba(34,197,94,.2);color:#166534;}
+  .doc-viewer-status--offline{background:rgba(248,113,113,.2);color:#991b1b;}
+  .doc-viewer-status__dot{
+    width:8px;height:8px;border-radius:999px;background:currentColor;display:block;
+  }
+  .doc-viewer-chip{
+    display:inline-flex;
+    align-items:center;
+    padding:4px 10px;
+    border-radius:999px;
+    background:#e2e8f0;
+    font-size:12px;
+    margin-left:6px;
+  }
+  .doc-viewer-wrapper{
+    position:relative;
+    border-radius:10px;
+    overflow:hidden;
+    border:1px solid rgba(148,163,184,.35);
+    height:340px;
+  }
+  iframe{
+    width:100%;
+    height:100%;
+    border:0;
+    background:#0f172a;
+  }
+  .doc-viewer-overlay{
+    position:absolute;
+    inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:rgba(15,23,42,.85);
+    color:#f8fafc;
+    font-size:15px;
+    text-align:center;
+    padding:20px;
+  }
+  .doc-viewer-overlay.is-hidden{display:none;}
+  .part-locations-table{
+    width:100%;
+    border-collapse:collapse;
+    margin-top:12px;
+    font-size:13px;
+  }
+  .part-locations-table th,
+  .part-locations-table td{
+    padding:8px 10px;
+    border-bottom:1px solid rgba(148,163,184,.3);
+    text-align:left;
+  }
+  .part-locations-table tbody tr.is-flash{
+    background:rgba(14,165,233,.18);
+    transition:background .3s ease;
+  }
+  .part-location-chip{
+    display:inline-flex;
+    align-items:center;
+    border-radius:999px;
+    padding:4px 10px;
+    background:#e2e8f0;
+    font-size:12px;
+    margin-right:6px;
+  }
+  .part-locations-meta{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+    margin-top:10px;
+  }
+  .part-locations-message{
+    min-height:22px;
+    margin-top:10px;
+    font-size:13px;
+  }
+  .alert{
+    padding:6px 10px;
+    border-radius:6px;
+  }
+  .alert-success{background:rgba(34,197,94,.15);color:#166534;}
+  .alert-info{background:rgba(14,165,233,.15);color:#0c4a6e;}
+  .view-switch{
+    display:flex;
+    gap:6px;
+  }
+  .view-switch button{
+    background:#f1f5f9;
+    color:#0f172a;
+    border:1px solid rgba(148,163,184,.4);
+  }
+  .tab-badge{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    margin-left:6px;
+    padding:0 6px;
+    min-width:20px;
+    border-radius:999px;
+    background:#e2e8f0;
+    font-size:12px;
+  }
+  .logistics-shell{display:flex;flex-direction:column;gap:16px;}
+  .logistics-header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;}
+  .logistics-header__left{display:flex;flex-direction:column;gap:6px;}
+  .logistics-title{margin:0;font-size:18px;color:#0f172a;}
+  .logistics-subtitle{margin:0;font-size:13px;color:#475569;}
+  .logistics-header__meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .logistics-chip{display:inline-flex;align-items:center;padding:4px 10px;border-radius:999px;font-size:12px;background:#e2e8f0;color:#1f2937;}
+  .logistics-chip[data-state="live"]{background:rgba(34,197,94,.2);color:#166534;}
+  .logistics-chip[data-state="offline"]{background:rgba(248,113,113,.2);color:#991b1b;}
+  .logistics-chip[data-state="error"]{background:rgba(248,113,113,.25);color:#991b1b;}
+  .btn-reload{border:1px solid rgba(148,163,184,.4);background:#0ea5e9;color:#fff;border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer;}
+  .btn-reload:hover{background:#0284c7;}
+  .logistics-table-wrapper{flex:1;overflow:auto;border:1px solid rgba(148,163,184,.35);border-radius:10px;background:#fff;}
+  .logistics-table{width:100%;border-collapse:collapse;font-size:13px;}
+  .logistics-table th,.logistics-table td{padding:8px 10px;border-bottom:1px solid rgba(148,163,184,.25);text-align:left;}
+  .logistics-table thead{background:#f1f5f9;color:#1f2937;font-size:11px;text-transform:uppercase;letter-spacing:.05em;}
+  .logistics-table tbody tr.is-flash{background:rgba(14,165,233,.16);transition:background .3s ease;}
+  .logistics-message{min-height:28px;}
+  .logistics-empty{padding:16px;border:1px dashed rgba(148,163,184,.35);border-radius:8px;text-align:center;font-size:13px;color:#475569;}
+  .preview-controls h3{
+    font-size:15px;
+    margin-bottom:6px;
+  }
+  .preview-controls small{
+    color:#475569;
+    display:block;
+    margin-bottom:10px;
+    line-height:1.5;
+  }
+  </style>
+</head>
+<body>
+  <main class="preview-layout">
+    <section class="preview-panel active" id="docViewerPanel">
+      <h2 style="margin-bottom:10px;">DocumentViewer パネル</h2>
+      <div class="doc-viewer-header">
+        <div class="view-switch" role="tablist">
+          <button type="button" class="active" data-target="docViewerPanel">要領書</button>
+          <button type="button" data-target="partLocationsPanel">
+            所在一覧
+            <span class="tab-badge partlocations-tab-badge">0</span>
+          </button>
+          <button type="button" data-target="logisticsPanel">
+            構内物流
+            <span class="tab-badge logistics-tab-badge">0</span>
+          </button>
+        </div>
+        <div>
+          <div id="docViewerStatus" class="doc-viewer-status doc-viewer-status--offline" data-state="offline">
+            <span class="doc-viewer-status__dot"></span>
+            <span class="doc-viewer-status__label">未接続</span>
+          </div>
+          <span id="docViewerStateChip" class="doc-viewer-chip">状態: 未表示</span>
+          <span id="docViewerPartChip" class="doc-viewer-chip doc-viewer-chip--part" data-empty="true">部品番号: -</span>
+        </div>
+        <div>
+          <button id="docViewerReloadBtn" type="button">再読み込み</button>
+          <button id="docViewerReturnBtn" type="button" style="margin-left:6px;">待機画面に戻る</button>
+        </div>
+      </div>
+      <div class="doc-viewer-wrapper">
+        <iframe id="docViewerFrame" title="Document Viewer" src=""></iframe>
+        <div id="docViewerOverlay" class="doc-viewer-overlay">DocumentViewer の URL が設定されていません。</div>
+      </div>
+    </section>
+
+    <section class="preview-panel" id="partLocationsPanel">
+      <h2 style="margin-bottom:6px;">所在一覧パネル</h2>
+      <div class="part-locations-meta">
+        <span id="partLocationSocketStatus" class="part-location-chip" data-state="loading">接続確認中…</span>
+        <span id="partLocationCount" class="part-location-chip">件数: 0</span>
+        <span id="partLocationLastUpdated" class="part-location-chip">最終更新: —</span>
+        <button id="partLocationRefreshBtn" type="button">最新を取得</button>
+      </div>
+      <div id="partLocationsMessage" class="part-locations-message"></div>
+      <table class="part-locations-table" id="partLocationsTable">
+        <thead>
+          <tr>
+            <th>アイテム番号</th>
+            <th>棚位置</th>
+            <th>デバイス</th>
+            <th>スキャン時刻</th>
+            <th>更新時刻</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div id="partLocationsEmpty" class="part-locations-message">まだ所在データが登録されていません。</div>
+    </section>
+
+    <section class="preview-panel" id="logisticsPanel">
+      <div class="logistics-shell">
+        <div class="logistics-header">
+          <div class="logistics-header__left">
+            <h2 class="logistics-title">構内物流パネル</h2>
+            <p class="logistics-subtitle">Pi Zero からの搬送依頼を確認するプレビューです。</p>
+          </div>
+          <div class="logistics-header__meta">
+            <span id="logisticsSocketStatus" class="logistics-chip" data-state="loading">接続確認中…</span>
+            <span id="logisticsTaskCount" class="logistics-chip">件数: 0</span>
+            <span id="logisticsLastUpdated" class="logistics-chip">最終更新: —</span>
+            <button type="button" id="logisticsRefreshBtn" class="btn-reload">最新を取得</button>
+          </div>
+        </div>
+        <div id="logisticsMessage" class="logistics-message"></div>
+        <div class="logistics-table-wrapper">
+          <table class="logistics-table" id="logisticsTable">
+            <thead>
+              <tr>
+                <th style="width:16%;">タスクID</th>
+                <th style="width:18%;">部品番号</th>
+                <th style="width:18%;">搬送元</th>
+                <th style="width:18%;">搬送先</th>
+                <th style="width:12%;">状態</th>
+                <th style="width:18%;">更新時刻</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div id="logisticsEmpty" class="logistics-empty">搬送タスクがまだ登録されていません。</div>
+      </div>
+    </section>
+
+    <aside class="preview-controls">
+      <div>
+        <h3>操作</h3>
+        <small>イベントを手動で発火し、UI の反応を確認できます。</small>
+        <button id="preview-refresh" type="button">REST で再取得</button>
+        <button id="preview-socket" type="button">Socket.IO イベントを送信</button>
+        <button id="preview-logistics-refresh" type="button">物流 REST 更新</button>
+        <button id="preview-logistics-socket" type="button">物流 Socket イベント</button>
+        <button id="preview-viewer-state" type="button">Viewer state を更新</button>
+        <button id="preview-station" type="button">工程設定を通知</button>
+      </div>
+      <div>
+        <h3>使い方</h3>
+        <small>リポジトリルートで <code>python -m http.server 8000</code> を起動し、<br>
+        ブラウザで <code>http://localhost:8000/static/preview/right-panel.html</code> を開いてください。</small>
+      </div>
+    </aside>
+  </main>
+
+  <script type="module">
+    import { initDocViewer } from '/static/js/rightPanel/docViewerPanel.js';
+    import { initPartLocations } from '/static/js/rightPanel/partLocationsPanel.js';
+    import { initLogisticsPanel } from '/static/js/rightPanel/logisticsPanel.js';
+
+    const bootstrap = () => {
+      const sampleItems = [
+        {
+          order_code: 'A-100',
+          location_code: 'RACK-A1',
+          device_id: 'window-a',
+          scanned_at: '2025-10-31T12:00:00Z',
+          updated_at: '2025-10-31T12:00:05Z',
+        },
+        {
+          order_code: 'B-220',
+          location_code: 'RACK-B4',
+          device_id: 'pi-zero',
+          scanned_at: '2025-10-31T11:55:00Z',
+          updated_at: '2025-10-31T11:55:05Z',
+        },
+      ];
+
+      const logisticsItems = [
+        {
+          job_id: 'JOB-100',
+          part_code: 'PART-100',
+          from_location: '受入',
+          to_location: '組立',
+          status: 'pending',
+          requested_at: '2025-10-31T12:05:00Z',
+          updated_at: '2025-10-31T12:06:00Z',
+        },
+      ];
+
+      const socketListeners = {};
+      const mockSocket = {
+        connected: false,
+        on(event, handler) {
+          socketListeners[event] = handler;
+        },
+        io: {},
+      };
+
+      const previewFetch = async () => ({
+        ok: true,
+        json: async () => ({ items: sampleItems }),
+      });
+
+      const previewLogisticsFetch = async () => ({
+        ok: true,
+        json: async () => ({ items: logisticsItems }),
+      });
+
+      const docViewer = initDocViewer({
+        initialUrl: 'about:blank',
+        initialOnline: true,
+      }) || {};
+      if (typeof docViewer.setUrl === 'function') {
+        docViewer.setUrl('about:blank');
+      }
+
+      const partPanel = initPartLocations({
+        socket: mockSocket,
+        socketOptions: { autoConnect: false },
+        fetchImpl: previewFetch,
+        initialData: sampleItems,
+      });
+
+      const logisticsPanel = initLogisticsPanel({
+        socket: mockSocket,
+        socketOptions: { autoConnect: false },
+        fetchImpl: previewLogisticsFetch,
+        initialData: logisticsItems,
+      });
+
+      const panelIds = ['docViewerPanel', 'partLocationsPanel', 'logisticsPanel'];
+      const viewButtons = Array.from(document.querySelectorAll('.view-switch button[data-target]'));
+
+      const setPanelVisibility = (targetId) => {
+        panelIds.forEach((id) => {
+          const panelEl = document.getElementById(id);
+          if (!panelEl) return;
+          const isTarget = id === targetId;
+          panelEl.classList.toggle('active', isTarget);
+          panelEl.style.display = isTarget ? '' : 'none';
+        });
+        viewButtons.forEach((btn) => {
+          btn.classList.toggle('active', btn.dataset.target === targetId);
+        });
+      };
+
+      setPanelVisibility('docViewerPanel');
+
+      viewButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+          const target = button.dataset.target;
+          if (!target) return;
+          setPanelVisibility(target);
+        });
+      });
+
+      window.__previewHelpers = {
+        triggerSocketUpdate(payload) {
+          socketListeners.part_location_updated?.(payload);
+        },
+        triggerLogisticsSocketUpdate(payload) {
+          socketListeners.logistics_job_updated?.(payload);
+        },
+        setViewerState(statePayload) {
+          window.dispatchEvent(new MessageEvent('message', { data: { type: 'viewer-state', ...statePayload } }));
+        },
+        notifyStationChange(stationPayload) {
+          docViewer.notifyStationChange?.(stationPayload);
+        },
+        async refreshWith(items) {
+          sampleItems.splice(0, sampleItems.length, ...items);
+          await partPanel?.refresh?.();
+        },
+        async refreshLogisticsWith(items) {
+          logisticsItems.splice(0, logisticsItems.length, ...items);
+          await logisticsPanel?.refresh?.();
+        },
+      };
+
+      document.getElementById('preview-refresh')?.addEventListener('click', () => {
+        partPanel?.refresh?.();
+      });
+
+      document.getElementById('preview-socket')?.addEventListener('click', () => {
+        const now = new Date();
+        const payload = {
+          order_code: 'SIM-' + now.getMinutes() + now.getSeconds(),
+          location_code: 'PREVIEW-' + (Math.floor(Math.random() * 5) + 1),
+          device_id: 'preview-device',
+          scanned_at: now.toISOString(),
+          updated_at: now.toISOString(),
+        };
+        socketListeners.part_location_updated?.(payload);
+      });
+
+      document.getElementById('preview-logistics-refresh')?.addEventListener('click', () => {
+        logisticsPanel?.refresh?.();
+      });
+
+      document.getElementById('preview-logistics-socket')?.addEventListener('click', () => {
+        const now = new Date();
+        const payload = {
+          job_id: 'JOB-' + now.getMinutes() + now.getSeconds(),
+          part_code: 'PART-PREVIEW',
+          from_location: '倉庫',
+          to_location: '組立',
+          status: 'in_transit',
+          requested_at: new Date(now.getTime() - 60000).toISOString(),
+          updated_at: now.toISOString(),
+        };
+        socketListeners.logistics_job_updated?.(payload);
+      });
+
+      document.getElementById('preview-viewer-state')?.addEventListener('click', () => {
+        window.dispatchEvent(new MessageEvent('message', {
+          data: { type: 'viewer-state', state: 'viewer', part: 'PREVIEW-001' },
+        }));
+      });
+
+      document.getElementById('preview-station')?.addEventListener('click', () => {
+        docViewer.notifyStationChange?.({
+          process: '加工',
+          available: ['加工', '研磨'],
+          updated_at: new Date().toISOString(),
+        });
+      });
+    };
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', bootstrap);
+    } else {
+      bootstrap();
+    }
+  </script>
+</body>
+</html>

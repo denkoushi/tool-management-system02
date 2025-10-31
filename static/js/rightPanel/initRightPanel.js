@@ -1,6 +1,7 @@
 import { createSocket, bindSocketLifecycle } from './socketClient.js';
 import { initPartLocations } from './partLocationsPanel.js';
 import { initDocViewer } from './docViewerPanel.js';
+import { initLogisticsPanel } from './logisticsPanel.js';
 
 function loadInitialPartLocations() {
   try {
@@ -10,6 +11,52 @@ function loadInitialPartLocations() {
   } catch (err) {
     console.warn('Failed to parse initial part locations', err);
     return [];
+  }
+}
+
+function loadInitialLogistics() {
+  try {
+    const el = document.getElementById('initialLogisticsJobs');
+    if (!el) return [];
+    return JSON.parse(el.textContent || '[]') || [];
+  } catch (err) {
+    console.warn('Failed to parse initial logistics jobs', err);
+    return [];
+  }
+}
+
+function setupPanelSwitching() {
+  const buttons = Array.from(document.querySelectorAll('.view-switch button[data-target]'));
+  if (!buttons.length) return;
+  const panels = Array.from(document.querySelectorAll('.future-panel-body'));
+
+  const showPanel = (targetId) => {
+    panels.forEach((panel) => {
+      if (panel.id === targetId) {
+        panel.classList.add('active');
+      } else {
+        panel.classList.remove('active');
+      }
+    });
+    buttons.forEach((button) => {
+      button.classList.toggle('active', button.dataset.target === targetId);
+    });
+  };
+
+  buttons.forEach((button) => {
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      const target = button.dataset.target;
+      if (!target) return;
+      showPanel(target);
+    });
+  });
+
+  const activePanel = document.querySelector('.future-panel-body.active');
+  if (activePanel) {
+    showPanel(activePanel.id);
+  } else if (buttons[0]) {
+    showPanel(buttons[0].dataset.target);
   }
 }
 
@@ -52,10 +99,26 @@ export function initRightPanel() {
     initialOnline: panelEl?.dataset.docViewerOnline === 'true',
   });
 
+  const logistics = initLogisticsPanel({
+    socket,
+    socketOptions: options,
+    fetchImpl: window.fetch.bind(window),
+    initialData: loadInitialLogistics(),
+  });
+
   bindSocketLifecycle(socket, {
-    onConnect: () => partLocations?.setSocketStatus?.('live', 'LIVE'),
-    onDisconnect: () => partLocations?.setSocketStatus?.('offline', 'OFFLINE'),
-    onError: () => partLocations?.setSocketStatus?.('error', 'ERROR'),
+    onConnect: () => {
+      partLocations?.setSocketStatus?.('live', 'LIVE');
+      logistics?.setSocketStatus?.('live');
+    },
+    onDisconnect: () => {
+      partLocations?.setSocketStatus?.('offline', 'OFFLINE');
+      logistics?.setSocketStatus?.('offline');
+    },
+    onError: () => {
+      partLocations?.setSocketStatus?.('error', 'ERROR');
+      logistics?.setSocketStatus?.('error');
+    },
   });
 
   if (socketConfig.autoConnect !== false) {
@@ -66,6 +129,11 @@ export function initRightPanel() {
       if (stale || (socket && !socket.connected)) {
         partLocations?.refresh?.();
       }
+      const logisticsLast = logistics?.getLastRender?.() || 0;
+      const logisticsStale = now - logisticsLast > 20000;
+      if (logisticsStale || (socket && !socket.connected)) {
+        logistics?.refresh?.();
+      }
     }, 20000);
   }
 
@@ -73,5 +141,7 @@ export function initRightPanel() {
     window.notifyDocViewerStationChange = docViewer.notifyStationChange;
   }
 
-  return { socket, partLocations, docViewer };
+  setupPanelSwitching();
+
+  return { socket, partLocations, docViewer, logistics };
 }

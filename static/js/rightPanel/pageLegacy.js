@@ -1,65 +1,21 @@
 import { initApiTokens } from './apiTokensPanel.js';
 import { initMaintenancePanel } from './maintenancePanel.js';
+import { initOperationsPanel } from '../modules/operationsPanel.js';
+import { initRegistrationPanel } from '../modules/registrationPanel.js';
 
 export function bootstrapLegacy({ socket: injectedSocket } = {}) {
   const socket = injectedSocket || window.TOOLMGMT_SOCKET || null;
   let activeTab = 'operations';
-  let scanActive = false;
-  let currentUserUid = '';
-  let currentToolUid = '';
   const stationConfigInitial = window.stationConfigInitial || {};
+  let operationsModule = null;
+  let registrationModule = null;
+  let appScan = null;
 
-  const appScan = (function(){
-    let active = false;
-    let ctx = null;
-
-    async function start(newCtx){
-      try{
-        if (active){
-          await fetch('/api/stop_scan',{method:'POST'});
-        }
-        ctx = newCtx;
-        active = true;
-        await fetch('/api/start_scan',{method:'POST'});
-      }catch(_){}
-    }
-
-    async function stop(){
-      try{
-        if (active){
-          await fetch('/api/stop_scan',{method:'POST'});
-        }
-      }catch(_){}
-      active = false;
-      ctx = null;
-      try{
-        scanActive = false;
-        if (typeof updateScanStatus === 'function') updateScanStatus(false);
-      }catch(_){}
-    }
-
-    function get(){
-      return ctx;
-    }
-
-    window.addEventListener('beforeunload', ()=>{
-      try{
-        if (navigator.sendBeacon){
-          const b = new Blob([], {type:'application/json'});
-          navigator.sendBeacon('/api/stop_scan', b);
-        } else {
-          fetch('/api/stop_scan',{method:'POST', keepalive:true});
-        }
-      }catch(_){}
-    });
-
-    return { start, stop, get };
-  })();
-  window.appScan = appScan;
   const apiTokenModule = initApiTokens() || {};
   document.addEventListener('click', (event) => {
     const tabLike = event.target && event.target.closest('a[data-bs-toggle="tab"],[role="tab"],.tablinks,.tab-button,[data-tab-target],[data-tab]');
     if (!tabLike) return;
+    if (!appScan || typeof appScan.stop !== 'function') return;
     const maybePromise = appScan.stop();
     if (maybePromise && typeof maybePromise.catch === 'function') {
       maybePromise.catch(() => {});
@@ -75,18 +31,16 @@ export function bootstrapLegacy({ socket: injectedSocket } = {}) {
     if (triggerEl) triggerEl.classList.add('active');
     activeTab = tabName;
 
-    // 借用/返却タブ以外に移動したら見た目も停止状態へ（誤解防止）
-    if (tabName !== 'operations') {
-      scanActive = false;
-      if (typeof updateScanStatus === 'function') updateScanStatus(false);
+    if (tabName === 'operations') {
+      operationsModule?.onTabActivated();
+    } else {
+      operationsModule?.onTabDeactivated();
     }
 
-    if (tabName === 'registration' || tabName === 'master') loadToolNames();
-    if (tabName === 'operations') {
-      loadLoansData();
-      if (window.requestDocViewerFocus) {
-        try { window.requestDocViewerFocus(); } catch (_) {}
-      }
+    if (tabName === 'registration') {
+      registrationModule?.onRegistrationTabActivated?.();
+    } else if (tabName === 'master') {
+      registrationModule?.onMasterTabActivated?.();
     }
   }
 
@@ -94,7 +48,7 @@ export function bootstrapLegacy({ socket: injectedSocket } = {}) {
 
   function toggleHistory(){
     if(!historySection) return;
-    historySection.style.display = historySection.style.display === 'none' ? 'flex' : 'none';
+    historySection.classList.toggle('is-hidden');
   }
 
   function bindTabButtons(){
@@ -116,87 +70,6 @@ export function bootstrapLegacy({ socket: injectedSocket } = {}) {
     }
   }
 
-  function bindScanControls(){
-    const startBtn = document.getElementById('startScanBtn');
-    if (startBtn) {
-      startBtn.addEventListener('click', (event) => {
-        event.preventDefault();
-        startScan();
-      });
-    }
-    const stopBtn = document.getElementById('stopScanBtn');
-    if (stopBtn) {
-      stopBtn.addEventListener('click', (event) => {
-        event.preventDefault();
-        stopScan();
-      });
-    }
-    const resetBtn = document.getElementById('resetScanBtn');
-    if (resetBtn) {
-      resetBtn.addEventListener('click', (event) => {
-        event.preventDefault();
-        resetState();
-      });
-    }
-  }
-
-  function bindRegistrationControls(){
-    const actionMap = [
-      { selector: '[data-action="tag-check"]', handler: checkTagInfo },
-      { selector: '[data-action="scan-user"]', handler: scanForUser },
-      { selector: '[data-action="register-user"]', handler: registerUser },
-      { selector: '[data-action="scan-tool"]', handler: scanForTool },
-      { selector: '[data-action="register-tool"]', handler: registerTool },
-      { selector: '[data-action="add-tool-name"]', handler: addToolName },
-      { selector: '[data-action="delete-tool-name"]', handler: deleteToolName },
-    ];
-
-    actionMap.forEach(({ selector, handler }) => {
-      const targets = document.querySelectorAll(selector);
-      targets.forEach((element) => {
-        element.addEventListener('click', (event) => {
-          event.preventDefault();
-          handler();
-        });
-      });
-    });
-  }
-
-  // スキャン開始/停止：appScan ラッパ経由（loan 文脈）
-  function startScan() {
-    if (window.requestDocViewerFocus) {
-      try { window.requestDocViewerFocus(); } catch (_) {}
-    }
-    appScan.start('loan')
-      .then(() => { scanActive = true;  updateScanStatus(true);  showMessage('scanMessage','スキャンを開始しました','info'); })
-      .catch(()  => { showMessage('scanMessage','スキャン開始に失敗しました','danger'); });
-  }
-  function stopScan() {
-    appScan.stop()
-      .then(() => { scanActive = false; updateScanStatus(false); showMessage('scanMessage','スキャンを停止しました','warning'); })
-      .catch(()=>{});
-  }
-
-  // 表示更新
-  function updateScanStatus(active) {
-    const s = document.getElementById('scanStatus');
-    const startBtn = document.getElementById('startScanBtn');
-    const stopBtn  = document.getElementById('stopScanBtn');
-    if (active) {
-      s.className='status-indicator status-active'; s.innerHTML='スキャン中';
-      startBtn.disabled = true; stopBtn.disabled = false;
-    } else {
-      s.className='status-indicator status-inactive'; s.innerHTML='● 停止中';
-      startBtn.disabled = false; stopBtn.disabled = true;
-    }
-  }
-  function updateDisplays() {
-    const u = document.getElementById('userDisplay');
-    const t = document.getElementById('toolDisplay');
-    u.textContent = currentUserUid || ''; t.textContent = currentToolUid || '';
-    if (currentUserUid) { u.classList.add('completed'); } else { u.classList.remove('completed','active'); }
-    if (currentToolUid) { t.classList.add('completed'); } else { t.classList.remove('completed'); currentUserUid ? t.classList.add('active') : t.classList.remove('active'); }
-  }
   function showMessage(id, msg, type, duration = 5000) {
     const el = document.getElementById(id);
     if (!el) return;
@@ -349,196 +222,36 @@ export function bootstrapLegacy({ socket: injectedSocket } = {}) {
     });
   }
 
-  // 一覧
-  function loadLoansData() {
-    fetch('/api/loans').then(r=>r.json()).then(data=>{
-      const openBody=document.querySelector('#openLoansTable tbody'); openBody.innerHTML='';
-      data.open_loans.forEach(v=>{
-        const tr=openBody.insertRow();
-        tr.dataset.loanId = v.id;
-        tr.dataset.toolUid = v.tool_uid;
-        tr.dataset.toolLabel = v.tool;
-        const tdTool = tr.insertCell(0); tdTool.textContent=v.tool;
-        tr.insertCell(1).textContent=v.borrower;
-        const d=new Date(v.loaned_at);
-        tr.insertCell(2).textContent=`${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
-        const actions=tr.insertCell(3);
-        actions.className='table-actions';
-
-        const btnReturn=document.createElement('button');
-        btnReturn.className='btn-table btn-manual-return';
-        btnReturn.textContent='手動返却';
-        btnReturn.addEventListener('click',()=>manualReturnLoan(v.id, v.tool, v.borrower));
-
-        const btnDelete=document.createElement('button');
-        btnDelete.className='btn-table btn-delete';
-        btnDelete.textContent='削除';
-        btnDelete.addEventListener('click',()=>deleteLoanEntry(v.id, v.tool_uid, v.tool));
-
-        actions.appendChild(btnReturn);
-        actions.appendChild(btnDelete);
-      });
-      const histBody=document.querySelector('#historyTable tbody'); histBody.innerHTML='';
-      data.history.forEach(h=>{
-        const tr=histBody.insertRow(); tr.insertCell(0).textContent=h.action; tr.insertCell(1).textContent=h.tool; tr.insertCell(2).textContent=h.borrower;
-        const d=new Date(h.returned_at || h.loaned_at); tr.insertCell(3).textContent=`${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
-      });
-    });
-  }
-
-  async function manualReturnLoan(loanId, toolLabel, borrowerLabel){
-    if(!confirm(`「${toolLabel}」を手動で返却済みにします。${borrowerLabel}からの貸出を閉じてもよろしいですか？`)) return;
-    try{
-      const res = await fetch(`/api/loans/${loanId}/manual_return`, {method:'POST'});
-      const data = await res.json();
-      if(res.ok && data.status==='success'){
-        showMessage('transactionResult', data.message, 'info');
-        loadLoansData();
-      }else{
-        showMessage('scanMessage', data.error || '返却処理に失敗しました', 'danger');
-      }
-    }catch(e){
-      showMessage('scanMessage', `エラー: ${e}`, 'danger');
-    }
-  }
-
-  async function deleteLoanEntry(loanId, toolUid, toolLabel){
-    if(!confirm(`UID ${toolUid}\n「${toolLabel}」の貸出記録を削除します。履歴には残りません。よろしいですか？`)) return;
-    try{
-      const res = await fetch(`/api/loans/${loanId}`, {method:'DELETE'});
-      const data = await res.json();
-      if(res.ok && data.status==='success'){
-        showMessage('transactionResult', data.message, 'warning');
-        loadLoansData();
-      }else{
-        showMessage('scanMessage', data.error || '削除に失敗しました', 'danger');
-      }
-    }catch(e){
-      showMessage('scanMessage', `エラー: ${e}`, 'danger');
-    }
-  }
-
-  // リセット
-  function resetState() {
-    fetch('/api/reset',{method:'POST'}).then(r=>r.json()).then(()=>{
-      currentUserUid=''; currentToolUid=''; updateDisplays(); showMessage('scanMessage','🔄 リセット完了','info');
-      document.getElementById('transactionResult').innerHTML='';
-      if (window.requestDocViewerFocus) {
-        try { window.requestDocViewerFocus(); } catch (_) {}
-      }
-    });
-  }
-
-  // 登録タブ：単発スキャンAPI
-  function scanForUser() {
-    showMessage('userRegResult','スキャン中...','info');
-    fetch('/api/scan_tag',{method:'POST'}).then(r=>r.json()).then(d=>{
-      if(d.status==='success'){ document.getElementById('userUidInput').value=d.uid; showMessage('userRegResult',`✅ UID: ${d.uid}`,'success'); }
-      else{ showMessage('userRegResult','❌ 読み取りタイムアウト（タグを一度離して再タッチ）','danger'); }
-    });
-  }
-  function scanForTool() {
-    showMessage('toolRegResult','スキャン中...','info');
-    fetch('/api/scan_tag',{method:'POST'}).then(r=>r.json()).then(d=>{
-      if(d.status==='success'){ document.getElementById('toolUidInput').value=d.uid; showMessage('toolRegResult',`✅ UID: ${d.uid}`,'success'); }
-      else{ showMessage('toolRegResult','❌ 読み取りタイムアウト（タグを一度離して再タッチ）','danger'); }
-    });
-  }
-
-  // 登録/マスタ
-  function registerUser(){
-    const uid=document.getElementById('userUidInput').value;
-    const name=document.getElementById('userNameInput').value.trim();
-    if(!uid||!name){ showMessage('userRegResult','❌ UID と 氏名 は必須です','danger'); return; }
-    fetch('/api/register_user',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uid,name})})
-      .then(r=>r.json()).then(d=>{ d.status==='success'? (showMessage('userRegResult',d.message,'success'),document.getElementById('userNameInput').value='') : showMessage('userRegResult',d.error,'danger');});
-  }
-  function registerTool(){
-    const uid=document.getElementById('toolUidInput').value;
-    const name=document.getElementById('toolNameSelect').value;
-    if(!uid||!name){ showMessage('toolRegResult','❌ UID と アイテム名 は必須です','danger'); return; }
-    fetch('/api/register_tool',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uid,name})})
-      .then(r=>r.json()).then(d=>{ d.status==='success'? (showMessage('toolRegResult',d.message,'success'),document.getElementById('toolUidInput').value='',document.getElementById('toolNameSelect').value='') : showMessage('toolRegResult',d.error,'danger');});
-  }
-  function loadToolNames(){
-    fetch('/api/tool_names').then(r=>r.json()).then(d=>{
-      if(!d.names) return;
-      const toolSel=document.getElementById('toolNameSelect'); toolSel.innerHTML='<option value="">（選択してください）</option>';
-      d.names.forEach(n=>{ const o=document.createElement('option'); o.value=n; o.textContent=n; toolSel.appendChild(o); });
-      const delSel=document.getElementById('deleteToolNameSelect'); delSel.innerHTML='<option value="">（選択してください）</option>';
-      d.names.forEach(n=>{ const o=document.createElement('option'); o.value=n; o.textContent=n; delSel.appendChild(o); });
-    });
-  }
-  function addToolName(){
-    const name=document.getElementById('newToolNameInput').value.trim();
-    if(!name){ showMessage('masterResult','❌ アイテム名を入力してください','danger'); return; }
-    fetch('/api/add_tool_name',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})})
-      .then(r=>r.json()).then(d=>{ d.status==='success'? (showMessage('masterResult',d.message,'success'),document.getElementById('newToolNameInput').value='',loadToolNames()) : showMessage('masterResult',d.error,'danger');});
-  }
-  function deleteToolName(){
-    const name=document.getElementById('deleteToolNameSelect').value;
-    if(!name){ showMessage('masterResult','❌ 削除するアイテム名を選択してください','danger'); return; }
-    if(!confirm(`「${name}」を削除してもよろしいですか？`)) return;
-    fetch('/api/delete_tool_name',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})})
-      .then(r=>r.json()).then(d=>{ d.status==='success'? (showMessage('masterResult',d.message,'success'),loadToolNames()) : showMessage('masterResult',d.error,'danger');});
-  }
-
-  // WebSocket受信：借用/返却タブのときだけ UI 反映（文脈ガード）
-  if (socket) {
-    socket.on('scan_update', function(data){
-      const ctx = (window.appScan && window.appScan.get && window.appScan.get())
-                || (document.getElementById('operations').classList.contains('active') ? 'loan' : 'register');
-      if (ctx !== 'loan') return;
-
-      currentUserUid = data.user_uid || currentUserUid;
-      currentToolUid = data.tool_uid || currentToolUid;
-
-      const u=document.getElementById('userDisplay');
-      const t=document.getElementById('toolDisplay');
-      if (data.user_name) u.textContent = data.user_name;
-      if (data.tool_name) t.textContent = data.tool_name;
-
-      updateDisplays();
-      if (data.message) showMessage('scanMessage', data.message, 'info');
-    });
-    socket.on('transaction_complete', function(data){
-      document.getElementById('userDisplay').textContent = data.user_name;
-      document.getElementById('toolDisplay').textContent = data.tool_name;
-      showMessage('transactionResult', data.message, data.action==='borrow'?'success':'info');
-      loadLoansData();
-    });
-    socket.on('state_reset',  function(d){ currentUserUid=''; currentToolUid=''; updateDisplays(); showMessage('scanMessage',d.message,'info'); });
-    socket.on('error',        function(d){ showMessage('scanMessage', d.message,'danger'); });
-  }
-
-  // タグ情報確認（登録タブ）
-  function checkTagInfo(){
-    showMessage('tagCheckResult','タグをスキャンしています...','info');
-    fetch('/api/check_tag',{method:'POST'}).then(r=>r.json()).then(d=>{
-      if(d.status==='success'){
-        let type=d.type, msg=d.message, uid=d.uid, name=d.name, html='', cls='info';
-        if(type==='user'){ cls='success'; html=`<div style="padding:10px;background:#fff;border-radius:5px;margin-top:10px;">
-          <strong>🆔 UID:</strong> ${uid}<br><strong>📝 登録タイプ:</strong> ユーザー<br><strong>👤 氏名:</strong> ${name}</div>`; }
-        else if(type==='tool'){ cls='info'; html=`<div style="padding:10px;background:#fff;border-radius:5px;margin-top:10px;">
-          <strong>🆔 UID:</strong> ${uid}<br><strong>📝 登録タイプ:</strong> アイテム<br><strong>📦 アイテム名:</strong> ${name}</div>`; }
-        else { cls='warning'; html=`<div style="padding:10px;background:#fff;border-radius:5px;margin-top:10px;">
-          <strong>🆔 UID:</strong> ${uid}<br><strong>📝 登録状況:</strong> 未登録<br><em>このタグはまだユーザーまたはアイテムとして登録されていません</em></div>`; }
-        document.getElementById('tagCheckResult').innerHTML = `<div class="alert alert-${cls}">${msg}${html}</div>`;
-      } else {
-        showMessage('tagCheckResult','❌ 読み取りタイムアウト（タグを一度離して再タッチ）','danger');
-      }
-    });
-  }
-
   // 初期化
-  document.addEventListener('DOMContentLoaded', function(){
-    loadLoansData();
-    loadToolNames();
+  document.addEventListener('DOMContentLoaded', () => {
+    operationsModule = initOperationsPanel({
+      showMessage,
+      requestDocViewerFocus: window.requestDocViewerFocus,
+    }) || null;
+
+    if (operationsModule) {
+      operationsModule.bindUI?.();
+      operationsModule.loadLoansData?.();
+      operationsModule.registerSocketHandlers?.(socket);
+      appScan = operationsModule.getAppScan?.() || null;
+      if (appScan && typeof appScan.stop === 'function') {
+        window.appScan = appScan;
+        window.addEventListener('beforeunload', () => {
+          try { appScan.stop(); } catch (_) {}
+        });
+      }
+      operationsModule.onTabActivated?.();
+    }
+
+    registrationModule = initRegistrationPanel({
+      showMessage,
+    }) || null;
+
+    registrationModule?.bindUI?.();
+    registrationModule?.loadToolNames?.();
     attachProductionRowHandlers();
     bindPlanRefreshControl();
     bindTabButtons();
-    bindScanControls();
-    bindRegistrationControls();
     const maintenance = initMaintenancePanel({
       initialConfig: stationConfigInitial || {},
       fetchImpl: window.fetch.bind(window),
@@ -552,16 +265,12 @@ export function bootstrapLegacy({ socket: injectedSocket } = {}) {
         showMessage('stationConfigMessage', message, map[level] || 'info');
       },
     });
-    maintenance.fetch();
+    maintenance?.fetch?.();
     if (typeof apiTokenModule.loadTokens === 'function') {
       apiTokenModule.loadTokens();
     }
   });
 
   window.handleViewerBarcode = handleViewerBarcode;
-  window.loadLoansData = loadLoansData;
-  window.manualReturnLoan = manualReturnLoan;
-  window.deleteLoanEntry = deleteLoanEntry;
-  window.loadToolNames = loadToolNames;
   window.showTab = showTab;
 }

@@ -1,0 +1,25 @@
+{
+  "name": "tool-management-system02",
+  "version": "1.0.0",
+  "description": "このリポジトリは、Raspberry Pi 5 上で実運用していた **ZIP 版の安定構成**をそのまま保存する復旧用ベースラインです。   当面の起動は **python app_flask.py** を前提とします（ポート既定: **8501**）。",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "npm run test:js",
+    "test:js": "vitest run",
+    "test:e2e": "playwright test --config=tests/e2e/playwright.config.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "devDependencies": {
+    "@playwright/test": "^1.56.1",
+    "http-server": "^14.1.1",
+    "jsdom": "^26.1.0",
+    "vitest": "^3.2.4"
+  }
+}

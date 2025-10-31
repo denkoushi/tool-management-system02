@@ -188,7 +188,7 @@ sudo systemctl restart toolmgmt.service
     - タイムアウトは `RASPI_SERVER_TIMEOUT`（秒）で調整できます（デフォルト 4.0 秒）。
     - API 応答の可用性は `journalctl -u toolmgmt.service` やブラウザコンソールで確認し、失敗時は RaspberryPiServer 側のログとあわせて調査してください。
 
-11. **テスト（pytest）**
+11. **テスト（pytest / Vitest）**
 
         make test
 
@@ -201,13 +201,32 @@ sudo systemctl restart toolmgmt.service
 
     ※ `make test` でも同じ処理を行います。
 
+    フロントエンド（右ペイン・左ペインのモジュール化部分）は Node.js 18+ を想定し、Vitest で単体テストを追加しています。初回のみ依存を取得し、`npm run test:js` で実行してください。
+
+        npm install
+        npm run test:js
+
+    `npm test` でも同じく Vitest を実行します。
+
 12. **UI 操作ガイド（抜粋）**
 
     - メンテナンス → 工程設定: 工程候補の追加・削除、現在の工程を保存（station.json 更新）――保存すると DocumentViewer 側も即座に更新されます
     - 左上ペイン: DocumentViewer で部品番号をスキャンすると、生産計画・標準工数の両表がハイライト表示
     - バーコードが見つからない場合はピンクのメッセージが表示されるので、CSV 更新状況を確認
 
-13. **DocumentViewer 常駐化 + ブラウザのキオスク自動起動**
+13. **UI プレビュー（右ペイン簡易サンドボックス）**
+
+        python -m http.server 8000
+
+    ブラウザで `http://localhost:8000/static/preview/right-panel.html` を開くと、DocumentViewer／所在一覧／構内物流パネルを単体で確認できます。  
+    操作パネルから REST 再取得・Socket.IO 更新・Viewer 状態通知を手動で発火できるため、スタイル調整やフロー検証の際に利用してください（物流タブは `/api/logistics/jobs` のスタブレスポンスで動作します）。
+
+14. **E2E テスト計画**
+
+    Playwright を想定したエンドツーエンドテスト方針とスクリプト雛形を `docs/e2e-plan.md` に整理しました。  
+    プレビュー HTML を対象にしたスモークテストは `tests/e2e/smoke.spec.ts` に実装済みです（初回は `npx playwright install chromium` が必要）。通常はスキップされるため、実行する場合は `RUN_PREVIEW_E2E=1 npm run test:e2e` を指定します。実機 API と連携したシナリオを追加する場合は `.env.test` を整備してください。
+
+15. **DocumentViewer 常駐化 + ブラウザのキオスク自動起動**
 
         sudo bash setup_auto_start.sh                        # toolmgmt.service を設定
         sudo ~/DocumentViewer/scripts/install_docviewer_service.sh  # docviewer.service を設定

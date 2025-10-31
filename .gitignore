@@ -22,3 +22,7 @@ Thumbs.db
 *.backup*
 ok_images.zip
 backups/
+node_modules/
+logs/
+playwright-report/
+test-results/

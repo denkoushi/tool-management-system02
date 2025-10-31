@@ -1,0 +1,60 @@
+<!-- メンテナンス -->
+<div id="maintenance" class="tab-content">
+  <h2>🛠 メンテナンス</h2>
+  <div class="maintenance-card">
+    <h3>USB 同期（手動）</h3>
+    <p class="maintenance-note">ラベル <code>TOOLMASTER</code> の USB メモリを挿入してから実行すると、マスターデータ（工具名・ユーザー・タグ紐づけ）を同期します。</p>
+    <div class="button-row"><label class="maintenance-note">USB 同期（手動）：ラベル <code>TOOLMASTER</code> の USB メモリを挿入してから実行してください。</label></div>
+    <div class="button-row">
+      <button class="btn btn-primary" data-action="usb-sync">USB 同期を実行</button>
+      <pre id="usbSyncOutput" class="maintenance-output">(まだ実行していません)</pre>
+    </div>
+  </div>
+
+  <div class="maintenance-card">
+    <h3>工程設定</h3>
+    <p class="maintenance-note">ラズパイが属する工程を設定します。変更すると DocumentViewer や生産計画の候補表示に反映されます。</p>
+    <div class="input-row">
+      <div class="input-group">
+        <label>現在の工程</label>
+        <select id="stationProcessSelect" class="form-control">
+          <option value="">（未設定）</option>
+          {% for name in station_config.available %}
+            <option value="{{ name }}" {% if station_config.process == name %}selected{% endif %}>{{ name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button class="btn btn-primary" data-action="station-save">💾 保存</button>
+    </div>
+
+    <div class="input-row">
+      <div class="input-group">
+        <label>工程候補を追加</label>
+        <input type="text" id="stationNewProcessInput" class="form-control" placeholder="例：研磨">
+      </div>
+      <button class="btn btn-secondary" data-action="station-add">候補に追加</button>
+    </div>
+
+    <div class="station-chip-list" id="stationAvailableList"></div>
+    <div class="station-meta" id="stationConfigMeta">
+      {% if station_config.updated_at %}
+        最終更新: {{ station_config.updated_at }}
+      {% else %}
+        station.json はまだ保存されていません（環境変数または未設定）
+      {% endif %}
+      <br>設定ファイル: {{ station_config.path }}
+      {% if api_station_id %}
+        <br>APIトークン station_id: {{ api_station_id }}
+      {% endif %}
+    </div>
+    <div class="station-meta is-hidden" id="stationConfigNotice"></div>
+    <div id="stationConfigMessage"></div>
+      {% if api_token_error %}
+      <div class="dashboard-alert">API トークンの読み込みでエラーが発生しています: {{ api_token_error }}</div>
+    {% endif %}
+  </div>
+
+  <div class="maintenance-card">
+    {% include "partials/api_tokens.html" %}
+  </div>
+</div>

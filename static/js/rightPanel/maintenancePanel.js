@@ -69,12 +69,14 @@ export function initMaintenancePanel({
     if (!overlay) return;
     if (message && overlayMessage) overlayMessage.textContent = message;
     overlay.classList.add('is-visible');
+    overlay.setAttribute('aria-hidden', 'false');
     document.body.classList.add('modal-locked');
   }
 
   function hideOverlay() {
     if (!overlay) return;
     overlay.classList.remove('is-visible');
+    overlay.setAttribute('aria-hidden', 'true');
     document.body.classList.remove('modal-locked');
   }
 
@@ -82,10 +84,10 @@ export function initMaintenancePanel({
     if (!stationNotice) return;
     if (message) {
       stationNotice.textContent = message;
-      stationNotice.style.display = 'block';
+      stationNotice.classList.remove('is-hidden');
     } else {
       stationNotice.textContent = '';
-      stationNotice.style.display = 'none';
+      stationNotice.classList.add('is-hidden');
     }
   }
 

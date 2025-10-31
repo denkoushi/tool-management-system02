@@ -1,0 +1,25 @@
+<!-- アイテム名マスタ -->
+<div id="master" class="tab-content">
+  <h2>📚 アイテム名マスタ</h2>
+
+  <div class="input-row">
+    <div class="input-group">
+      <label>アイテム名を追加</label>
+      <input type="text" id="newToolNameInput" class="form-control" placeholder="新しいアイテム名">
+    </div>
+    <button class="btn btn-primary" data-action="add-tool-name">➕ 追加</button>
+  </div>
+
+  <div id="masterResult"></div>
+
+  <h3>現在のアイテム名一覧</h3>
+  <div class="input-row">
+    <div class="input-group">
+      <label>削除するアイテム名を選択</label>
+      <select id="deleteToolNameSelect" class="form-control">
+        <option value="">（選択してください）</option>
+      </select>
+    </div>
+    <button class="btn btn-danger" data-action="delete-tool-name">🗑️ 削除</button>
+  </div>
+</div>

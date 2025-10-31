@@ -1,0 +1,58 @@
+<section class="api-token-section">
+  <div class="api-token-header">
+    <h2>API トークン管理</h2>
+    <button class="btn btn-primary" id="apiTokenRefreshBtn">最新一覧を取得</button>
+  </div>
+  <div id="apiTokenMessage"></div>
+
+  <table class="data-table" id="apiTokenTable">
+    <thead>
+      <tr>
+        <th>station_id</th>
+        <th>発行日時</th>
+        <th>無効化日時</th>
+        <th>メモ</th>
+        <th>状態</th>
+        <th>トークン</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <div class="api-token-actions">
+    <div class="api-token-card">
+      <h3>発行</h3>
+      <div class="input-group">
+        <label for="apiTokenStationInput">station_id</label>
+        <input type="text" id="apiTokenStationInput" class="form-control" placeholder="例: window-a">
+      </div>
+      <div class="input-group">
+        <label for="apiTokenNoteInput">メモ（任意）</label>
+        <input type="text" id="apiTokenNoteInput" class="form-control" placeholder="用途などを記録">
+      </div>
+      <label class="checkbox">
+        <input type="checkbox" id="apiTokenKeepExisting">
+        既存トークンを維持する（チェックを外すと他トークンを無効化します）
+      </label>
+      <button class="btn btn-primary" id="apiTokenIssueBtn">トークンを発行</button>
+      <pre id="apiTokenIssued" class="code-block is-hidden"></pre>
+    </div>
+
+    <div class="api-token-card">
+      <h3>無効化</h3>
+      <div class="input-group">
+        <label for="apiTokenRevokeTokenInput">トークン</label>
+        <input type="text" id="apiTokenRevokeTokenInput" class="form-control" placeholder="トークン値（任意）">
+      </div>
+      <div class="input-group">
+        <label for="apiTokenRevokeStationInput">station_id</label>
+        <input type="text" id="apiTokenRevokeStationInput" class="form-control" placeholder="例: window-a">
+      </div>
+      <label class="checkbox">
+        <input type="checkbox" id="apiTokenRevokeAll">
+        すべてのトークンを無効化する
+      </label>
+      <button class="btn btn-danger" id="apiTokenRevokeBtn">無効化を実行</button>
+    </div>
+  </div>
+</section>

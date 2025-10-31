@@ -124,7 +124,7 @@
 
 > 各タスクは着手時に専用ブランチを作成し、完了後に `docs/right-pane-plan.md` と `docs/implementation-plan.md` の進捗を更新する。
 
-- 進捗: 2025-10-30 時点で借用/返却タブの HTML を `templates/left_panel/operations.html` へ切り出し済み。今後は JS モジュール化と共通レイアウト化を継続する。
+- 進捗: 2025-10-30 時点で借用/返却タブの HTML を `templates/left_panel/operations.html` へ切り出し、フロントロジックは `static/js/modules/operationsPanel.js` として ES モジュール化済み。共通レイアウト化・登録タブの分割を次フェーズで進める。
 
 ### 6.1 左ペイン借用/返却ビュー 抜き出し案
 
@@ -157,3 +157,24 @@
 
 ---
 このプランに沿ってタスクを順次進め、各ステップ完了後にドキュメントへ反映していきます。
+
+### 6.2 2025-10-31 作業ログ
+
+- 左ペイン 4 タブ（借用/返却・タグ登録・マスタ・メンテ）を `templates/left_panel/` 配下へ分割し、`templates/layout/base.html` にフォーム・テーブル・タブ共通スタイルを新設。
+- `static/js/rightPanel/maintenancePanel.js`｜`pageLegacy.js` を更新し、USB 同期オーバーレイのクラス制御と履歴タブ表示のクラス切替（`.is-hidden`）へ移行。
+- `partials/api_tokens.html` 含めインラインスタイルを撤廃し、`.button-row` / `.card-grid` / `.maintenance-output` などのユーティリティクラスで UI を統一。
+- Vitest を導入し、`operationsPanel` / `registrationPanel` / `maintenancePanel` の主要フロー（貸出一覧読み込み、タグ登録、工程設定更新・USB同期）を単体テスト化。
+- DocumentViewer / 所在一覧のプレビュー用サンドボックス（`static/preview/right-panel.html`）を整備し、Playwright からも参照できる環境を追加。
+
+### 6.3 構内物流モジュール化 — 進捗と残タスク
+
+**進捗（2025-10-31）**
+- 右ペイン UI/JS を `templates/right_panel/logistics.html` / `static/js/rightPanel/logisticsPanel.js` に分離し、RaspberryPiServer の `/api/logistics/jobs` から初期ロード＋`logistics_job_updated` Socket.IO イベントでの差分反映まで実装。
+- Window A Flask 側で `fetch_logistics_jobs()` と `/api/logistics/jobs` プロキシ API を追加。API トークン判定と監査ログ（`logistics_jobs_list`）を統合した。
+- pytest（`tests/test_logistics_proxy.py`）で REST プロキシ／バリデーション／未設定時の挙動をカバー。Vitest では `logisticsPanel.test.js` で REST 取得・Socket 更新・エラーハンドリングを検証。
+- プレビュー環境 `static/preview/right-panel.html` を物流タスク対応へ拡張し、Playwright smoke (`tests/e2e/smoke.spec.ts`) で REST → Socket → カウントバッジ反映まで確認できるようにした。
+
+**残タスク**
+- Playwright 実機 E2E（Window A ⇔ Pi5）を有効化し、Pi Zero からの実データと同期できることを自動検証する。
+- 構内物流タスクの状態遷移仕様（`pending`→`in_transit`→`done` 等）を整理し、`docs/logistics-module-plan.md`（新規予定）にデータフローと責務分担を明記する。
+- Pi Zero 側スクリプトと連携した通知内容（担当者・推定到着時刻など）を合意し次第、API スキーマおよび UI 表示項目を拡張する。

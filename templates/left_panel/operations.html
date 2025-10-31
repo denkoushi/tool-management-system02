@@ -3,7 +3,7 @@
   <div class="operation-header">
     <h2>①ユーザー → ②アイテム の順にスキャン</h2>
     <div class="operation-controls">
-      <div class="button-row" style="margin:0;">
+      <div class="button-row">
         <button class="btn btn-primary" id="startScanBtn" data-action="scan-start">スキャン開始</button>
         <button class="btn btn-secondary" id="stopScanBtn" data-action="scan-stop" disabled>停止</button>
         <button class="btn btn-danger" id="resetScanBtn" data-action="scan-reset">リセット</button>
@@ -38,7 +38,7 @@
         </table>
       </div>
     </div>
-    <div class="table-section" id="historySection" style="margin-top:min(10px,2vh);display:none;">
+    <div class="table-section table-section--history is-hidden" id="historySection">
       <div class="section-title">履歴</div>
       <div class="scrollable-section">
         <table class="data-table" id="historyTable">

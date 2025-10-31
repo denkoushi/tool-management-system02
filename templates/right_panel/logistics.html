@@ -1,0 +1,49 @@
+<section class="future-panel-body future-panel-body--logistics" id="logisticsPanel">
+  <div class="logistics-shell">
+    <div class="logistics-header">
+      <div class="logistics-header__left">
+        <h3 class="logistics-title">構内物流タスク</h3>
+        <p class="logistics-subtitle">搬送依頼・進捗をサーバーから取得します</p>
+      </div>
+      <div class="logistics-header__meta">
+        <div class="view-switch" role="tablist">
+          <button type="button" data-target="docViewerPanel">要領書</button>
+          <button type="button" data-target="partLocationsPanel">
+            所在一覧
+            <span class="tab-badge">0</span>
+          </button>
+          <button type="button" data-target="logisticsPanel">
+            構内物流
+            <span class="tab-badge logistics-tab-badge">0</span>
+          </button>
+        </div>
+        <span id="logisticsSocketStatus" class="logistics-chip" data-state="loading">接続確認中…</span>
+        <span id="logisticsTaskCount" class="logistics-chip">件数: 0</span>
+        <span id="logisticsLastUpdated" class="logistics-chip">最終更新: —</span>
+        <button type="button" id="logisticsRefreshBtn" class="btn-reload">最新を取得</button>
+      </div>
+    </div>
+
+    <div id="logisticsMessage" class="logistics-message"></div>
+
+    <div class="logistics-table-wrapper">
+      <table class="logistics-table" id="logisticsTable">
+        <thead>
+          <tr>
+            <th style="width:14%;">タスクID</th>
+            <th style="width:18%;">部品番号</th>
+            <th style="width:18%;">搬送元</th>
+            <th style="width:18%;">搬送先</th>
+            <th style="width:12%;">状態</th>
+            <th style="width:20%;">更新時刻</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div id="logisticsEmpty" class="logistics-empty">
+      搬送タスクがまだ登録されていません。Pi Zero からの依頼を受信すると表示されます。
+    </div>
+  </div>
+</section>

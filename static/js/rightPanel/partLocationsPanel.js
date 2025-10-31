@@ -16,7 +16,7 @@ export function initPartLocations({
     lastUpdated: document.getElementById('partLocationLastUpdated'),
     refreshBtn: document.getElementById('partLocationRefreshBtn'),
     socketStatus: document.getElementById('partLocationSocketStatus'),
-    tabBadges: Array.from(document.querySelectorAll('.view-switch .tab-badge')),
+    tabBadges: Array.from(document.querySelectorAll('.partlocations-tab-badge')),
     ...selectors,
   };
 
