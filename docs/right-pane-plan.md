@@ -178,3 +178,23 @@
 - Playwright 実機 E2E（Window A ⇔ Pi5）を有効化し、Pi Zero からの実データと同期できることを自動検証する。
 - 構内物流タスクの状態遷移仕様（`pending`→`in_transit`→`done` 等）を整理し、`docs/logistics-module-plan.md`（新規予定）にデータフローと責務分担を明記する。
 - Pi Zero 側スクリプトと連携した通知内容（担当者・推定到着時刻など）を合意し次第、API スキーマおよび UI 表示項目を拡張する。
+
+## 7. モジュール化ロードマップ（Pi5／Pi Zero／Pi4）
+
+1. **DocumentViewer クライアント分離（完了）**  
+   RaspberryPiServer 側で `/viewer`・`/api/documents`・`/documents` を提供。Window A は iframe で参照し、Socket.IO 連携は `UPSTREAM_SOCKET_BASE` に統一。ログは Pi5 の `VIEWER_LOG_PATH` へ集約する。
+2. **工具管理 UI のクライアント化（進行中）**  
+   Window A の Flask は UI 表示と REST プロキシのみに縮退。`config/window-a-client.env.sample` を基に API ホストを Pi5 へ切り替え、不要なサーバー処理を停止する。
+3. **構内物流 UI の Socket.IO 化（進行中）**  
+   OnSiteLogistics の `handheld_scan_display.py` を活用し、Pi5 からの `scan_update`／`logistics_job_updated` を受信して右ペインへ反映。接続断時の再試行とアラート表示を共通化する。
+4. **標準工数・生産日程の取り込み移行（未着手）**  
+   CSV → SQLite のローカル処理を Pi5 側バッチへ移し、Window A は参照専用とする。データ投入 CLI は RaspberryPiServer の `tool-ingest-sync.sh` へ統合検討。
+5. **14 日連続検証（未着手）**  
+   Pi5・Pi Zero・Pi4 の組み合わせで日次チェックを 14 日連続実施し、`docs/templates/test-log-mirror-daily.md` を用いて証跡を残す。完了後に Decision Log へ記録。
+
+## 8. 追加課題
+
+- Pi4 用の共通 `EnvironmentFile` テンプレートを整備し、DocumentViewer／工具管理／構内物流で流用する。  
+- Pi5 へのアクセス要件（mDNS、静的 IP）を RUNBOOK に記載し、Window A での DNS 解決手順を統一する。  
+- 旧 Pi4 に残る cron／ログ出力を棚卸しし、必要なものは Pi5 へ集約。  
+- 左右 UI で共通利用する Socket.IO リスナー／HTTP クライアントをモジュール化し、重複コードを排除する。

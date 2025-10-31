@@ -53,6 +53,7 @@
 - ユーザーからの決定が得られたら、その内容を `docs/requirements.md` や関連ドキュメントに反映する。
 
 ## 8. リンク集
+- ドキュメント索引: `docs/docs-index.md`
 - ドキュメント運用ガイドライン: `docs/documentation-guidelines.md`
 - 要件とロードマップ: `docs/requirements.md`
 - データソース移行計画: `docs/data-source-migration.md`
