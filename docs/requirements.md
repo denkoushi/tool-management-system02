@@ -4,25 +4,24 @@
 
 ## 1. 現状の優先度（2025-10-31 更新）
 
-1. **右ペイン UI レイアウト崩れの復旧**  
-   - Pi5 連携後に CSS/DOM が想定外の状態となり、所在一覧・物流タブのレイアウトが崩れている。  
-   - DocumentViewer 右ペインの SCSS/Bootstrap 読み込み順と DOM 構造を再点検し、ウィンドウ幅 1080px（Pi4 ブラウザ）で正しく表示されるよう修正する。  
-   - 修正完了条件: 主要タブ（所在一覧／構内物流／要領書）が正しく配置され、ブラウザリロード後も崩れが再発しないことを確認（Chrome DevTools スクリーンショットを `docs/test-notes/` に保存）。
-2. **Pi5 サーバー連携後のクライアント最適化**  
-   - `RASPI_SERVER_BASE` / `UPSTREAM_SOCKET_BASE` など環境変数を RaspberryPiServer の実ホスト名に合わせ、Window A の systemd drop-in を最新化する。  
-   - Socket.IO 断検知・リトライ表示を整備し、右ペインの状態表示が実際の接続状況と一致するようにする。
-3. **構内物流・所在一覧 UI の整合**  
-   - Pi5 側 `/api/logistics/jobs` のレスポンス仕様に合わせ、右ペイン物流タブの列定義／状態遷移表示を最新化。  
-   - 所在一覧と DocumentViewer の postMessage 連携を再テストし、Pi5 からのイベントで確実にハイライトされることを確認する。
-4. **E2E テスト整備（Playwright）**  
-   - `docs/e2e-plan.md` に沿って、スキャン→所在反映→Viewer 自動表示までのシナリオを Playwright で実装。  
-   - ローカル `.env.test` と RaspberryPiServer テスト環境で実行できるよう npm スクリプトを追加する。
-5. **ドキュメント更新と棚卸し**  
-   - README／RUNBOOK／`docs/right-pane-plan.md` を Pi5 集約後の構成に合わせて更新。特に README では「サーバー機能は Pi5 で提供し、Window A はクライアント運用」という現状を明示する。  
-   - `docs/docs-index.md` の棚卸し状況を継続的に維持し、未整備カテゴリが残らないようにする。
-6. **API トークン／セキュリティ運用の整理**  
-   - Pi5 と同一ポリシーでステーション別トークンを発行・ローテーションできるよう `scripts/manage_api_token.py` を棚卸し。  
-   - `docs/security-overview.md` に現状の運用と Pi5 との整合を追記する。
+- ✅ **右ペイン UI レイアウト崩れの復旧**
+  - Pi5 連携後に崩れていた CSS/DOM を修正済み。Pi4 ブラウザ（1080px 幅）で要領書・所在一覧・構内物流の各タブが正常表示されることを実機で確認した。
+  - 証跡: 2025-10-31 Pi4 実機確認（ブラウザハードリロード後も再発なし）。
+- ☐ **Pi5 サーバー連携後のクライアント最適化**
+  - `RASPI_SERVER_BASE` / `UPSTREAM_SOCKET_BASE` を実ホスト名に合わせ、Window A の systemd drop-in を最新化する。
+  - Socket.IO 断検知・リトライ表示を整備し、右ペインの状態表示が実際の接続状況と一致するようにする。
+- ☐ **構内物流・所在一覧 UI の整合**
+  - Pi5 `/api/logistics/jobs` のレスポンスに合わせて物流タブの列定義とステータス表示を調整する。
+  - DocumentViewer 連携イベントを再テストし、所在一覧のハイライト挙動を確認する。
+- ☐ **E2E テスト整備（Playwright）**
+  - `docs/e2e-plan.md` に沿って、スキャン→所在反映→Viewer 自動表示までのシナリオを Playwright で実装する。
+  - ローカル `.env.test` と Pi5 テスト環境で実行できる npm スクリプトを整備する。
+- ☐ **ドキュメント更新と棚卸し**
+  - README／RUNBOOK／`docs/right-pane-plan.md` を Pi5 集約後構成に合わせて更新する。
+  - `docs/docs-index.md` の棚卸し状況を最新化し、未整備カテゴリをゼロにする。
+- ☐ **API トークン／セキュリティ運用の整理**
+  - ステーション別トークン運用 (`scripts/manage_api_token.py`) を棚卸しし、Pi5 と同等ポリシーに統一する。
+  - `docs/security-overview.md` へ現状運用と Pi5 との整合を追記する。
 
 ## 2. バックログ
 
