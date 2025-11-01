@@ -5,14 +5,16 @@
 ## 1. プロジェクト構成
 
 ### 1.1 ウィンドウの役割
-- **ウィンドウA**: `/Users/tsudatakashi/tool-management-system02`
+- **ウィンドウA**: `/Users/tsudatakashi/tool-management-system02`（Pi4 クライアント）
 - **ウィンドウB**: `/Users/tsudatakashi/DocumentViewer`
 - **ウィンドウC**: `/Users/tsudatakashi/RaspberryPizero2W_withDropbox`
+- **ウィンドウE**: `/Users/tsudatakashi/RaspberryPiServer`（Pi5 サーバー集約先）
 
-各ウィンドウのコンテキストは独立して扱います。別ウィンドウの情報が必要な場合は必ずユーザーに確認してから共有してください。
+各ウィンドウのコンテキストは独立しています。別ウィンドウの情報が必要な場合は、適宜、あなた（Ai）だけの判断で参照してよいです。ユーザー（人間）の許可は不要です。
 
 ### 1.2 初期タスク
-- ウィンドウAの要件・開発進捗・残タスクを把握し、`docs/requirements.md` に沿って確認する。
+- Window A の要件・残タスクを `docs/requirements.md` で把握し、Pi5 サーバーとの接続状況を確認する。
+- Socket.IO / REST の疎通確認手順は `RUNBOOK.md` を参照し、必要に応じて更新する。
 - ドキュメントの役割分担は `docs/documentation-guidelines.md` を参照する。
 
 ## 2. コミュニケーション指針
@@ -40,7 +42,7 @@
 ## 5. 作業前チェックリスト
 - 現在のブランチとローカル変更 (`git status -sb`) を確認する。
 - 参照するウィンドウ／リポジトリが正しいか再確認する。
-- 既存のドキュメント（README / RUNBOOK / `docs/requirements.md`）を読み、最新の方針と整合しているかを確認する。
+- 既存のドキュメント（README / RUNBOOK / `docs/requirements.md`）を読み、Pi5 集約後の方針と整合しているかを確認する。
 - 分からない点はユーザーへ質問し、回答を記録する。
 
 ## 6. エラー時の対応
@@ -56,6 +58,7 @@
 - ドキュメント索引: `docs/docs-index.md`
 - ドキュメント運用ガイドライン: `docs/documentation-guidelines.md`
 - 要件とロードマップ: `docs/requirements.md`
+- right ペイン計画: `docs/right-pane-plan.md`
 - データソース移行計画: `docs/data-source-migration.md`
 - セキュリティ概要: `docs/security-overview.md`
 - セキュリティ要求対応: `docs/security-requirements-response.md`

@@ -1,37 +1,36 @@
-# tool-management-system02 (Raspberry Pi 5 / ZIP Restore Baseline)
+# tool-management-system02（Window A クライアント）
 
-このリポジトリは、Raspberry Pi 5 上で実運用していた **ZIP 版の安定構成**をそのまま保存する復旧用ベースラインです。  
-当面の起動は **python app_flask.py** を前提とします（ポート既定: **8501**）。
+このリポジトリは Raspberry Pi 4（Window A）で動作するクライアントアプリです。サーバー機能は RaspberryPiServer（Pi5）へ移行済みで、所在一覧・DocumentViewer iframe・物流タブなどの UI を提供します。Pi5 の REST / Socket.IO を参照する構成を前提に、以下の手順とドキュメントを整備しています。
 
 > ドキュメント全体の役割分担と更新ルールは `docs/documentation-guidelines.md` にまとめています。エージェント／自動化タスクを利用するときは `docs/AGENTS.md` を最初に確認してください。
 > トークン入力を一時的に省略したい場合は、以下の手順で `API_TOKEN_ENFORCE=0` を設定します。\n> 1. `sudo systemctl edit toolmgmt.service` でドロップインファイルを開く\n> 2. `[Service]` セクションに `Environment=API_TOKEN_ENFORCE=0` を追記して保存\n> 3. `sudo systemctl daemon-reload`\n> 4. `sudo systemctl restart toolmgmt.service`\n> 元に戻すときは設定を削除または `1` に戻して同じ手順で再起動してください。
 
-## OnSiteLogistics（ハンディリーダ）との連携
+## RaspberryPiServer との連携
 - 受信エンドポイント: `POST /api/v1/scans`（Bearer トークン必須、JSON ボディで所在を upsert）
 - 主な反映:
   - `part_locations` テーブルへ最新所在を upsert
   - `Socket.IO` イベント `part_location_updated` を発行し、右ペインの所在ビューを即時更新（接続断時は 20 秒 REST フォールバック）
 - 導入手順（抜粋）
-  1. `cd ~/tool-management-system02 && git checkout feature/scan-intake && git pull`
+  1. `cd ~/tool-management-system02 && git pull`
   2. `sudo systemctl restart toolmgmt.service` → `sudo systemctl status toolmgmt.service`
   3. `sudo ufw allow from <ハンディ側セグメント> to any port 8501 proto tcp`
   4. `python scripts/manage_api_token.py issue --station-id HANDHELD-01 --reveal` で専用トークンを発行
-  5. Pi Zero 側の `/etc/onsitelogistics/config.json` に API URL とトークンを設定し、A→B スキャンで疎通確認
-  6. `docker exec -it pg psql -U app -d sensordb -c "SELECT * FROM part_locations ORDER BY updated_at DESC LIMIT 5;"` で登録結果を確認
+  5. Pi Zero 側の `/etc/onsitelogistics/config.json` に Pi5 の API URL とトークンを設定し、A→B スキャンで疎通確認
+  6. RaspberryPiServer 側で `docker compose logs app` や `psql` を用いて登録結果を確認
 - 詳細な手順とトラブルシュートは `RUNBOOK.md` 3.4「OnSiteLogistics（ハンディリーダ）との連携」を参照してください。
 
 ---
 
-## 主要な環境変数
+## 主要な環境変数（Pi5 連携用）
 
 | 変数名 | 役割 | 既定値 |
 | --- | --- | --- |
-| `DOCUMENT_VIEWER_URL` | 右ペイン iframe が参照する DocumentViewer のベース URL。未設定時は `RASPI_SERVER_BASE` に `/viewer` を付与して自動解決。 | `http://127.0.0.1:5000` |
-| `UPSTREAM_SOCKET_BASE` | 所在イベント (`part_location_updated` など) を受信する Socket.IO サーバーのベース URL。RaspberryPiServer を指す。 | _(未指定: 同一ホスト)_ |
-| `UPSTREAM_SOCKET_PATH` | 上記 Socket.IO のパス。 | `/socket.io` |
-| `UPSTREAM_SOCKET_AUTO` | Socket.IO 自動接続フラグ。`0` / `false` で無効化。 | `1` |
-| `RASPI_SERVER_BASE` | RaspberryPiServer REST API のベース URL。`/api/v1/...` を参照する際に利用。 | _(未指定: ローカル CSV / station.json を使用)_ |
-| `RASPI_SERVER_API_TOKEN` | RaspberryPiServer へ接続する際に送信する Bearer トークン。未指定の場合は `api_token_store` のアクティブトークンを再利用。 | _(空)_ |
+| `RASPI_SERVER_BASE` | RaspberryPiServer REST API のベース URL。例: `http://raspi-server-3.local:8501` | _(空)_ |
+| `DOCUMENT_VIEWER_URL` | 右ペイン iframe の URL。未設定時は `RASPI_SERVER_BASE` に `/viewer` を付与して自動解決。 | _(空)_ |
+| `UPSTREAM_SOCKET_BASE` | Socket.IO 接続先（Pi5）。`raspi-server*.local` など実ホスト名に合わせる。 | _(空)_ |
+| `UPSTREAM_SOCKET_PATH` | Socket.IO のパス。 | `/socket.io` |
+| `UPSTREAM_SOCKET_AUTO` | Socket.IO 自動接続フラグ（`1` で有効、`0` で無効）。 | `1` |
+| `RASPI_SERVER_API_TOKEN` | Pi5 へアクセスする際の Bearer トークン。 | _(空)_ |
 | `RASPI_SERVER_TIMEOUT` | REST リクエストのタイムアウト（秒）。 | `4.0` |
 
 > 例: RaspberryPiServer を参照する場合  
@@ -60,7 +59,7 @@ sudo systemctl restart toolmgmt.service
 
         sudo apt update && sudo apt upgrade -y
         sudo apt install -y git curl python3-venv python3-dev build-essential swig pkg-config
-        sudo apt install -y pcscd pcsc-tools libpcsclite1 libpcsclite-dev libccid
+        sudo apt install -y pcscd pcsc-tools libpcsclite1 libpcsclite-dev libccid jq rsync zstd
 
 2. **Docker（compose を含む）**
 
