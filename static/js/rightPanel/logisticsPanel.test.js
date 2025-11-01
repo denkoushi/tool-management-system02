@@ -22,15 +22,18 @@ function mountDom({ active = true } = {}) {
 }
 
 describe('logisticsPanel', () => {
-beforeEach(() => {
-  __resetSocketStateForTests();
-  mountDom();
-});
+  beforeEach(() => {
+    vi.useFakeTimers();
+    __resetSocketStateForTests();
+    mountDom();
+  });
 
-afterEach(() => {
-  document.body.innerHTML = '';
-  __resetSocketStateForTests();
-});
+  afterEach(() => {
+    document.body.innerHTML = '';
+    __resetSocketStateForTests();
+    vi.clearAllTimers();
+    vi.useRealTimers();
+  });
 
   it('hydrates initial jobs', () => {
     const panel = initLogisticsPanel({
@@ -41,6 +44,7 @@ afterEach(() => {
           from_location: '受入',
           to_location: '組立',
           status: 'pending',
+          requested_at: '2025-10-31T11:55:00Z',
           updated_at: '2025-10-31T12:00:00Z',
         },
       ],
@@ -50,6 +54,8 @@ afterEach(() => {
     const rows = document.querySelectorAll('#logisticsTable tbody tr');
     expect(rows).toHaveLength(1);
     expect(document.getElementById('logisticsTaskCount').textContent).toContain('1');
+    const statusCell = rows[0].querySelectorAll('td')[4];
+    expect(statusCell.textContent).toBe('待機中');
   });
 
   it('refreshes from REST API', async () => {
@@ -63,6 +69,7 @@ afterEach(() => {
             from_location: '倉庫',
             to_location: '加工',
             status: 'completed',
+            requested_at: '2025-10-31T12:10:00Z',
             updated_at: '2025-10-31T12:30:00Z',
           },
         ],
@@ -75,6 +82,9 @@ afterEach(() => {
     const rows = document.querySelectorAll('#logisticsTable tbody tr');
     expect(rows).toHaveLength(1);
     expect(rows[0].querySelector('td').textContent).toBe('JOB-2');
+    const cells = rows[0].querySelectorAll('td');
+    expect(cells[4].textContent).toBe('完了');
+    expect(cells[5].textContent).toContain('2025/10/31');
     expect(document.getElementById('logisticsMessage').innerHTML).toContain('更新しました');
   });
 
@@ -94,7 +104,15 @@ afterEach(() => {
     const socket = {
       on: vi.fn((event, handler) => {
         if (event === 'logistics_job_updated') {
-          handler({ job_id: 'SOCKET-1', status: 'progress', updated_at: '2025-10-31T13:00:00Z' });
+          handler({
+            job_id: 'SOCKET-1',
+            part_code: 'PART-Z',
+            from_location: '受入',
+            to_location: '出荷',
+            status: 'in_transit',
+            requested_at: '2025-10-31T12:45:00Z',
+            updated_at: '2025-10-31T13:00:00Z',
+          });
         }
       }),
     };
@@ -103,5 +121,7 @@ afterEach(() => {
     const rows = document.querySelectorAll('#logisticsTable tbody tr');
     expect(rows).toHaveLength(1);
     expect(rows[0].querySelector('td').textContent).toBe('SOCKET-1');
+    expect(rows[0].querySelectorAll('td')[4].textContent).toBe('搬送中');
+    expect(document.getElementById('logisticsMessage').innerHTML).toContain('搬送更新');
   });
 });

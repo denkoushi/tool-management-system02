@@ -202,7 +202,7 @@
 
 ## 4. 現在の状況と残課題（2025-10-31）
 - ✅ DocumentViewer iframe は RaspberryPiServer `/viewer` で稼働し、Window A から参照できている。Socket.IO も `UPSTREAM_SOCKET_BASE` で Pi5 に統一済み。
-- ✅ 構内物流タブは Pi5 の `/api/logistics/jobs` と `logistics_job_updated` を利用して動作。UI のリトライ表示は未実装。
+- ✅ 構内物流タブは Pi5 の `/api/logistics/jobs` と `logistics_job_updated` を利用して動作。状態ラベルは日本語バッジ化し、依頼時刻も表示。
 - ▶ Socket.IO 断検知と再接続表示を改善し、状態チップが Pi5 の実状態と同期するようにする。
 - ▶ Playwright による E2E シナリオ（スキャン → 所在 → DocumentViewer）を `docs/e2e-plan.md` に沿って追加する。
 - ▶ 左ペインのテンプレート分割・モジュール化（`operationsPanel.js` など）とテスト拡充を継続する。

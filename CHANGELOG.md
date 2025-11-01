@@ -5,6 +5,7 @@
 - Socket.IO ステータス制御を状態マシン化し、右ペインのウォッチドッグ専用 DOM 操作を統合 (`static/js/rightPanel/socketStatusManager.js`, `static/js/rightPanel/initRightPanel.js`)。`SOCKET_STATUS_WATCHDOG` で抑制可能なまま、Vitest に状態管理テストを追加。
 - `static/js/rightPanel/socketWatchdog.js` を削除し、所在／物流／DocViewer のパネルテストを更新。`static/js/rightPanel/socketStatusManager.test.js` を追加。
 - 要件・運用ドキュメントを状態マシン表現へ更新し、`docs/requirements.md` を ✅ へ反映。
+- 構内物流タブに日本語ステータスバッジと依頼時刻列を追加し、`logisticsPanel` のテーブル表示・テスト・プレビューを更新。
 
 ## 2025-11-01
 

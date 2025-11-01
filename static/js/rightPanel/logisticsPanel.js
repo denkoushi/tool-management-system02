@@ -1,6 +1,12 @@
 import { onSocketStateChange, getSocketState } from './socketStatusManager.js';
 
 const DEFAULT_LIMIT = 100;
+const STATUS_META = {
+  pending: { label: '待機中', badge: 'pending' },
+  in_transit: { label: '搬送中', badge: 'in-transit' },
+  completed: { label: '完了', badge: 'completed' },
+  cancelled: { label: 'キャンセル', badge: 'cancelled' },
+};
 
 function cssEscape(value) {
   if (window.CSS && typeof window.CSS.escape === 'function') {
@@ -22,18 +28,29 @@ function formatDatetime(value) {
   return dt ? formatter.format(dt) : '—';
 }
 
+function normalizeStatus(value) {
+  if (!value) return 'pending';
+  return String(value).trim().toLowerCase();
+}
+
+function getStatusMeta(value) {
+  const key = normalizeStatus(value);
+  return STATUS_META[key] || { label: key || '-', badge: 'pending' };
+}
+
 function normalizeJob(entry) {
   if (!entry) return null;
   const id = entry.job_id || entry.id || entry.task_id || entry.scan_id || '';
   if (!id) return null;
   const requested = entry.requested_at || entry.requestedAt || entry.created_at || entry.createdAt || null;
   const updated = entry.updated_at || entry.updatedAt || requested;
+  const status = normalizeStatus(entry.status || 'pending');
   return {
     job_id: id,
     part_code: entry.part_code || entry.partCode || entry.part || '',
     from: entry.from_location || entry.fromLocation || entry.source || '',
     to: entry.to_location || entry.toLocation || entry.destination || '',
-    status: entry.status || 'pending',
+    status,
     requested_at: requested,
     updated_at: updated,
   };
@@ -124,16 +141,27 @@ export function initLogisticsPanel({
     entries.forEach((job) => {
       const tr = document.createElement('tr');
       tr.dataset.key = job.job_id;
-      [
-        job.job_id,
-        job.part_code || '-',
-        job.from || '-',
-        job.to || '-',
-        job.status || '-',
-        formatDatetime(job.updated_at),
-      ].forEach((text) => {
+      const columns = [
+        { type: 'text', value: job.job_id },
+        { type: 'text', value: job.part_code || '-' },
+        { type: 'text', value: job.from || '-' },
+        { type: 'text', value: job.to || '-' },
+        { type: 'status', value: job.status },
+        { type: 'text', value: formatDatetime(job.requested_at) },
+        { type: 'text', value: formatDatetime(job.updated_at) },
+      ];
+
+      columns.forEach((col) => {
         const td = document.createElement('td');
-        td.textContent = text;
+        if (col.type === 'status') {
+          const meta = getStatusMeta(col.value);
+          const badge = document.createElement('span');
+          badge.className = `logistics-status logistics-status--${meta.badge}`;
+          badge.textContent = meta.label;
+          td.appendChild(badge);
+        } else {
+          td.textContent = col.value;
+        }
         tr.appendChild(td);
       });
       fragment.appendChild(tr);
@@ -221,7 +249,8 @@ export function initLogisticsPanel({
     if (!normalized) return;
     state.jobs.set(normalized.job_id, normalized);
     render({ highlightId: normalized.job_id });
-    showMessage('info', `搬送更新: ${normalized.job_id} → ${normalized.status}`, 3000);
+    const meta = getStatusMeta(normalized.status);
+    showMessage('info', `搬送更新: ${normalized.job_id} → ${meta.label}`, 3000);
   }
 
   function registerSocketHandlers(sock) {
