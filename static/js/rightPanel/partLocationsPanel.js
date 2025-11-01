@@ -60,6 +60,21 @@ export function initPartLocations({
     };
   }
 
+  function highlightRow(orderCode) {
+    if (!orderCode || !el.tableBody) return false;
+    const selector = `tr[data-key="${cssEscape(orderCode)}"]`;
+    const row = el.tableBody.querySelector(selector);
+    if (!row) return false;
+    row.classList.add('is-flash');
+    state.lastHighlight = orderCode;
+    if (state.highlightTimer) clearTimeout(state.highlightTimer);
+    state.highlightTimer = setTimeout(() => {
+      row.classList.remove('is-flash');
+      state.highlightTimer = null;
+    }, 2200);
+    return true;
+  }
+
   function render({ highlightKey } = {}) {
     if (!el.tableBody) return;
     const entries = Array.from(state.rows.values()).sort((a, b) => {
@@ -101,17 +116,7 @@ export function initPartLocations({
 
     const targetKey = highlightKey || state.lastHighlight;
     if (targetKey) {
-      state.lastHighlight = targetKey;
-      const selector = `tr[data-key="${cssEscape(targetKey)}"]`;
-      const row = el.tableBody.querySelector(selector);
-      if (row) {
-        row.classList.add('is-flash');
-        if (state.highlightTimer) clearTimeout(state.highlightTimer);
-        state.highlightTimer = setTimeout(() => {
-          row.classList.remove('is-flash');
-          state.highlightTimer = null;
-        }, 2200);
-      }
+      highlightRow(targetKey);
     }
 
     state.lastRender = Date.now();
@@ -259,6 +264,15 @@ export function initPartLocations({
     hydrate,
     render,
     setSocketStatus,
+    highlightOrder(orderCode, { refreshFallback = false } = {}) {
+      if (!orderCode) return false;
+      if (highlightRow(orderCode)) return true;
+      state.lastHighlight = orderCode;
+      if (refreshFallback) {
+        refresh();
+      }
+      return false;
+    },
     getLastRender: () => state.lastRender,
   };
 }

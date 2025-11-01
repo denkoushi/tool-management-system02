@@ -71,6 +71,7 @@ function resolveSocketConfig(rawConfig) {
 }
 
 export function initRightPanel() {
+  window.highlightPartLocation = undefined;
   const config = window.TOOLMGMT_CONFIG || {};
   const socketConfig = resolveSocketConfig(config.socket || {});
   const ioLib = window.io;
@@ -98,6 +99,10 @@ export function initRightPanel() {
     fetchImpl: window.fetch.bind(window),
     initialData: loadInitialPartLocations(),
   });
+
+  if (partLocations?.highlightOrder) {
+    window.highlightPartLocation = (orderCode, opts) => partLocations.highlightOrder(orderCode, opts);
+  }
 
   const panelEl = document.getElementById('docViewerPanel');
   const docViewer = initDocViewer({

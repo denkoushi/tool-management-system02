@@ -63,7 +63,7 @@
 2. **DocumentViewer (`docViewerPanel.js`)**
    - フレームロード成功時に `ONLINE` 表示／失敗時にオーバーレイ表示へ切り替わること。
    - `viewer-state` postMessage を受けてステータスチップが更新されること。
-   - `dv-barcode` が pageLegacy の `handleViewerBarcode` と連携し生産計画テーブルがハイライトされること。
+   - `dv-barcode` が pageLegacy の `handleViewerBarcode` と連携し、生産計画テーブルと所在一覧タブがハイライトされること。
 3. **API トークン管理 (`apiTokensPanel.js`)**
    - 発行／無効化で `<pre>` やメッセージ欄が期待する内容へ更新されること。
    - `keep_existing` チェック時に既存トークンが保持されるケース、`revoke all` 時に件数表示が期待通りになること。

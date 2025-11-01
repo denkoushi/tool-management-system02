@@ -96,6 +96,32 @@ describe('partLocationsPanel', () => {
     expect(document.getElementById('partLocationsEmpty').style.display).toBe('none');
   });
 
+  it('highlights order programmatically', () => {
+    const { socket } = createSocket(true);
+    const panel = initPartLocations({
+      socket,
+      socketOptions: { autoConnect: false },
+      fetchImpl: async () => ({ ok: true, json: async () => ({ items: [] }) }),
+      initialData: [
+        {
+          order_code: 'PRT-001',
+          location_code: 'RACK-X1',
+          device_id: 'pi-zero',
+          scanned_at: '2025-10-31T01:00:00Z',
+          updated_at: '2025-10-31T01:00:05Z',
+        },
+      ],
+    });
+
+    expect(panel.highlightOrder('PRT-001')).toBe(true);
+    const row = document.querySelector('tr[data-key="PRT-001"]');
+    expect(row).not.toBeNull();
+    expect(row.classList.contains('is-flash')).toBe(true);
+
+    // Unknown key returns false and keeps last highlight for future refreshes
+    expect(panel.highlightOrder('UNKNOWN')).toBe(false);
+  });
+
   it('updates table when socket event arrives', () => {
     const { socket, listeners } = createSocket(true);
     const fetchImpl = vi.fn(async () => ({

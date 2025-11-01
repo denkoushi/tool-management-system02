@@ -19,6 +19,7 @@
   - Pi5 `/api/logistics/jobs` のレスポンスに合わせて物流タブの列定義とステータス表示を調整する。
   - DocumentViewer 連携イベントを再テストし、所在一覧のハイライト挙動を確認する。
   - 2025-11-02: 構内物流タブに日本語ステータスバッジと依頼時刻列を追加し、`logisticsPanel` テストを更新。Pi4 実機でステータス遷移の表示確認済み。
+  - 2025-11-02: DocumentViewer の `dv-barcode` 通知で所在一覧をハイライトできるようにし、`partLocationsPanel` に外部ハイライト API を追加。
 - ☐ **E2E テスト整備（Playwright）**
   - `docs/e2e-plan.md` に沿って、スキャン→所在反映→Viewer 自動表示までのシナリオを Playwright で実装する。
   - ローカル `.env.test` と Pi5 テスト環境で実行できる npm スクリプトを整備する。

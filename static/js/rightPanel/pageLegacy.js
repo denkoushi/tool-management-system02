@@ -195,6 +195,10 @@ export function bootstrapLegacy({ socket: injectedSocket } = {}) {
     const part = payload.part || payload.part_number || payload.partNumber || '';
     const order = payload.order || payload.order_number || payload.orderNumber || '';
     highlightProductionRows(part, order);
+    const locationKey = order || part;
+    if (locationKey && typeof window.highlightPartLocation === 'function') {
+      window.highlightPartLocation(locationKey, { refreshFallback: true });
+    }
   }
 
   function attachProductionRowHandlers(){
