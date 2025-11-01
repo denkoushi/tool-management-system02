@@ -1,5 +1,4 @@
-import { bindSocketLifecycle } from './socketClient.js';
-import { computeSocketState } from './socketStatusUtils.js';
+import { onSocketStateChange, getSocketState } from './socketStatusManager.js';
 
 const DEFAULT_LIMIT = 100;
 
@@ -69,7 +68,6 @@ export function initLogisticsPanel({
     jobs: new Map(),
     messageTimer: null,
     lastRender: 0,
-    socketState: 'loading',
   };
 
   function setBadgeCount(count) {
@@ -113,7 +111,6 @@ export function initLogisticsPanel({
     const resolved = map[status] || label || '—';
     el.socketStatus.dataset.state = status;
     el.socketStatus.textContent = resolved;
-    state.socketState = status;
   }
 
   function render({ highlightId } = {}) {
@@ -204,12 +201,8 @@ export function initLogisticsPanel({
     } finally {
       if (el.refreshBtn) el.refreshBtn.disabled = false;
       if (!hadError && socketOptions.autoConnect !== false) {
-        const snapshot = computeSocketState(socket);
-        if (snapshot.reconnecting || state.socketState === 'reconnect') {
-          setSocketStatus('reconnect');
-        } else {
-          setSocketStatus(snapshot.state);
-        }
+        const snapshot = getSocketState();
+        setSocketStatus(snapshot.state);
       }
     }
   }
@@ -226,7 +219,6 @@ export function initLogisticsPanel({
     if (!sock) return;
     sock.on('logistics_job_updated', (payload) => {
       upsertJob(payload);
-      setSocketStatus('live');
     });
   }
 
@@ -237,46 +229,27 @@ export function initLogisticsPanel({
     });
   }
 
+  const statusLabels = {
+    live: 'LIVE',
+    offline: 'OFFLINE',
+    reconnect: '再接続中…',
+    error: 'ERROR',
+    loading: '接続確認中…',
+    disabled: 'DISABLED',
+  };
+
+  const applyStatus = (detail) => {
+    const stateName = detail?.state || 'offline';
+    setSocketStatus(stateName, statusLabels[stateName] || '—');
+  };
+
   hydrate(initialData);
 
   if (socketOptions.autoConnect === false) {
     setSocketStatus('disabled', 'DISABLED');
   } else {
-    const snapshot = computeSocketState(socket);
-    setSocketStatus(snapshot.state);
-  }
-
-  if (socket && socket.io && typeof socket.io.on === 'function') {
-    const manager = socket.io;
-    const removeListeners = [];
-    const add = (event, handler) => {
-      if (!handler) return;
-      manager.on(event, handler);
-      removeListeners.push(() => manager.off(event, handler));
-    };
-    add('reconnect_attempt', () => setSocketStatus('reconnect'));
-    add('reconnect', () => setSocketStatus('live'));
-    add('reconnect_failed', () => setSocketStatus('error'));
-    add('reconnect_error', () => setSocketStatus('reconnect'));
-    bindSocketLifecycle(socket, {
-      onConnect: () => setSocketStatus('live'),
-      onDisconnect: () => {
-        const snapshot = computeSocketState(socket);
-        if (snapshot.reconnecting) {
-          setSocketStatus('reconnect');
-        } else {
-          setSocketStatus('offline');
-        }
-      },
-      onError: () => setSocketStatus('reconnect'),
-    });
-    window.addEventListener('beforeunload', () => removeListeners.forEach((fn) => fn()));
-  } else {
-    bindSocketLifecycle(socket, {
-      onConnect: () => setSocketStatus('live'),
-      onDisconnect: () => setSocketStatus('offline'),
-      onError: () => setSocketStatus('error'),
-    });
+    applyStatus(getSocketState());
+    onSocketStateChange(applyStatus);
   }
 
   registerSocketHandlers(socket);

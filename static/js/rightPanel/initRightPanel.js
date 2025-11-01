@@ -2,6 +2,7 @@ import { createSocket, bindSocketLifecycle } from './socketClient.js';
 import { initPartLocations } from './partLocationsPanel.js';
 import { initDocViewer } from './docViewerPanel.js';
 import { initLogisticsPanel } from './logisticsPanel.js';
+import { initSocketStatusManager } from './socketStatusManager.js';
 
 function loadInitialPartLocations() {
   try {
@@ -85,6 +86,7 @@ export function initRightPanel() {
   });
 
   window.TOOLMGMT_SOCKET = socket;
+  const teardownStatusManager = initSocketStatusManager(socket, { autoConnect: socketConfig.autoConnect });
 
   const partLocations = initPartLocations({
     socket,
@@ -143,5 +145,5 @@ export function initRightPanel() {
 
   setupPanelSwitching();
 
-  return { socket, partLocations, docViewer, logistics };
+  return { socket, partLocations, docViewer, logistics, teardownStatusManager };
 }

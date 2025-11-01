@@ -1,5 +1,4 @@
-import { bindSocketLifecycle } from './socketClient.js';
-import { computeSocketState } from './socketStatusUtils.js';
+import { onSocketStateChange, getSocketState } from './socketStatusManager.js';
 
 export function initPartLocations({
   socket,
@@ -28,7 +27,6 @@ export function initPartLocations({
     lastHighlight: null,
     lastRender: 0,
     fetchInFlight: false,
-    socketState: 'loading',
   };
 
   const formatter = new Intl.DateTimeFormat('ja-JP', { dateStyle: 'short', timeStyle: 'medium' });
@@ -154,7 +152,6 @@ export function initPartLocations({
     }
     target.dataset.state = status;
     target.textContent = label || messages[status] || '—';
-    state.socketState = status;
   }
 
   async function refresh() {
@@ -219,35 +216,7 @@ export function initPartLocations({
         if (isActive()) {
           showMessage('info', `更新: ${normalized.order_code} → ${normalized.location_code || '-'}`, 4000);
         }
-        setSocketStatus('live', 'LIVE');
       });
-    }
-
-    if (socket && socket.io && typeof socket.io.on === 'function') {
-      const manager = socket.io;
-      const removeListeners = [];
-      const add = (event, handler) => {
-        if (!handler) return;
-        manager.on(event, handler);
-        removeListeners.push(() => manager.off(event, handler));
-      };
-      add('reconnect_attempt', () => setSocketStatus('reconnect', '再接続中…'));
-      add('reconnect', () => setSocketStatus('live', 'LIVE'));
-      add('reconnect_failed', () => setSocketStatus('error', 'ERROR'));
-      add('reconnect_error', () => setSocketStatus('reconnect', '再接続中…'));
-      bindSocketLifecycle(socket, {
-        onConnect: () => setSocketStatus('live', 'LIVE'),
-        onDisconnect: () => {
-          const snapshot = computeSocketState(socket);
-          if (snapshot.reconnecting) {
-            setSocketStatus('reconnect', '再接続中…');
-          } else {
-            setSocketStatus('offline', 'OFFLINE');
-          }
-        },
-        onError: () => setSocketStatus('reconnect', '再接続中…'),
-      });
-      window.addEventListener('beforeunload', () => removeListeners.forEach((fn) => fn()));
     }
 
     if (socketOptions && socketOptions.autoConnect !== false) {
@@ -261,12 +230,27 @@ export function initPartLocations({
     }
   }
 
+  const statusLabels = {
+    live: 'LIVE',
+    offline: 'OFFLINE',
+    reconnect: '再接続中…',
+    error: 'ERROR',
+    loading: '接続確認中…',
+    disabled: 'DISABLED',
+  };
+
+  const applyStatus = (detail) => {
+    const stateName = detail?.state || 'offline';
+    const label = statusLabels[stateName] || '—';
+    setSocketStatus(stateName, label);
+  };
+
   hydrate(initialData);
   if (socketOptions && socketOptions.autoConnect === false) {
     setSocketStatus('disabled', 'DISABLED');
   } else {
-    const snapshot = computeSocketState(socket);
-    setSocketStatus(snapshot.state, snapshot.state === 'live' ? 'LIVE' : '接続確認中…');
+    applyStatus(getSocketState());
+    onSocketStateChange(applyStatus);
   }
   attachListeners();
 
