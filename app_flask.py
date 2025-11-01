@@ -73,7 +73,6 @@ UPSTREAM_SOCKET_PATH = os.getenv("UPSTREAM_SOCKET_PATH", "/socket.io")
 UPSTREAM_SOCKET_AUTO = os.getenv("UPSTREAM_SOCKET_AUTO", "1")
 SOCKET_STATUS_WATCHDOG = os.getenv("SOCKET_STATUS_WATCHDOG", "1")
 CLIENT_ROLE = os.getenv("TOOLMGMT_CLIENT_ROLE", "").strip() or "window-a"
-ENABLE_LOCAL_SCAN = _parse_bool(os.getenv("ENABLE_LOCAL_SCAN"), False)
 
 
 def _normalize_socket_base(value: Optional[str]) -> str:
@@ -86,6 +85,9 @@ def _parse_bool(value: Optional[str], default: bool = True) -> bool:
     if value is None:
         return default
     return value.strip().lower() not in {"0", "false", "off", "no", ""}
+
+
+ENABLE_LOCAL_SCAN = _parse_bool(os.getenv("ENABLE_LOCAL_SCAN"), False)
 
 
 SOCKET_CLIENT_CONFIG = {
