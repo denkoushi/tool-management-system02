@@ -34,8 +34,14 @@ export function initDocViewer({
 
   function setStatus(state, label) {
     if (!statusEl) return;
-    statusEl.classList.remove('doc-viewer-status--online', 'doc-viewer-status--offline');
-    statusEl.classList.add(state === 'online' ? 'doc-viewer-status--online' : 'doc-viewer-status--offline');
+    statusEl.classList.remove('doc-viewer-status--online', 'doc-viewer-status--live', 'doc-viewer-status--offline', 'doc-viewer-status--reconnect');
+    if (state === 'online' || state === 'live') {
+      statusEl.classList.add('doc-viewer-status--live');
+    } else if (state === 'reconnect') {
+      statusEl.classList.add('doc-viewer-status--reconnect');
+    } else {
+      statusEl.classList.add('doc-viewer-status--offline');
+    }
     if (statusLabel) statusLabel.textContent = label;
     statusEl.dataset.state = state;
   }

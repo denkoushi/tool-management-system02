@@ -253,11 +253,11 @@ export function initLogisticsPanel({
     add('reconnect_attempt', () => setSocketStatus('reconnect'));
     add('reconnect', () => setSocketStatus('live'));
     add('reconnect_failed', () => setSocketStatus('error'));
-    add('reconnect_error', () => setSocketStatus('error'));
+    add('reconnect_error', () => setSocketStatus('reconnect'));
     bindSocketLifecycle(socket, {
       onConnect: () => setSocketStatus('live'),
       onDisconnect: () => setSocketStatus('offline'),
-      onError: () => setSocketStatus('error'),
+      onError: () => setSocketStatus('reconnect'),
     });
     window.addEventListener('beforeunload', () => removeListeners.forEach((fn) => fn()));
   } else {

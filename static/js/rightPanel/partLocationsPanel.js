@@ -231,11 +231,11 @@ export function initPartLocations({
       add('reconnect_attempt', () => setSocketStatus('reconnect', '再接続中…'));
       add('reconnect', () => setSocketStatus('live', 'LIVE'));
       add('reconnect_failed', () => setSocketStatus('error', 'ERROR'));
-      add('reconnect_error', () => setSocketStatus('error', 'ERROR'));
+      add('reconnect_error', () => setSocketStatus('reconnect', '再接続中…'));
       bindSocketLifecycle(socket, {
         onConnect: () => setSocketStatus('live', 'LIVE'),
         onDisconnect: () => setSocketStatus('offline', 'OFFLINE'),
-        onError: () => setSocketStatus('error', 'ERROR'),
+        onError: () => setSocketStatus('reconnect', '再接続中…'),
       });
       window.addEventListener('beforeunload', () => removeListeners.forEach((fn) => fn()));
     }
