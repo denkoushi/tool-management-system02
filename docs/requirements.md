@@ -14,6 +14,7 @@
   - 2025-10-31: ステータスチップの再接続表示・エラー更新をコード反映済。Pi4 実機での動作確認と RUNBOOK 追記が未完。
   - 2025-11-01: `static/js/rightPanel/initRightPanel.js` にウォッチドッグを追加し、Pi5 停止→再開の間もチップ表示が「再接続中…」を維持することを Pi4 実機で確認。停止中のブラウザコンソールに出力される `ERR_CONNECTION_REFUSED` は想定どおりと整理。RUNBOOK に運用手順を追記し、`install_window_a_env.sh` / systemd drop-in サンプルへ `SOCKET_STATUS_WATCHDOG`・`TOOLMGMT_CLIENT_ROLE` を明示。
   - 2025-11-02: Socket.IO ステータス管理を状態マシン化し、ウォッチドッグ挙動を統合。`SOCKET_STATUS_WATCHDOG` 設定で抑制可能とし、Vitest に状態管理テストを追加。Pi4 実機でも停止→再開で `LIVE` に復帰することを確認済み。
+  - 2025-11-02: タブ切替時に DocumentViewer iframe が残らないよう `.future-panel-body--doc` のレイアウトを調整し、切り替え動作を修正。
 - ☐ **構内物流・所在一覧 UI の整合**
   - Pi5 `/api/logistics/jobs` のレスポンスに合わせて物流タブの列定義とステータス表示を調整する。
   - DocumentViewer 連携イベントを再テストし、所在一覧のハイライト挙動を確認する。
