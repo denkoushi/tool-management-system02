@@ -363,6 +363,11 @@
   - Pi Zero からも同様に `curl` を実行し、200 が返ることを確認する。
   - 受信後は `docker exec -it pg psql -U app -d sensordb -c "SELECT * FROM part_locations ORDER BY updated_at DESC LIMIT 5;"` で登録内容を確認。
   - API 受信時は `SocketIO` の `part_location_updated` イベントが配信される。右ペインのステータスバーから要領書／所在一覧を切り替えられ、所在一覧は LIVE 接続中に即時更新される（接続断時も 20 秒間隔で REST から自動取得）。
+  - **Pi5 再接続ウォッチドッグ**（2025-11-01 以降）
+    - `static/js/rightPanel/initRightPanel.js` にウォッチドッグを実装済み。Pi5 を停止するとステータスチップは「再接続中…」に固定され、Pi5 復帰後に自動で `LIVE` へ戻る。
+    - Pi5 停止中はブラウザコンソールに `ERR_CONNECTION_REFUSED` が継続表示されるが想定どおり。ログ量が多い場合はレベル `error` のみをモニタリングする。
+    - 実機確認手順：Pi5 の `toolmgmt` (または Docker `app`) を一時停止 → Window A ブラウザで「再接続中…」表示を確認 → Pi5 を起動し「LIVE」に戻るまで約 1～2 リフレッシュサイクル待機。
+    - 表示が `OFFLINE` のまま戻らない場合は Pi5 側のアプリ稼働を確認しつつ、Window A で `sudo systemctl restart toolmgmt.service` → ブラウザを Ctrl+Shift+R でハードリロードする。
 
 ### 3.5 Window A（Raspberry Pi 4）クライアント新規構築
 
@@ -738,6 +743,8 @@
 - **画面が更新されない / Socket.IO が不安定**
   - ブラウザを再読み込み、別端末でも再現か確認
   - `journalctl -u toolmgmt.service -n 200` でエラー有無
+  - ステータスチップが「再接続中…」のまま戻らない場合：Pi5 サーバーの `toolmgmt.service`（または Docker `app`）が起動しているかを確認し、必要に応じて Pi5 側を再起動する。
+  - ステータスチップが `OFFLINE` に降格する／再接続表示に戻らない場合：Window A で `sudo systemctl restart toolmgmt.service` → ブラウザを Ctrl+Shift+R でハードリロード。`ERR_CONNECTION_REFUSED` が Pi5 復帰後も継続する場合は Pi5 のネットワーク名解決（`ping raspi-server.local`）を確認する。
 
 - **VNC 経由のコピペで文字化け**
   - VNC のクリップボード経路による文字コード問題

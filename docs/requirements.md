@@ -12,7 +12,7 @@
   - Socket.IO 断検知・リトライ表示を整備し、右ペインの状態表示が実際の接続状況と一致するようにする。
   - 2025-10-31: 再接続イベントを manager 監視で補正済み。DocumentViewer iframe がエラー時に `OFFLINE` を上書きするため、再接続中の表示が維持されない課題を確認。refresh()/iframe 失敗をガードするウォッチドッグ導入を次対策として起票。
   - 2025-10-31: ステータスチップの再接続表示・エラー更新をコード反映済。Pi4 実機での動作確認と RUNBOOK 追記が未完。
-  - 2025-11-01: `static/js/rightPanel/initRightPanel.js` にウォッチドッグを追加し、Pi5 停止→再開の間もチップ表示が「再接続中…」を維持することを Pi4 実機で確認。停止中のブラウザコンソールに出力される `ERR_CONNECTION_REFUSED` は想定どおりと整理。恒久対策（状態マシン化）と RUNBOOK/systemd drop-in の更新が残課題。
+  - 2025-11-01: `static/js/rightPanel/initRightPanel.js` にウォッチドッグを追加し、Pi5 停止→再開の間もチップ表示が「再接続中…」を維持することを Pi4 実機で確認。停止中のブラウザコンソールに出力される `ERR_CONNECTION_REFUSED` は想定どおりと整理。RUNBOOK に運用手順を追記済みで、恒久対策（状態マシン化）と Window A systemd drop-in の整理が残課題。
 - ☐ **構内物流・所在一覧 UI の整合**
   - Pi5 `/api/logistics/jobs` のレスポンスに合わせて物流タブの列定義とステータス表示を調整する。
   - DocumentViewer 連携イベントを再テストし、所在一覧のハイライト挙動を確認する。
