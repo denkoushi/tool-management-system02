@@ -1,4 +1,5 @@
 import { bindSocketLifecycle } from './socketClient.js';
+import { computeSocketState } from './socketStatusUtils.js';
 
 const DEFAULT_LIMIT = 100;
 
@@ -203,11 +204,11 @@ export function initLogisticsPanel({
     } finally {
       if (el.refreshBtn) el.refreshBtn.disabled = false;
       if (!hadError && socketOptions.autoConnect !== false) {
-        const reconnecting = Boolean(socket?.io && (socket.io._reconnecting || socket.io._connecting));
-        if (reconnecting || state.socketState === 'reconnect') {
+        const snapshot = computeSocketState(socket);
+        if (snapshot.reconnecting || state.socketState === 'reconnect') {
           setSocketStatus('reconnect');
         } else {
-          setSocketStatus(socket && socket.connected ? 'live' : 'offline');
+          setSocketStatus(snapshot.state);
         }
       }
     }
@@ -241,7 +242,8 @@ export function initLogisticsPanel({
   if (socketOptions.autoConnect === false) {
     setSocketStatus('disabled', 'DISABLED');
   } else {
-    setSocketStatus(socket && socket.connected ? 'live' : 'loading');
+    const snapshot = computeSocketState(socket);
+    setSocketStatus(snapshot.state);
   }
 
   if (socket && socket.io && typeof socket.io.on === 'function') {

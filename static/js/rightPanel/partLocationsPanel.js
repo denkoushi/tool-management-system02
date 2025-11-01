@@ -1,4 +1,5 @@
 import { bindSocketLifecycle } from './socketClient.js';
+import { computeSocketState } from './socketStatusUtils.js';
 
 export function initPartLocations({
   socket,
@@ -180,11 +181,11 @@ export function initPartLocations({
     } finally {
       if (el.refreshBtn) el.refreshBtn.disabled = false;
       if (socketOptions && socketOptions.autoConnect !== false) {
-        const reconnecting = Boolean(socket?.io && (socket.io._reconnecting || socket.io._connecting));
-        if (reconnecting || state.socketState === 'reconnect') {
+        const snapshot = computeSocketState(socket);
+        if (snapshot.reconnecting || state.socketState === 'reconnect') {
           setSocketStatus('reconnect', '再接続中…');
         } else {
-          setSocketStatus(socket.connected ? 'live' : 'offline', socket.connected ? 'LIVE' : 'OFFLINE');
+          setSocketStatus(snapshot.state, snapshot.state === 'live' ? 'LIVE' : 'OFFLINE');
         }
       }
       state.fetchInFlight = false;
@@ -257,7 +258,8 @@ export function initPartLocations({
   if (socketOptions && socketOptions.autoConnect === false) {
     setSocketStatus('disabled', 'DISABLED');
   } else {
-    setSocketStatus(socket && socket.connected ? 'live' : 'loading', socket && socket.connected ? 'LIVE' : '接続確認中…');
+    const snapshot = computeSocketState(socket);
+    setSocketStatus(snapshot.state, snapshot.state === 'live' ? 'LIVE' : '接続確認中…');
   }
   attachListeners();
 
