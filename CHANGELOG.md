@@ -3,7 +3,8 @@
 ## 2025-11-01
 
 - 右ペインの Socket.IO ステータスにウォッチドッグを追加し、Pi5 停止中も「再接続中…」表示を維持するよう改善。Pi4 実機で停止→再開を確認。
-- `docs/requirements.md` / `RUNBOOK.md` / `docs/test-notes/2025-10-31-right-panel-layout.md` / `docs/docs-index.md` をウォッチドッグ適用後の内容へ更新。
+- `scripts/install_window_a_env.sh` をデフォルトで systemd ドロップインを展開する仕様に変更し、`config/systemd/toolmgmt.service.d/window-a.conf.sample` へ `SOCKET_STATUS_WATCHDOG` / `TOOLMGMT_CLIENT_ROLE` を追加。README / RUNBOOK / docs/right-pane-plan を更新。
+- `docs/requirements.md` / `docs/test-notes/2025-10-31-right-panel-layout.md` / `docs/docs-index.md` をウォッチドッグ適用後の内容へ更新。
 - 再接続時に `ERR_CONNECTION_REFUSED` がコンソールへ出力される挙動を想定内として整理し、次段の恒久対策（状態マシン化）を要件に残した。
 
 ## 2025-10-31

@@ -8,11 +8,13 @@ REPO_ROOT=$(cd "${SCRIPT_DIR}/.." && pwd)
 DEFAULT_SAMPLE="${REPO_ROOT}/config/window-a-client.env.sample"
 DEFAULT_TARGET="/etc/toolmgmt/window-a-client.env"
 DEFAULT_DROPIN_SAMPLE="${REPO_ROOT}/config/systemd/toolmgmt.service.d/window-a.conf.sample"
+DEFAULT_DROPIN_TARGET="/etc/systemd/system/toolmgmt.service.d/window-a.conf"
 
 TARGET_FILE="${DEFAULT_TARGET}"
 SAMPLE_FILE="${DEFAULT_SAMPLE}"
-DROPIN_TARGET=""
+DROPIN_TARGET="${DEFAULT_DROPIN_TARGET}"
 DROPIN_SAMPLE="${DEFAULT_DROPIN_SAMPLE}"
+INSTALL_DROPIN=true
 
 usage() {
   cat <<EOF
@@ -21,7 +23,8 @@ Usage: sudo ./scripts/install_window_a_env.sh [options]
 Options:
   --target PATH           Destination for environment file (default: ${DEFAULT_TARGET})
   --sample PATH           Source sample env file (default: ${DEFAULT_SAMPLE})
-  --with-dropin           Install systemd drop-in using default target
+  --with-dropin           Install systemd drop-in (default behaviour)
+  --no-dropin             Skip installing the systemd drop-in
   --dropin-target PATH    Install drop-in to PATH (implies --with-dropin)
   --dropin-sample PATH    Use custom drop-in sample file
   --help                  Show this help
@@ -42,18 +45,26 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     --with-dropin)
-      DROPIN_TARGET="${DROPIN_TARGET:-/etc/systemd/system/toolmgmt.service.d/window-a.conf}"
+      INSTALL_DROPIN=true
+      DROPIN_TARGET="${DROPIN_TARGET:-${DEFAULT_DROPIN_TARGET}}"
       shift
       ;;
     --dropin-target)
       [[ $# -lt 2 ]] && usage
       DROPIN_TARGET="$2"
+      INSTALL_DROPIN=true
       shift 2
       ;;
     --dropin-sample)
       [[ $# -lt 2 ]] && usage
       DROPIN_SAMPLE="$2"
+      INSTALL_DROPIN=true
       shift 2
+      ;;
+    --no-dropin)
+      INSTALL_DROPIN=false
+      DROPIN_TARGET=""
+      shift
       ;;
     --help|-h)
       usage
@@ -93,7 +104,8 @@ Environment file installed.
 
 INFO
 
-if [[ -n "${DROPIN_TARGET}" ]]; then
+if [[ "${INSTALL_DROPIN}" == true ]]; then
+  DROPIN_TARGET="${DROPIN_TARGET:-${DEFAULT_DROPIN_TARGET}}"
   dropin_dir=$(dirname "${DROPIN_TARGET}")
   install -d -o root -g root -m 755 "${dropin_dir}"
   if [[ -f "${DROPIN_TARGET}" ]]; then
@@ -104,6 +116,10 @@ if [[ -n "${DROPIN_TARGET}" ]]; then
   fi
   echo "Installing drop-in ${DROPIN_SAMPLE} -> ${DROPIN_TARGET}"
   install -o root -g root -m 644 "${DROPIN_SAMPLE}" "${DROPIN_TARGET}"
+else
+  cat <<'INFO'
+Drop-in installation skipped (--no-dropin specified). You can rerun this script without --no-dropin to install the sample systemd override.
+INFO
 fi
 
 cat <<'NEXT'

@@ -8,7 +8,7 @@ function mountDom({ active = true } = {}) {
     <section id="logisticsPanel" class="future-panel-body future-panel-body--logistics${active ? ' active' : ''}">
       <div>
         <div id="logisticsMessage"></div>
-        <span id="logisticsSocketStatus" data-state="loading"></span>
+        <span id="logisticsSocketStatus" data-state="loading" data-socket-chip="logistics"></span>
         <span id="logisticsTaskCount"></span>
         <span id="logisticsLastUpdated"></span>
         <button id="logisticsRefreshBtn">refresh</button>

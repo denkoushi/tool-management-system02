@@ -17,7 +17,7 @@
             <span class="tab-badge logistics-tab-badge">0</span>
           </button>
         </div>
-        <span id="partLocationSocketStatus" class="part-location-chip" data-state="loading">接続確認中…</span>
+        <span id="partLocationSocketStatus" class="part-location-chip" data-state="loading" data-socket-chip="part-locations">接続確認中…</span>
         <span id="partLocationCount" class="part-location-chip">件数: {{ part_locations|length }}</span>
         <span id="partLocationLastUpdated" class="part-location-chip">最終更新: -</span>
         <button type="button" id="partLocationRefreshBtn" class="btn-reload">最新を取得</button>

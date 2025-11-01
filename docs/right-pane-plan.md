@@ -10,7 +10,8 @@
 - **ヘッダ内トグルで複合表示**: 右ペインは「要領書」を既定とし、ステータスバー内のスイッチボタンから所在一覧（`part_locations`）へ切り替えられる。所在一覧は Socket.IO でリアルタイム更新し、接続断時は 20 秒間隔の REST ポーリングで自動再取得する。
 - **URL/ポート管理**: 既定値は `raspi-server.local:8501` を想定。`DOCUMENT_VIEWER_URL` を省略しても `RASPI_SERVER_BASE` が設定されていれば自動的に `/viewer` へ誘導される。
 - **Socket.IO 接続先の切替**: `UPSTREAM_SOCKET_BASE`（ベース URL）と `UPSTREAM_SOCKET_PATH` で RaspberryPiServer（ラズパイ 5）を指定。既定では同一ホストを参照し、`UPSTREAM_SOCKET_AUTO=0` でクライアント側接続を抑止できる。
-- **環境ファイルの配備**: `config/window-a-client.env.sample` を元に `sudo ./scripts/install_window_a_env.sh --with-dropin` を実行すると、Window A 用の設定ファイルと systemd ドロップインを同時に展開できる。初期構築時は以下の前提を満たすこと。
+- **再接続ウォッチドッグ**: `SOCKET_STATUS_WATCHDOG=1` を既定とし、Pi5 停止中もステータスチップが「再接続中…」表示を維持する。無効化したい場合のみ環境値を `0` に変更する。
+- **環境ファイルの配備**: `config/window-a-client.env.sample` を元に `sudo ./scripts/install_window_a_env.sh` を実行すると、Window A 用の設定ファイルと systemd ドロップインを同時に展開できる。既存の drop-in を保持したい場合は `--no-dropin` を付与して実行する。初期構築時は以下の前提を満たすこと。
   - `sudo apt install -y build-essential python3-dev swig libpcsclite-dev pcscd postgresql-client` を事前に実行し、`pyscard` のビルドと `psql` クライアントが利用できる状態を整える。
   - 依存ライブラリは RaspberryPiServer 側と同じバージョンを利用する。特に `psycopg2-binary` は **2.9.10** を使用し、`source venv/bin/activate && pip install -r requirements.txt -r requirements-dev.txt` を再実行する。
   - systemd drop-in の `EnvironmentFile` は `-/etc/toolmgmt/window-a-client.env` ではなく `=/etc/toolmgmt/window-a-client.env` とし、読み込みに失敗した際に黙って無視されないようにする（2025-10-28 修正）。
@@ -93,7 +94,7 @@
   1. `git pull origin feature/client-socket-cutover` でリポジトリを最新化し、`requirements.txt` の更新（`psycopg2-binary==2.9.10`）を取得する。
   2. `sudo apt install -y build-essential python3-dev swig libpcsclite-dev pcscd postgresql-client` を実行してビルドツール・PCSC ライブラリ・`psql` を整備する。
   3. `source venv/bin/activate && pip install -r requirements.txt -r requirements-dev.txt && deactivate` を実行して Python 依存を揃える。
-  4. `sudo ./scripts/install_window_a_env.sh --with-dropin` が `tools01` ユーザー不在で失敗する場合は、`/etc/toolmgmt/window-a-client.env` と `/etc/systemd/system/toolmgmt.service.d/window-a.conf` を手動で配置し、所有者を `tools02:tools02`（env）と `root:root`（drop-in）に設定する。
+  4. `sudo ./scripts/install_window_a_env.sh` が `tools01` ユーザー不在で失敗する場合は、`/etc/toolmgmt/window-a-client.env` と `/etc/systemd/system/toolmgmt.service.d/window-a.conf` を手動で配置し、所有者を `tools02:tools02`（env）と `root:root`（drop-in）に設定する（drop-in を適用したくない場合は `--no-dropin` を付与）。
   5. `sudo systemctl daemon-reload` → `sudo systemctl restart toolmgmt.service` → `sudo journalctl -u toolmgmt.service -n 20 --no-pager` で DB 接続が成功し、`curl` + Socket.IO リスナーで 201／イベント受信を確認する。
 
 ## 5. 検討中・将来課題

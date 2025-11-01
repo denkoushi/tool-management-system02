@@ -71,6 +71,8 @@ UPSTREAM_SOCKET_BASE = os.getenv(
 )
 UPSTREAM_SOCKET_PATH = os.getenv("UPSTREAM_SOCKET_PATH", "/socket.io")
 UPSTREAM_SOCKET_AUTO = os.getenv("UPSTREAM_SOCKET_AUTO", "1")
+SOCKET_STATUS_WATCHDOG = os.getenv("SOCKET_STATUS_WATCHDOG", "1")
+CLIENT_ROLE = os.getenv("TOOLMGMT_CLIENT_ROLE", "").strip() or "window-a"
 
 
 def _normalize_socket_base(value: Optional[str]) -> str:
@@ -89,7 +91,19 @@ SOCKET_CLIENT_CONFIG = {
     "base": _normalize_socket_base(UPSTREAM_SOCKET_BASE),
     "path": UPSTREAM_SOCKET_PATH if UPSTREAM_SOCKET_PATH else "/socket.io",
     "auto": _parse_bool(UPSTREAM_SOCKET_AUTO, True),
+    "watchdog": _parse_bool(SOCKET_STATUS_WATCHDOG, True),
+    "role": CLIENT_ROLE,
 }
+
+app.config['TOOLMGMT_CLIENT_ROLE'] = CLIENT_ROLE
+app.logger.info(
+    "toolmgmt bootstrap role=%s socket_base=%s socket_path=%s auto_connect=%s watchdog=%s",
+    CLIENT_ROLE,
+    SOCKET_CLIENT_CONFIG["base"] or "(unset)",
+    SOCKET_CLIENT_CONFIG["path"],
+    SOCKET_CLIENT_CONFIG["auto"],
+    SOCKET_CLIENT_CONFIG["watchdog"],
+)
 
 
 def _create_raspi_client() -> RaspiServerClient:

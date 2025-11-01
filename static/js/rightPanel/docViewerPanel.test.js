@@ -63,7 +63,7 @@ describe('docViewerPanel', () => {
     expect(frame.src).toMatch(/^https:\/\/example\.com\/viewer\?/);
     expect(overlay.classList.contains('is-hidden')).toBe(false);
     frame.dispatchEvent(new Event('load'));
-    expect(status.dataset.state).toBe('online');
+    expect(status.dataset.state).toBe('live');
   });
 
   it('updates chips when receiving viewer-state message', () => {

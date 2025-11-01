@@ -413,7 +413,7 @@
 3. **環境変数ファイルの展開**（Window A 用設定）
 
         cd ~/tool-management-system02
-        sudo ./scripts/install_window_a_env.sh --with-dropin
+        sudo ./scripts/install_window_a_env.sh
         sudoedit /etc/toolmgmt/window-a-client.env
 
    主な設定例：
@@ -422,6 +422,9 @@
    - `DOCUMENT_VIEWER_URL=` （空でも可。自動的に `/viewer` を参照）
    - `UPSTREAM_SOCKET_BASE=http://raspi-server.local:8501`
    - `UPSTREAM_SOCKET_PATH=/socket.io`
+   - `SOCKET_STATUS_WATCHDOG=1`（Pi5 停止時に「再接続中…」表示を維持）
+
+   > 既存の systemd ドロップインを保持したい場合は、スクリプト実行時に `--no-dropin` を付与してください。手動で配置する際は `/etc/systemd/system/toolmgmt.service.d/window-a.conf` をルート権限で管理します。
    - `UPSTREAM_SOCKET_AUTO=1`
 
 4. **サービス再起動**

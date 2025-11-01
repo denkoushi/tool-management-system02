@@ -1,6 +1,11 @@
 [Unit]
-# systemd drop-in for Window A (Raspberry Pi 4) client configuration.
+# Window A (Raspberry Pi 4) client overrides for toolmgmt.service.
+Description=toolmgmt Window A client overrides
 
 [Service]
-# Load environment variables that define DocumentViewer/Socket.IO endpoints.
+# Load environment variables that define DocumentViewer / Socket.IO endpoints.
 EnvironmentFile=/etc/toolmgmt/window-a-client.env
+# Optional metadata for logging・監視。必要に応じて ROLE 名を変更してください。
+Environment=TOOLMGMT_CLIENT_ROLE=WINDOW_A
+# Socket.IO 再接続ウォッチドッグ（0 で無効化、環境ファイル側で再定義可能）
+Environment=SOCKET_STATUS_WATCHDOG=1

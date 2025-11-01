@@ -1,5 +1,6 @@
 import { describe, it, beforeEach, afterEach, expect, vi } from 'vitest';
 import { initPartLocations } from './partLocationsPanel.js';
+import { SOCKET_STATE_EVENT } from './socketStatusManager.js';
 
 vi.mock('./socketClient.js', () => ({
   bindSocketLifecycle: vi.fn((socket, callbacks = {}) => {
@@ -19,7 +20,7 @@ function mountDom({ active = false } = {}) {
     <section id="partLocationsPanel" class="${active ? 'active' : ''}">
       <div id="partLocationsMessage"></div>
       <button id="partLocationRefreshBtn" type="button">refresh</button>
-      <span id="partLocationSocketStatus" data-state="loading"></span>
+      <span id="partLocationSocketStatus" data-state="loading" data-socket-chip="part-locations"></span>
       <span id="partLocationCount"></span>
       <span id="partLocationLastUpdated"></span>
       <table id="partLocationsTable">
@@ -40,6 +41,10 @@ function createSocket(connected = true) {
     io: {},
   };
   return { socket, listeners };
+}
+
+function emitSocketState(state) {
+  window.dispatchEvent(new CustomEvent(SOCKET_STATE_EVENT, { detail: { state } }));
 }
 
 describe('partLocationsPanel', () => {
@@ -96,15 +101,16 @@ describe('partLocationsPanel', () => {
       json: async () => ({ items: [] }),
     }));
 
-  initPartLocations({
-    socket,
-    socketOptions: { autoConnect: true },
-    fetchImpl,
-    initialData: [],
-  });
+    initPartLocations({
+      socket,
+      socketOptions: { autoConnect: true },
+      fetchImpl,
+      initialData: [],
+    });
 
-  listeners.part_location_updated?.({
-    order_code: 'ZX-999',
+    emitSocketState('live');
+    listeners.part_location_updated?.({
+      order_code: 'ZX-999',
       location_code: 'A-01',
       device_id: 'pi-zero',
       scanned_at: '2025-10-31T00:10:00Z',
@@ -140,7 +146,7 @@ describe('partLocationsPanel', () => {
   });
 
   it('updates socket status on disconnect', () => {
-    const { socket, listeners } = createSocket(true);
+    const { socket } = createSocket(true);
     const fetchImpl = vi.fn(async () => ({
       ok: true,
       json: async () => ({ items: [] }),
@@ -153,13 +159,13 @@ describe('partLocationsPanel', () => {
       initialData: [],
     });
 
-    listeners.connect?.();
+    emitSocketState('live');
     expect(document.getElementById('partLocationSocketStatus').dataset.state).toBe('live');
 
-    listeners.disconnect?.();
+    emitSocketState('offline');
     expect(document.getElementById('partLocationSocketStatus').dataset.state).toBe('offline');
 
-    listeners.connect_error?.();
+    emitSocketState('error');
     expect(document.getElementById('partLocationSocketStatus').dataset.state).toBe('error');
   });
 });

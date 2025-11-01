@@ -241,7 +241,7 @@
     <section class="preview-panel" id="partLocationsPanel">
       <h2 style="margin-bottom:6px;">所在一覧パネル</h2>
       <div class="part-locations-meta">
-        <span id="partLocationSocketStatus" class="part-location-chip" data-state="loading">接続確認中…</span>
+        <span id="partLocationSocketStatus" class="part-location-chip" data-state="loading" data-socket-chip="part-locations">接続確認中…</span>
         <span id="partLocationCount" class="part-location-chip">件数: 0</span>
         <span id="partLocationLastUpdated" class="part-location-chip">最終更新: —</span>
         <button id="partLocationRefreshBtn" type="button">最新を取得</button>
@@ -270,7 +270,7 @@
             <p class="logistics-subtitle">Pi Zero からの搬送依頼を確認するプレビューです。</p>
           </div>
           <div class="logistics-header__meta">
-            <span id="logisticsSocketStatus" class="logistics-chip" data-state="loading">接続確認中…</span>
+            <span id="logisticsSocketStatus" class="logistics-chip" data-state="loading" data-socket-chip="logistics">接続確認中…</span>
             <span id="logisticsTaskCount" class="logistics-chip">件数: 0</span>
             <span id="logisticsLastUpdated" class="logistics-chip">最終更新: —</span>
             <button type="button" id="logisticsRefreshBtn" class="btn-reload">最新を取得</button>

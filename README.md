@@ -30,8 +30,10 @@
 | `UPSTREAM_SOCKET_BASE` | Socket.IO 接続先（Pi5）。`raspi-server*.local` など実ホスト名に合わせる。 | _(空)_ |
 | `UPSTREAM_SOCKET_PATH` | Socket.IO のパス。 | `/socket.io` |
 | `UPSTREAM_SOCKET_AUTO` | Socket.IO 自動接続フラグ（`1` で有効、`0` で無効）。 | `1` |
+| `SOCKET_STATUS_WATCHDOG` | Pi5 停止時も「再接続中…」表示を維持するウォッチドッグ。`0` で無効。 | `1` |
 | `RASPI_SERVER_API_TOKEN` | Pi5 へアクセスする際の Bearer トークン。 | _(空)_ |
 | `RASPI_SERVER_TIMEOUT` | REST リクエストのタイムアウト（秒）。 | `4.0` |
+| `TOOLMGMT_CLIENT_ROLE` | ログに出力するクライアント識別子（例: `WINDOW_A`）。 | `window-a` |
 
 > 例: RaspberryPiServer を参照する場合  
 > `Environment=RASPI_SERVER_BASE=http://raspi-server.local:8501`  
@@ -43,11 +45,12 @@
 
 ```bash
 cd ~/tool-management-system02
-sudo ./scripts/install_window_a_env.sh --with-dropin
+sudo ./scripts/install_window_a_env.sh
 sudo systemctl daemon-reload
 sudo systemctl restart toolmgmt.service
 ```
 
+スクリプトはデフォルトで systemd ドロップイン（`/etc/systemd/system/toolmgmt.service.d/window-a.conf`）も配置します。既存の手動設定を保持したい場合のみ `--no-dropin` を指定してください。
 ---
 
 ## 1) 依存関係（セットアップ手順）

@@ -3,6 +3,7 @@ import { initPartLocations } from './partLocationsPanel.js';
 import { initDocViewer } from './docViewerPanel.js';
 import { initLogisticsPanel } from './logisticsPanel.js';
 import { initSocketStatusManager } from './socketStatusManager.js';
+import { installSocketWatchdog } from './socketWatchdog.js';
 
 function loadInitialPartLocations() {
   try {
@@ -66,7 +67,8 @@ function resolveSocketConfig(rawConfig) {
   const base = typeof config.base === 'string' ? config.base.trim().replace(/\/+$/, '') : '';
   const path = typeof config.path === 'string' ? config.path.trim() : '/socket.io';
   const auto = config.auto !== false;
-  return { base, path, autoConnect: auto };
+  const watchdog = config.watchdog !== false;
+  return { base, path, autoConnect: auto, watchdog };
 }
 
 export function initRightPanel() {
@@ -87,6 +89,9 @@ export function initRightPanel() {
 
   window.TOOLMGMT_SOCKET = socket;
   const teardownStatusManager = initSocketStatusManager(socket, { autoConnect: socketConfig.autoConnect });
+  const teardownWatchdog = installSocketWatchdog(socket, {
+    enabled: socketConfig.watchdog !== false && socketConfig.autoConnect !== false,
+  });
 
   const partLocations = initPartLocations({
     socket,
@@ -145,5 +150,5 @@ export function initRightPanel() {
 
   setupPanelSwitching();
 
-  return { socket, partLocations, docViewer, logistics, teardownStatusManager };
+  return { socket, partLocations, docViewer, logistics, teardownStatusManager, teardownWatchdog };
 }
