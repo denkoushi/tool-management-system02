@@ -16,11 +16,12 @@
 - 2025-11-02: Socket.IO ステータス管理を状態マシン化し、ウォッチドッグ挙動を統合。`SOCKET_STATUS_WATCHDOG` 設定で抑制可能とし、Vitest に状態管理テストを追加。Pi4 実機でも停止→再開で `LIVE` に復帰することを確認済み。
 - 2025-11-02: タブ切替時に DocumentViewer iframe が残らないよう `.future-panel-body--doc` のレイアウトを調整し、切り替え動作を修正。
 - 2025-11-02: `config/window-a-client.env.sample` に `SOCKET_STATUS_WATCHDOG=1` と Pi5 と揃えた `RASPI_SERVER_API_TOKEN` を明記し、systemd drop-in (`config/systemd/toolmgmt.service.d/window-a.conf.sample`) の `TOOLMGMT_CLIENT_ROLE` を `window-a` に統一。
+- 2025-11-02: `/api/loans` / `register_*` / `tool_name` 系エンドポイントを RaspberryPiServer 側へ委譲し、Window A は RaspiServerClient 経由のプロキシに統一。`ENABLE_LOCAL_SCAN=0` を既定とし、旧 NFC スキャンは必要時のみ有効化する。
 - ✅ **構内物流・所在一覧 UI の整合**
   - Pi5 `/api/logistics/jobs` のレスポンスに合わせて物流タブの列定義とステータス表示を調整する。
   - DocumentViewer 連携イベントを再テストし、所在一覧のハイライト挙動を確認する。
-  - 2025-11-02: 構内物流タブに日本語ステータスバッジと依頼時刻列を追加し、`logisticsPanel` テストを更新。Pi4 実機でステータス遷移の表示確認済み。
-  - 2025-11-02: DocumentViewer の `dv-barcode` 通知で所在一覧をハイライトできるようにし、`partLocationsPanel` に外部ハイライト API を追加。Pi4 実機での結果を `docs/test-notes/2025-11-02-viewer-highlight.md` に記録。
+- 2025-11-02: 構内物流タブに日本語ステータスバッジと依頼時刻列を追加し、`logisticsPanel` テストを更新。Pi4 実機でステータス遷移の表示確認済み。
+- 2025-11-02: DocumentViewer の `dv-barcode` 通知で所在一覧をハイライトできるようにし、`partLocationsPanel` に外部ハイライト API を追加。Pi4 実機での結果を `docs/test-notes/2025-11-02-viewer-highlight.md` に記録。
 - ⏳ **E2E テスト整備（Playwright）**
   - `docs/e2e-plan.md` に沿って、スキャン→所在反映→Viewer 自動表示までのシナリオを Playwright で実装する。
   - ローカル `.env.test` と Pi5 テスト環境で実行できる npm スクリプトを整備する。

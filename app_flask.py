@@ -73,6 +73,7 @@ UPSTREAM_SOCKET_PATH = os.getenv("UPSTREAM_SOCKET_PATH", "/socket.io")
 UPSTREAM_SOCKET_AUTO = os.getenv("UPSTREAM_SOCKET_AUTO", "1")
 SOCKET_STATUS_WATCHDOG = os.getenv("SOCKET_STATUS_WATCHDOG", "1")
 CLIENT_ROLE = os.getenv("TOOLMGMT_CLIENT_ROLE", "").strip() or "window-a"
+ENABLE_LOCAL_SCAN = _parse_bool(os.getenv("ENABLE_LOCAL_SCAN"), False)
 
 
 def _normalize_socket_base(value: Optional[str]) -> str:
@@ -958,27 +959,18 @@ def reset_state():
 
 @app.route('/api/loans')
 def get_loans():
-    conn = get_conn()
+    client = _create_raspi_client()
+    if not client.is_configured():
+        return jsonify({"error": "RASPI_SERVER_BASE is not configured"}), 503
     try:
-        open_loans = fetch_open_loans(conn)
-        history = fetch_recent_history(conn)
-        return jsonify({
-            "open_loans": [{
-                "id": r[0],
-                "tool_uid": r[1],
-                "tool": r[2],
-                "borrower_uid": r[3],
-                "borrower": r[4],
-                "loaned_at": r[5].isoformat()
-            } for r in open_loans],
-            "history": [{
-                "action": r[0], "tool": r[1], "borrower": r[2], 
-                "loaned_at": r[3].isoformat(), 
-                "returned_at": r[4].isoformat() if r[4] else None
-            } for r in history]
-        })
-    finally:
-        conn.close()
+        payload = client.get_json("/api/loans")
+    except RaspiServerAuthError as exc:
+        log_api_action("loan_list", status="denied", detail=str(exc))
+        return jsonify({"error": str(exc)}), 401
+    except RaspiServerClientError as exc:
+        log_api_action("loan_list", status="error", detail=str(exc))
+        return jsonify({"error": str(exc)}), 502
+    return jsonify(payload)
 
 
 @app.route('/api/station_config', methods=['GET'])
@@ -1203,50 +1195,73 @@ def api_tokens_revoke():
 @app.route('/api/loans/<int:loan_id>/manual_return', methods=['POST'])
 @require_api_token("manual_return")
 def manual_return_loan(loan_id):
-    conn = get_conn()
+    client = _create_raspi_client()
+    if not client.is_configured():
+        return jsonify({"error": "RASPI_SERVER_BASE is not configured"}), 503
     try:
+        raw_response = client._request(  # noqa: SLF001
+            "POST",
+            f"/api/loans/{loan_id}/manual_return",
+            json={},
+            allow_statuses=(404,),
+        )
+    except RaspiServerAuthError as exc:
+        log_api_action("manual_return", status="denied", detail={"loan_id": loan_id, "error": str(exc)})
+        return jsonify({"error": str(exc)}), 401
+    except RaspiServerClientError as exc:
+        message = str(exc)
+        log_api_action("manual_return", status="error", detail={"loan_id": loan_id, "error": message})
+        return jsonify({"error": message}), 502
+
+    if raw_response.status_code == 404:
         try:
-            tool_uid, borrower_uid = complete_loan_manually(conn, loan_id)
-        except RuntimeError as e:
-            log_api_action("manual_return", status="error", detail={"loan_id": loan_id, "error": str(e)})
-            return jsonify({"error": str(e)}), 404
-        tool_name = name_of_tool(conn, tool_uid)
-        borrower_name = name_of_user(conn, borrower_uid)
-        message = f"✅ 手動返却：{tool_name} を {borrower_name} から回収しました"
-        socketio.emit('transaction_complete', {
-            'user_uid': borrower_uid,
-            'user_name': borrower_name,
-            'tool_uid': tool_uid,
-            'tool_name': tool_name,
-            'message': message,
-            'action': 'return'
-        })
-        log_api_action("manual_return", detail={"loan_id": loan_id, "tool_uid": tool_uid, "borrower_uid": borrower_uid})
-        return jsonify({"status": "success", "message": message})
-    except Exception as e:
-        log_api_action("manual_return", status="error", detail={"loan_id": loan_id, "error": str(e)})
-        return jsonify({"error": str(e)}), 500
-    finally:
-        conn.close()
+            body = raw_response.json()
+        except ValueError:
+            body = {"error": "not_found"}
+        log_api_action("manual_return", status="error", detail={"loan_id": loan_id, "error": "not_found"})
+        return jsonify(body), 404
+
+    try:
+        response = raw_response.json()
+    except ValueError:
+        log_api_action("manual_return", status="error", detail={"loan_id": loan_id, "error": "invalid_response"})
+        return jsonify({"error": "invalid_response"}), 502
+
+    log_api_action("manual_return", detail={"loan_id": loan_id})
+    return jsonify(response)
 
 @app.route('/api/loans/<int:loan_id>', methods=['DELETE'])
 @require_api_token("delete_open_loan")
 def delete_open_loan_api(loan_id):
-    conn = get_conn()
+    client = _create_raspi_client()
+    if not client.is_configured():
+        return jsonify({"error": "RASPI_SERVER_BASE is not configured"}), 503
     try:
-        try:
-            tool_uid, tool_name = delete_open_loan(conn, loan_id)
-        except RuntimeError as e:
-            log_api_action("delete_open_loan", status="error", detail={"loan_id": loan_id, "error": str(e)})
-            return jsonify({"error": str(e)}), 404
-        message = f"🗑️ 貸出記録を削除しました: {tool_name} ({tool_uid})"
-        log_api_action("delete_open_loan", detail={"loan_id": loan_id, "tool_uid": tool_uid})
-        return jsonify({"status": "success", "message": message, "tool_uid": tool_uid})
-    except Exception as e:
-        log_api_action("delete_open_loan", status="error", detail={"loan_id": loan_id, "error": str(e)})
-        return jsonify({"error": str(e)}), 500
-    finally:
-        conn.close()
+        raw_response = client._request(  # noqa: SLF001
+            "DELETE",
+            f"/api/loans/{loan_id}",
+            allow_statuses=(404,),
+        )
+    except RaspiServerAuthError as exc:
+        log_api_action("delete_open_loan", status="denied", detail={"loan_id": loan_id, "error": str(exc)})
+        return jsonify({"error": str(exc)}), 401
+    except RaspiServerClientError as exc:
+        message = str(exc)
+        log_api_action("delete_open_loan", status="error", detail={"loan_id": loan_id, "error": message})
+        return jsonify({"error": message}), 502
+
+    if raw_response.status_code == 404:
+        log_api_action("delete_open_loan", status="error", detail={"loan_id": loan_id, "error": "not_found"})
+        return jsonify({"error": "not_found"}), 404
+
+    try:
+        body = raw_response.json()
+    except ValueError:
+        log_api_action("delete_open_loan", status="error", detail={"loan_id": loan_id, "error": "invalid_response"})
+        return jsonify({"error": "invalid_response"}), 502
+
+    log_api_action("delete_open_loan", detail={"loan_id": loan_id, "tool_uid": body.get("tool_uid")})
+    return jsonify(body)
 
 @app.route('/api/usb_sync', methods=['POST'])
 @require_api_token("usb_sync")
@@ -1289,117 +1304,140 @@ def scan_tag():
 @app.route('/api/register_user', methods=['POST'])
 @require_api_token("register_user")
 def register_user():
-    data = request.json
-    uid = data.get('uid')
-    name = data.get('name')
-    
+    payload = request.get_json(silent=True) or {}
+    uid = (payload.get('uid') or '').strip()
+    name = (payload.get('name') or '').strip()
+
     if not uid or not name:
         log_api_action("register_user", status="error", detail="missing_uid_or_name")
         return jsonify({"error": "UID と 氏名 は必須です"}), 400
-    
-    conn = get_conn()
+
+    client = _create_raspi_client()
+    if not client.is_configured():
+        return jsonify({"error": "RASPI_SERVER_BASE is not configured"}), 503
+
     try:
-        with conn, conn.cursor() as cur:
-            cur.execute("""
-              INSERT INTO users(uid, full_name)
-              VALUES(%s,%s)
-              ON CONFLICT(uid) DO UPDATE SET full_name=EXCLUDED.full_name
-            """, (uid, name.strip()))
-        print(f"👤 ユーザー登録: {name} ({uid})")
-        log_api_action("register_user", detail={"uid": uid, "name": name})
-        return jsonify({"status": "success", "message": "ユーザーを登録/更新しました"})
-    except Exception as e:
-        print(f"❌ ユーザー登録エラー: {e}")
-        log_api_action("register_user", status="error", detail={"uid": uid, "error": str(e)})
-        return jsonify({"error": str(e)}), 500
-    finally:
-        conn.close()
+        response = client.post_json("/api/register_user", {"uid": uid, "name": name})
+    except RaspiServerAuthError as exc:
+        log_api_action("register_user", status="denied", detail={"uid": uid, "error": str(exc)})
+        return jsonify({"error": str(exc)}), 401
+    except RaspiServerClientError as exc:
+        log_api_action("register_user", status="error", detail={"uid": uid, "error": str(exc)})
+        return jsonify({"error": str(exc)}), 502
+
+    log_api_action("register_user", detail={"uid": uid, "name": name})
+    return jsonify(response)
 
 @app.route('/api/register_tool', methods=['POST'])
 @require_api_token("register_tool")
 def register_tool():
-    data = request.json
-    uid = data.get('uid')
-    name = data.get('name')
-    
+    payload = request.get_json(silent=True) or {}
+    uid = (payload.get('uid') or '').strip()
+    name = (payload.get('name') or '').strip()
+
     if not uid or not name:
         log_api_action("register_tool", status="error", detail="missing_uid_or_name")
         return jsonify({"error": "UID と 工具名 は必須です"}), 400
-    
-    conn = get_conn()
+
+    client = _create_raspi_client()
+    if not client.is_configured():
+        return jsonify({"error": "RASPI_SERVER_BASE is not configured"}), 503
+
     try:
-        with conn, conn.cursor() as cur:
-            cur.execute("""
-              INSERT INTO tools(uid, name)
-              VALUES(%s,%s)
-              ON CONFLICT(uid) DO UPDATE SET name=EXCLUDED.name
-            """, (uid, name))
-        print(f"🛠️ 工具登録: {name} ({uid})")
-        log_api_action("register_tool", detail={"uid": uid, "name": name})
-        return jsonify({"status": "success", "message": "工具を登録/更新しました"})
-    except Exception as e:
-        print(f"❌ 工具登録エラー: {e}")
-        log_api_action("register_tool", status="error", detail={"uid": uid, "error": str(e)})
-        return jsonify({"error": str(e)}), 500
-    finally:
-        conn.close()
+        response = client.post_json("/api/register_tool", {"uid": uid, "name": name})
+    except RaspiServerAuthError as exc:
+        log_api_action("register_tool", status="denied", detail={"uid": uid, "error": str(exc)})
+        return jsonify({"error": str(exc)}), 401
+    except RaspiServerClientError as exc:
+        log_api_action("register_tool", status="error", detail={"uid": uid, "error": str(exc)})
+        return jsonify({"error": str(exc)}), 502
+
+    log_api_action("register_tool", detail={"uid": uid, "name": name})
+    return jsonify(response)
 
 @app.route('/api/tool_names')
 def get_tool_names():
-    conn = get_conn()
+    client = _create_raspi_client()
+    if not client.is_configured():
+        return jsonify({"error": "RASPI_SERVER_BASE is not configured"}), 503
     try:
-        names = list_tool_names(conn)
-        return jsonify({"names": names})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    finally:
-        conn.close()
+        payload = client.get_json("/api/tool_names")
+    except RaspiServerAuthError as exc:
+        return jsonify({"error": str(exc)}), 401
+    except RaspiServerClientError as exc:
+        return jsonify({"error": str(exc)}), 502
+    return jsonify(payload)
 
 @app.route('/api/add_tool_name', methods=['POST'])
 @require_api_token("add_tool_name")
 def add_tool_name_api():
-    data = request.json
-    name = data.get('name')
-    
+    data = request.get_json(silent=True) or {}
+    name = (data.get('name') or '').strip()
+
     if not name:
         log_api_action("add_tool_name", status="error", detail="missing_name")
         return jsonify({"error": "工具名を入力してください"}), 400
-    
-    conn = get_conn()
+
+    client = _create_raspi_client()
+    if not client.is_configured():
+        return jsonify({"error": "RASPI_SERVER_BASE is not configured"}), 503
+
     try:
-        add_tool_name(conn, name.strip())
-        print(f"📚 工具名追加: {name}")
-        log_api_action("add_tool_name", detail={"name": name})
-        return jsonify({"status": "success", "message": "追加しました"})
-    except Exception as e:
-        print(f"❌ 工具名追加エラー: {e}")
-        log_api_action("add_tool_name", status="error", detail={"name": name, "error": str(e)})
-        return jsonify({"error": str(e)}), 500
-    finally:
-        conn.close()
+        response = client.post_json("/api/add_tool_name", {"name": name})
+    except RaspiServerAuthError as exc:
+        log_api_action("add_tool_name", status="denied", detail={"name": name, "error": str(exc)})
+        return jsonify({"error": str(exc)}), 401
+    except RaspiServerClientError as exc:
+        log_api_action("add_tool_name", status="error", detail={"name": name, "error": str(exc)})
+        return jsonify({"error": str(exc)}), 502
+
+    log_api_action("add_tool_name", detail={"name": name})
+    return jsonify(response)
 
 @app.route('/api/delete_tool_name', methods=['POST'])
 @require_api_token("delete_tool_name")
 def delete_tool_name_api():
-    data = request.json
-    name = data.get('name')
-    
+    data = request.get_json(silent=True) or {}
+    name = (data.get('name') or '').strip()
+
     if not name:
         log_api_action("delete_tool_name", status="error", detail="missing_name")
         return jsonify({"error": "工具名を指定してください"}), 400
-    
-    conn = get_conn()
+
+    client = _create_raspi_client()
+    if not client.is_configured():
+        return jsonify({"error": "RASPI_SERVER_BASE is not configured"}), 503
+
     try:
-        delete_tool_name(conn, name)
-        print(f"🗑️ 工具名削除: {name}")
-        log_api_action("delete_tool_name", detail={"name": name})
-        return jsonify({"status": "success", "message": "削除しました"})
-    except Exception as e:
-        print(f"❌ 工具名削除エラー: {e}")
-        log_api_action("delete_tool_name", status="error", detail={"name": name, "error": str(e)})
-        return jsonify({"error": str(e)}), 500
-    finally:
-        conn.close()
+        raw_response = client._request(  # noqa: SLF001
+            "POST",
+            "/api/delete_tool_name",
+            json={"name": name},
+            allow_statuses=(404, 409),
+        )
+    except RaspiServerAuthError as exc:
+        log_api_action("delete_tool_name", status="denied", detail={"name": name, "error": str(exc)})
+        return jsonify({"error": str(exc)}), 401
+    except RaspiServerClientError as exc:
+        log_api_action("delete_tool_name", status="error", detail={"name": name, "error": str(exc)})
+        return jsonify({"error": str(exc)}), 502
+
+    if raw_response.status_code in (404, 409):
+        try:
+            body = raw_response.json()
+        except ValueError:
+            body = {"error": "tool_name_in_use" if raw_response.status_code == 409 else "not_found"}
+        log_api_action("delete_tool_name", status="error", detail={"name": name, "error": body.get("error")})
+        return jsonify(body), raw_response.status_code
+
+    try:
+        response = raw_response.json()
+    except ValueError:
+        log_api_action("delete_tool_name", status="error", detail={"name": name, "error": "invalid_response"})
+        return jsonify({"error": "invalid_response"}), 502
+
+    log_api_action("delete_tool_name", detail={"name": name})
+    return jsonify(response)
 
 @app.route('/api/check_tag', methods=['POST'])
 @require_api_token("check_tag")
@@ -1409,25 +1447,33 @@ def check_tag():
     uid = read_one_uid(timeout=5)
     if uid:
         print(f"✅ タグ情報確認成功: {uid}")
-        
+
+        client = _create_raspi_client()
+        if client.is_configured():
+            try:
+                payload = client.get_json(f"/api/tag-info/{uid}")
+                log_api_action("check_tag", detail=payload)
+                return jsonify(payload)
+            except (RaspiServerAuthError, RaspiServerClientError) as exc:
+                print(f"⚠️ タグ情報の取得に失敗しました（フォールバックを使用）: {exc}")
+
         conn = get_conn()
         try:
-            # ユーザー情報確認
             with conn.cursor() as cur:
                 cur.execute("SELECT full_name FROM users WHERE uid=%s", (uid,))
                 user_result = cur.fetchone()
-                
+
                 cur.execute("SELECT name FROM tools WHERE uid=%s", (uid,))
                 tool_result = cur.fetchone()
-            
+
             result = {"uid": uid, "status": "success"}
-            
+
             if user_result:
                 result["type"] = "user"
                 result["name"] = user_result[0]
                 result["message"] = f"👤 ユーザー: {user_result[0]}"
             elif tool_result:
-                result["type"] = "tool" 
+                result["type"] = "tool"
                 result["name"] = tool_result[0]
                 result["message"] = f"🛠️ 工具: {tool_result[0]}"
             else:
@@ -1490,12 +1536,15 @@ def api_shutdown():
 if __name__ == '__main__':
     ensure_tables()
     
-    # バックグラウンドスキャンスレッド開始
-    scan_thread = threading.Thread(target=scan_monitor, daemon=True)
-    scan_thread.start()
-    
+    if ENABLE_LOCAL_SCAN:
+        # バックグラウンドスキャンスレッド開始
+        scan_thread = threading.Thread(target=scan_monitor, daemon=True)
+        scan_thread.start()
+        print("📡 NFCスキャン監視スレッド開始")
+    else:
+        print("🔕 ENABLE_LOCAL_SCAN=0 のため NFC スキャン監視を開始しません")
+
     print("🚀 Flask 工具管理システムを開始します...")
-    print("📡 NFCスキャン監視スレッド開始")
     print("🌐 http://0.0.0.0:8501 でアクセス可能")
     print("💡 タイムアウトエラーは正常動作（タグ待機中）なので無視してください")
     socketio.run(app, host='0.0.0.0', port=8501, debug=False, allow_unsafe_werkzeug=True)

@@ -31,6 +31,7 @@
 | `UPSTREAM_SOCKET_PATH` | Socket.IO のパス。 | `/socket.io` |
 | `UPSTREAM_SOCKET_AUTO` | Socket.IO 自動接続フラグ（`1` で有効、`0` で無効）。 | `1` |
 | `SOCKET_STATUS_WATCHDOG` | Pi5 停止時も「再接続中…」表示を維持するウォッチドッグ。`0` で無効。 | `1` |
+| `ENABLE_LOCAL_SCAN` | Pi4 上で NFC スキャン（旧運用）を継続する場合のみ `1`。通常は `0` で Pi Zero 側に委譲する。 | `0` |
 | `RASPI_SERVER_API_TOKEN` | Pi5 へアクセスする際の Bearer トークン。 | _(空)_ |
 | `RASPI_SERVER_TIMEOUT` | REST リクエストのタイムアウト（秒）。 | `4.0` |
 | `TOOLMGMT_CLIENT_ROLE` | ログに出力するクライアント識別子（例: `WINDOW_A`）。 | `window-a` |
