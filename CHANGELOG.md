@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 2025-11-02
+
+- Socket.IO ステータス制御を状態マシン化し、右ペインのウォッチドッグ専用 DOM 操作を統合 (`static/js/rightPanel/socketStatusManager.js`, `static/js/rightPanel/initRightPanel.js`)。`SOCKET_STATUS_WATCHDOG` で抑制可能なまま、Vitest に状態管理テストを追加。
+- `static/js/rightPanel/socketWatchdog.js` を削除し、所在／物流／DocViewer のパネルテストを更新。`static/js/rightPanel/socketStatusManager.test.js` を追加。
+- 要件・運用ドキュメントを状態マシン表現へ更新し、`docs/requirements.md` を ✅ へ反映。
+
 ## 2025-11-01
 
 - 右ペインの Socket.IO ステータスにウォッチドッグを追加し、Pi5 停止中も「再接続中…」表示を維持するよう改善。Pi4 実機で停止→再開を確認。

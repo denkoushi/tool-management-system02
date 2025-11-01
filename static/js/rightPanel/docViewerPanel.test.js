@@ -1,5 +1,6 @@
 import { describe, it, beforeEach, afterEach, expect, vi } from 'vitest';
 import { initDocViewer } from './docViewerPanel.js';
+import { __resetSocketStateForTests } from './socketStatusManager.js';
 
 function mountDom() {
   document.body.innerHTML = `
@@ -29,6 +30,7 @@ function mountDom() {
 
 describe('docViewerPanel', () => {
   beforeEach(() => {
+    __resetSocketStateForTests();
     mountDom();
     window.handleViewerBarcode = vi.fn();
   });
@@ -38,6 +40,7 @@ describe('docViewerPanel', () => {
     window.requestDocViewerFocus = undefined;
     window.notifyDocViewerStationChange = undefined;
     window.handleViewerBarcode = undefined;
+    __resetSocketStateForTests();
   });
 
   it('shows offline status when URL is not set', () => {

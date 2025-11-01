@@ -1,9 +1,8 @@
-import { createSocket, bindSocketLifecycle } from './socketClient.js';
+import { createSocket } from './socketClient.js';
 import { initPartLocations } from './partLocationsPanel.js';
 import { initDocViewer } from './docViewerPanel.js';
 import { initLogisticsPanel } from './logisticsPanel.js';
 import { initSocketStatusManager } from './socketStatusManager.js';
-import { installSocketWatchdog } from './socketWatchdog.js';
 
 function loadInitialPartLocations() {
   try {
@@ -88,9 +87,9 @@ export function initRightPanel() {
   });
 
   window.TOOLMGMT_SOCKET = socket;
-  const teardownStatusManager = initSocketStatusManager(socket, { autoConnect: socketConfig.autoConnect });
-  const teardownWatchdog = installSocketWatchdog(socket, {
-    enabled: socketConfig.watchdog !== false && socketConfig.autoConnect !== false,
+  const teardownStatusManager = initSocketStatusManager(socket, {
+    autoConnect: socketConfig.autoConnect,
+    watchdog: socketConfig.watchdog,
   });
 
   const partLocations = initPartLocations({
@@ -111,21 +110,6 @@ export function initRightPanel() {
     socketOptions: options,
     fetchImpl: window.fetch.bind(window),
     initialData: loadInitialLogistics(),
-  });
-
-  bindSocketLifecycle(socket, {
-    onConnect: () => {
-      partLocations?.setSocketStatus?.('live', 'LIVE');
-      logistics?.setSocketStatus?.('live');
-    },
-    onDisconnect: () => {
-      partLocations?.setSocketStatus?.('offline', 'OFFLINE');
-      logistics?.setSocketStatus?.('offline');
-    },
-    onError: () => {
-      partLocations?.setSocketStatus?.('error', 'ERROR');
-      logistics?.setSocketStatus?.('error');
-    },
   });
 
   if (socketConfig.autoConnect !== false) {
@@ -150,5 +134,5 @@ export function initRightPanel() {
 
   setupPanelSwitching();
 
-  return { socket, partLocations, docViewer, logistics, teardownStatusManager, teardownWatchdog };
+  return { socket, partLocations, docViewer, logistics, teardownStatusManager };
 }

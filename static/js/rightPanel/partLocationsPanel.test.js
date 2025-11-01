@@ -1,6 +1,6 @@
 import { describe, it, beforeEach, afterEach, expect, vi } from 'vitest';
 import { initPartLocations } from './partLocationsPanel.js';
-import { SOCKET_STATE_EVENT } from './socketStatusManager.js';
+import { SOCKET_STATE_EVENT, __resetSocketStateForTests } from './socketStatusManager.js';
 
 vi.mock('./socketClient.js', () => ({
   bindSocketLifecycle: vi.fn((socket, callbacks = {}) => {
@@ -49,6 +49,7 @@ function emitSocketState(state) {
 
 describe('partLocationsPanel', () => {
   beforeEach(() => {
+    __resetSocketStateForTests();
     global.CSS = { escape: (value) => value };
     global.setInterval = vi.fn(() => 0);
     mountDom({ active: true });
@@ -58,6 +59,7 @@ describe('partLocationsPanel', () => {
     document.body.innerHTML = '';
     global.CSS = originalCSS;
     global.setInterval = originalSetInterval;
+    __resetSocketStateForTests();
   });
 
   it('refreshes part locations via REST API', async () => {

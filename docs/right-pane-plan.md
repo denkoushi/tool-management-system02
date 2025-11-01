@@ -10,7 +10,7 @@
 - **ヘッダ内トグルで複合表示**: 右ペインは「要領書」を既定とし、ステータスバー内のスイッチボタンから所在一覧（`part_locations`）へ切り替えられる。所在一覧は Socket.IO でリアルタイム更新し、接続断時は 20 秒間隔の REST ポーリングで自動再取得する。
 - **URL/ポート管理**: 既定値は `raspi-server.local:8501` を想定。`DOCUMENT_VIEWER_URL` を省略しても `RASPI_SERVER_BASE` が設定されていれば自動的に `/viewer` へ誘導される。
 - **Socket.IO 接続先の切替**: `UPSTREAM_SOCKET_BASE`（ベース URL）と `UPSTREAM_SOCKET_PATH` で RaspberryPiServer（ラズパイ 5）を指定。既定では同一ホストを参照し、`UPSTREAM_SOCKET_AUTO=0` でクライアント側接続を抑止できる。
-- **再接続ウォッチドッグ**: `SOCKET_STATUS_WATCHDOG=1` を既定とし、Pi5 停止中もステータスチップが「再接続中…」表示を維持する。無効化したい場合のみ環境値を `0` に変更する。
+- **再接続ステートマシン**: `SOCKET_STATUS_WATCHDOG=1` を既定とし、Pi5 停止中もステータスチップが「再接続中…」表示を維持する状態マシンを有効化する。無効化したい場合のみ環境値を `0` に変更する。
 - **環境ファイルの配備**: `config/window-a-client.env.sample` を元に `sudo ./scripts/install_window_a_env.sh` を実行すると、Window A 用の設定ファイルと systemd ドロップインを同時に展開できる。既存の drop-in を保持したい場合は `--no-dropin` を付与して実行する。初期構築時は以下の前提を満たすこと。
   - `sudo apt install -y build-essential python3-dev swig libpcsclite-dev pcscd postgresql-client` を事前に実行し、`pyscard` のビルドと `psql` クライアントが利用できる状態を整える。
   - 依存ライブラリは RaspberryPiServer 側と同じバージョンを利用する。特に `psycopg2-binary` は **2.9.10** を使用し、`source venv/bin/activate && pip install -r requirements.txt -r requirements-dev.txt` を再実行する。

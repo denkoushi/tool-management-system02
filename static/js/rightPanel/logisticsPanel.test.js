@@ -1,5 +1,6 @@
 import { describe, it, beforeEach, afterEach, expect, vi } from 'vitest';
 import { initLogisticsPanel } from './logisticsPanel.js';
+import { __resetSocketStateForTests } from './socketStatusManager.js';
 
 vi.stubGlobal('CSS', { escape: (value) => value });
 
@@ -21,13 +22,15 @@ function mountDom({ active = true } = {}) {
 }
 
 describe('logisticsPanel', () => {
-  beforeEach(() => {
-    mountDom();
-  });
+beforeEach(() => {
+  __resetSocketStateForTests();
+  mountDom();
+});
 
-  afterEach(() => {
-    document.body.innerHTML = '';
-  });
+afterEach(() => {
+  document.body.innerHTML = '';
+  __resetSocketStateForTests();
+});
 
   it('hydrates initial jobs', () => {
     const panel = initLogisticsPanel({

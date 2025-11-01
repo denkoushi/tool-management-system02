@@ -62,7 +62,7 @@ sudo systemctl restart toolmgmt.service
 
         sudo apt update && sudo apt upgrade -y
         sudo apt install -y git curl python3-venv python3-dev build-essential swig pkg-config
-        sudo apt install -y pcscd pcsc-tools libpcsclite1 libpcsclite-dev libccid jq rsync zstd
+        sudo apt install -y pcscd pcsc-tools libpcsclite1 libpcsclite-dev libccid jq rsync zstd nodejs npm
 
 2. **Docker（compose を含む）**
 

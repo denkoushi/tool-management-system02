@@ -7,12 +7,13 @@
 - ✅ **右ペイン UI レイアウト崩れの復旧**
   - Pi5 連携後に崩れていた CSS/DOM を修正済み。Pi4 ブラウザ（1080px 幅）で要領書・所在一覧・構内物流の各タブが正常表示されることを実機で確認した。
   - 証跡: 2025-10-31 Pi4 実機確認（ブラウザハードリロード後も再発なし）。
-- ☐ **Pi5 サーバー連携後のクライアント最適化**
+- ✅ **Pi5 サーバー連携後のクライアント最適化**
   - `RASPI_SERVER_BASE` / `UPSTREAM_SOCKET_BASE` を実ホスト名に合わせ、Window A の systemd drop-in を最新化する。
   - Socket.IO 断検知・リトライ表示を整備し、右ペインの状態表示が実際の接続状況と一致するようにする。
   - 2025-10-31: 再接続イベントを manager 監視で補正済み。DocumentViewer iframe がエラー時に `OFFLINE` を上書きするため、再接続中の表示が維持されない課題を確認。refresh()/iframe 失敗をガードするウォッチドッグ導入を次対策として起票。
   - 2025-10-31: ステータスチップの再接続表示・エラー更新をコード反映済。Pi4 実機での動作確認と RUNBOOK 追記が未完。
-  - 2025-11-01: `static/js/rightPanel/initRightPanel.js` にウォッチドッグを追加し、Pi5 停止→再開の間もチップ表示が「再接続中…」を維持することを Pi4 実機で確認。停止中のブラウザコンソールに出力される `ERR_CONNECTION_REFUSED` は想定どおりと整理。RUNBOOK に運用手順を追記し、`install_window_a_env.sh` / systemd drop-in サンプルへ `SOCKET_STATUS_WATCHDOG`・`TOOLMGMT_CLIENT_ROLE` を明示。恒久対策（状態マシン化）が残課題。
+  - 2025-11-01: `static/js/rightPanel/initRightPanel.js` にウォッチドッグを追加し、Pi5 停止→再開の間もチップ表示が「再接続中…」を維持することを Pi4 実機で確認。停止中のブラウザコンソールに出力される `ERR_CONNECTION_REFUSED` は想定どおりと整理。RUNBOOK に運用手順を追記し、`install_window_a_env.sh` / systemd drop-in サンプルへ `SOCKET_STATUS_WATCHDOG`・`TOOLMGMT_CLIENT_ROLE` を明示。
+  - 2025-11-02: Socket.IO ステータス管理を状態マシン化し、ウォッチドッグ挙動を統合。`SOCKET_STATUS_WATCHDOG` 設定で抑制可能とし、Vitest に状態管理テストを追加。Pi4 実機でも停止→再開で `LIVE` に復帰することを確認済み。
 - ☐ **構内物流・所在一覧 UI の整合**
   - Pi5 `/api/logistics/jobs` のレスポンスに合わせて物流タブの列定義とステータス表示を調整する。
   - DocumentViewer 連携イベントを再テストし、所在一覧のハイライト挙動を確認する。
