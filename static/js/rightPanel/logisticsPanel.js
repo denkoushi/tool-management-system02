@@ -177,6 +177,15 @@ export function initLogisticsPanel({
   }
 
   async function refresh() {
+    const snapshot = getSocketState();
+    if (snapshot.state === 'reconnect') {
+      setSocketStatus('reconnect');
+      return;
+    }
+    if (snapshot.state === 'offline' || snapshot.state === 'disabled') {
+      setSocketStatus(snapshot.state);
+      return;
+    }
     let hadError = false;
     try {
       if (el.refreshBtn) el.refreshBtn.disabled = true;

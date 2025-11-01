@@ -156,9 +156,17 @@ export function initPartLocations({
 
   async function refresh() {
     if (state.fetchInFlight) return;
+    const snapshot = getSocketState();
+    if (snapshot.state === 'reconnect') {
+      setSocketStatus('reconnect', statusLabels.reconnect);
+      return;
+    }
+    if (snapshot.state === 'offline' || snapshot.state === 'disabled') {
+      setSocketStatus(snapshot.state, statusLabels[snapshot.state] || 'OFFLINE');
+      return;
+    }
     state.fetchInFlight = true;
     if (el.refreshBtn) el.refreshBtn.disabled = true;
-    if (socketOptions && socketOptions.autoConnect !== false) setSocketStatus('loading', '更新中…');
     try {
       const res = await fetchImpl('/api/part_locations?limit=200');
       const data = await res.json();
@@ -177,14 +185,6 @@ export function initPartLocations({
       showMessage('danger', err.message || String(err));
     } finally {
       if (el.refreshBtn) el.refreshBtn.disabled = false;
-      if (socketOptions && socketOptions.autoConnect !== false) {
-        const snapshot = computeSocketState(socket);
-        if (snapshot.reconnecting || state.socketState === 'reconnect') {
-          setSocketStatus('reconnect', '再接続中…');
-        } else {
-          setSocketStatus(snapshot.state, snapshot.state === 'live' ? 'LIVE' : 'OFFLINE');
-        }
-      }
       state.fetchInFlight = false;
     }
   }
