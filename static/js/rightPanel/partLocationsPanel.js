@@ -215,16 +215,24 @@ export function initPartLocations({
       });
     }
 
-    if (socket && socket.io) {
+    if (socket && socket.io && typeof socket.io.on === 'function') {
+      const manager = socket.io;
+      const removeListeners = [];
+      const add = (event, handler) => {
+        if (!handler) return;
+        manager.on(event, handler);
+        removeListeners.push(() => manager.off(event, handler));
+      };
+      add('reconnect_attempt', () => setSocketStatus('reconnect', '再接続中…'));
+      add('reconnect', () => setSocketStatus('live', 'LIVE'));
+      add('reconnect_failed', () => setSocketStatus('error', 'ERROR'));
+      add('reconnect_error', () => setSocketStatus('error', 'ERROR'));
       bindSocketLifecycle(socket, {
         onConnect: () => setSocketStatus('live', 'LIVE'),
         onDisconnect: () => setSocketStatus('offline', 'OFFLINE'),
         onError: () => setSocketStatus('error', 'ERROR'),
-        onReconnectAttempt: () => setSocketStatus('reconnect', '再接続中…'),
-        onReconnect: () => setSocketStatus('live', 'LIVE'),
-        onReconnectFailed: () => setSocketStatus('error', 'ERROR'),
-        onReconnectError: () => setSocketStatus('error', 'ERROR'),
       });
+      window.addEventListener('beforeunload', () => removeListeners.forEach((fn) => fn()));
     }
 
     if (socketOptions && socketOptions.autoConnect !== false) {

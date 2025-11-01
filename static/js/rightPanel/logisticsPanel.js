@@ -237,15 +237,29 @@ export function initLogisticsPanel({
     setSocketStatus(socket && socket.connected ? 'live' : 'loading');
   }
 
-  if (socket && socket.io) {
+  if (socket && socket.io && typeof socket.io.on === 'function') {
+    const manager = socket.io;
+    const removeListeners = [];
+    const add = (event, handler) => {
+      if (!handler) return;
+      manager.on(event, handler);
+      removeListeners.push(() => manager.off(event, handler));
+    };
+    add('reconnect_attempt', () => setSocketStatus('reconnect'));
+    add('reconnect', () => setSocketStatus('live'));
+    add('reconnect_failed', () => setSocketStatus('error'));
+    add('reconnect_error', () => setSocketStatus('error'));
     bindSocketLifecycle(socket, {
       onConnect: () => setSocketStatus('live'),
       onDisconnect: () => setSocketStatus('offline'),
       onError: () => setSocketStatus('error'),
-      onReconnectAttempt: () => setSocketStatus('reconnect'),
-      onReconnect: () => setSocketStatus('live'),
-      onReconnectFailed: () => setSocketStatus('error'),
-      onReconnectError: () => setSocketStatus('error'),
+    });
+    window.addEventListener('beforeunload', () => removeListeners.forEach((fn) => fn()));
+  } else {
+    bindSocketLifecycle(socket, {
+      onConnect: () => setSocketStatus('live'),
+      onDisconnect: () => setSocketStatus('offline'),
+      onError: () => setSocketStatus('error'),
     });
   }
 

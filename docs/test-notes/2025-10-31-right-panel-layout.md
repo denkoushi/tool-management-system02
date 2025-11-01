@@ -26,3 +26,4 @@
 
 ## 追加メモ (Socket.IO ステータス)
 - partLocations / logistics パネルのステータスチップに再接続表示を追加。Pi4 での断線シナリオ確認は次回メンテ時に実施。
+- 2025-10-31 (再接続修正後): Socket.IO manager の reconnect イベントを監視するよう更新。Pi4 実機での再接続表示確認は次回実施予定。
