@@ -237,7 +237,14 @@ export function initPartLocations({
       add('reconnect_error', () => setSocketStatus('reconnect', '再接続中…'));
       bindSocketLifecycle(socket, {
         onConnect: () => setSocketStatus('live', 'LIVE'),
-        onDisconnect: () => setSocketStatus('offline', 'OFFLINE'),
+        onDisconnect: () => {
+          const snapshot = computeSocketState(socket);
+          if (snapshot.reconnecting) {
+            setSocketStatus('reconnect', '再接続中…');
+          } else {
+            setSocketStatus('offline', 'OFFLINE');
+          }
+        },
         onError: () => setSocketStatus('reconnect', '再接続中…'),
       });
       window.addEventListener('beforeunload', () => removeListeners.forEach((fn) => fn()));

@@ -260,7 +260,14 @@ export function initLogisticsPanel({
     add('reconnect_error', () => setSocketStatus('reconnect'));
     bindSocketLifecycle(socket, {
       onConnect: () => setSocketStatus('live'),
-      onDisconnect: () => setSocketStatus('offline'),
+      onDisconnect: () => {
+        const snapshot = computeSocketState(socket);
+        if (snapshot.reconnecting) {
+          setSocketStatus('reconnect');
+        } else {
+          setSocketStatus('offline');
+        }
+      },
       onError: () => setSocketStatus('reconnect'),
     });
     window.addEventListener('beforeunload', () => removeListeners.forEach((fn) => fn()));
