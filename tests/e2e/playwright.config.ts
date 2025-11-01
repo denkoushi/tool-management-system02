@@ -1,6 +1,11 @@
 import { defineConfig, devices } from '@playwright/test';
+import { loadEnv, snapshotEnv } from './utils/env.js';
 
-const baseURL = process.env.TOOLMGMT_BASE_URL || 'http://127.0.0.1:4173';
+loadEnv();
+const env = snapshotEnv();
+
+const baseURL = env.TOOLMGMT_BASE_URL || 'http://127.0.0.1:4173';
+const headless = env.PLAYWRIGHT_HEADLESS === '0' ? false : true;
 
 export default defineConfig({
   testDir: '.',
@@ -17,7 +22,7 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: { ...devices['Desktop Chrome'], headless },
     },
   ],
   reporter: [['list']],

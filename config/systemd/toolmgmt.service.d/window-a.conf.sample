@@ -6,6 +6,6 @@ Description=toolmgmt Window A client overrides
 # Load environment variables that define DocumentViewer / Socket.IO endpoints.
 EnvironmentFile=/etc/toolmgmt/window-a-client.env
 # Optional metadata for logging・監視。必要に応じて ROLE 名を変更してください。
-Environment=TOOLMGMT_CLIENT_ROLE=WINDOW_A
+Environment=TOOLMGMT_CLIENT_ROLE=window-a
 # Socket.IO 再接続ウォッチドッグ（0 で無効化、環境ファイル側で再定義可能）
 Environment=SOCKET_STATUS_WATCHDOG=1

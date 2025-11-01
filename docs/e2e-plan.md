@@ -81,8 +81,8 @@ test.describe.skip('Window A smoke flow', () => {
 
 ## 5. TODO
 
-- [ ] Playwright の依存関係追加と `package.json` スクリプト更新（`test:e2e`）。
-- [ ] `.env.test` サンプルとフィクスチャユーティリティの実装。
-- [ ] 上記シナリオをベースにしたテスト実装＆実機（Window A / RaspberryPiServer）での動作検証。
-- [ ] `/api/logistics/jobs` を利用した構内物流タブの検証ケースを Playwright に実装し、Socket.IO イベントの反映を確認する。
+- [x] Playwright の依存関係追加と `package.json` スクリプト更新（`test:e2e`）。
+- [x] `.env.test` サンプル (`.env.test.sample`) とフィクスチャユーティリティ (`tests/e2e/utils/env.ts`) の実装。
+- [ ] 上記シナリオをベースにしたテスト実装＆実機（Window A / RaspberryPiServer）での動作検証。※ `tests/e2e/window-a-live.spec.ts` を `describe.skip` で骨子作成済み。実行前に DOM セレクタを調整して skip を解除する。
+- [ ] `/api/logistics/jobs` を利用した構内物流タブの検証ケースを Playwright に実装し、Socket.IO イベントの反映を確認する。※ `window-a-live.spec.ts` に雛形を追加済み。
 - [ ] GitHub Actions での自動実行要否の検討（長時間化を避けるため、手動実行から開始予定）。

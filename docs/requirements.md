@@ -13,16 +13,18 @@
   - 2025-10-31: 再接続イベントを manager 監視で補正済み。DocumentViewer iframe がエラー時に `OFFLINE` を上書きするため、再接続中の表示が維持されない課題を確認。refresh()/iframe 失敗をガードするウォッチドッグ導入を次対策として起票。
   - 2025-10-31: ステータスチップの再接続表示・エラー更新をコード反映済。Pi4 実機での動作確認と RUNBOOK 追記が未完。
   - 2025-11-01: `static/js/rightPanel/initRightPanel.js` にウォッチドッグを追加し、Pi5 停止→再開の間もチップ表示が「再接続中…」を維持することを Pi4 実機で確認。停止中のブラウザコンソールに出力される `ERR_CONNECTION_REFUSED` は想定どおりと整理。RUNBOOK に運用手順を追記し、`install_window_a_env.sh` / systemd drop-in サンプルへ `SOCKET_STATUS_WATCHDOG`・`TOOLMGMT_CLIENT_ROLE` を明示。
-  - 2025-11-02: Socket.IO ステータス管理を状態マシン化し、ウォッチドッグ挙動を統合。`SOCKET_STATUS_WATCHDOG` 設定で抑制可能とし、Vitest に状態管理テストを追加。Pi4 実機でも停止→再開で `LIVE` に復帰することを確認済み。
-  - 2025-11-02: タブ切替時に DocumentViewer iframe が残らないよう `.future-panel-body--doc` のレイアウトを調整し、切り替え動作を修正。
-- ☐ **構内物流・所在一覧 UI の整合**
+- 2025-11-02: Socket.IO ステータス管理を状態マシン化し、ウォッチドッグ挙動を統合。`SOCKET_STATUS_WATCHDOG` 設定で抑制可能とし、Vitest に状態管理テストを追加。Pi4 実機でも停止→再開で `LIVE` に復帰することを確認済み。
+- 2025-11-02: タブ切替時に DocumentViewer iframe が残らないよう `.future-panel-body--doc` のレイアウトを調整し、切り替え動作を修正。
+- 2025-11-02: `config/window-a-client.env.sample` に `SOCKET_STATUS_WATCHDOG=1` と Pi5 と揃えた `RASPI_SERVER_API_TOKEN` を明記し、systemd drop-in (`config/systemd/toolmgmt.service.d/window-a.conf.sample`) の `TOOLMGMT_CLIENT_ROLE` を `window-a` に統一。
+- ✅ **構内物流・所在一覧 UI の整合**
   - Pi5 `/api/logistics/jobs` のレスポンスに合わせて物流タブの列定義とステータス表示を調整する。
   - DocumentViewer 連携イベントを再テストし、所在一覧のハイライト挙動を確認する。
   - 2025-11-02: 構内物流タブに日本語ステータスバッジと依頼時刻列を追加し、`logisticsPanel` テストを更新。Pi4 実機でステータス遷移の表示確認済み。
   - 2025-11-02: DocumentViewer の `dv-barcode` 通知で所在一覧をハイライトできるようにし、`partLocationsPanel` に外部ハイライト API を追加。Pi4 実機での結果を `docs/test-notes/2025-11-02-viewer-highlight.md` に記録。
-- ☐ **E2E テスト整備（Playwright）**
+- ⏳ **E2E テスト整備（Playwright）**
   - `docs/e2e-plan.md` に沿って、スキャン→所在反映→Viewer 自動表示までのシナリオを Playwright で実装する。
   - ローカル `.env.test` と Pi5 テスト環境で実行できる npm スクリプトを整備する。
+  - 2025-11-02: `.env.test.sample` と `tests/e2e/utils/env.ts` を追加し、`tests/e2e/window-a-live.spec.ts` に実機用骨子（`describe.skip`）を作成。依存パッケージ `dotenv` を導入し、`playwright.config.ts` で環境読込と headless 制御を実装。
 - ☐ **ドキュメント更新と棚卸し**
   - README／RUNBOOK／`docs/right-pane-plan.md` を Pi5 集約後構成に合わせて更新する。
   - `docs/docs-index.md` の棚卸し状況を最新化し、未整備カテゴリをゼロにする。
