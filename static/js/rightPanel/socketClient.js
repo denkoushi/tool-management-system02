@@ -26,8 +26,16 @@ export function bindSocketLifecycle(socket, callbacks = {}) {
   if (onConnect) socket.on('connect', onConnect);
   if (onDisconnect) socket.on('disconnect', onDisconnect);
   if (onError) socket.on('connect_error', onError);
-  if (onReconnectAttempt) socket.on('reconnect_attempt', onReconnectAttempt);
-  if (onReconnect) socket.on('reconnect', onReconnect);
-  if (onReconnectFailed) socket.on('reconnect_failed', onReconnectFailed);
-  if (onReconnectError) socket.on('reconnect_error', onReconnectError);
+
+  const manager = socket.io;
+  const addManagerListener = (event, handler) => {
+    if (manager && typeof manager.on === 'function' && handler) {
+      manager.on(event, handler);
+    }
+  };
+
+  addManagerListener('reconnect_attempt', onReconnectAttempt);
+  addManagerListener('reconnect', onReconnect);
+  addManagerListener('reconnect_failed', onReconnectFailed);
+  addManagerListener('reconnect_error', onReconnectError);
 }
