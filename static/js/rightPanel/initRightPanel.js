@@ -59,6 +59,11 @@ function setupPanelSwitching() {
   } else if (buttons[0]) {
     showPanel(buttons[0].dataset.target);
   }
+
+  window.switchFuturePanel = (targetId) => {
+    if (!targetId) return;
+    showPanel(targetId);
+  };
 }
 
 function resolveSocketConfig(rawConfig) {
