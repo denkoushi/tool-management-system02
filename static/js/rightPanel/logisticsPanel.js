@@ -201,7 +201,12 @@ export function initLogisticsPanel({
     } finally {
       if (el.refreshBtn) el.refreshBtn.disabled = false;
       if (!hadError && socketOptions.autoConnect !== false) {
-        setSocketStatus(socket && socket.connected ? 'live' : 'offline');
+        const reconnecting = Boolean(socket?.io && (socket.io._reconnecting || socket.io._reconnect));
+        if (reconnecting) {
+          setSocketStatus('reconnect');
+        } else {
+          setSocketStatus(socket && socket.connected ? 'live' : 'offline');
+        }
       }
     }
   }

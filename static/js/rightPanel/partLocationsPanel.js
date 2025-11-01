@@ -178,7 +178,12 @@ export function initPartLocations({
     } finally {
       if (el.refreshBtn) el.refreshBtn.disabled = false;
       if (socketOptions && socketOptions.autoConnect !== false) {
-        setSocketStatus(socket.connected ? 'live' : 'offline', socket.connected ? 'LIVE' : 'OFFLINE');
+        const reconnecting = Boolean(socket?.io && (socket.io._reconnecting || socket.io._reconnect));
+        if (reconnecting) {
+          setSocketStatus('reconnect', '再接続中…');
+        } else {
+          setSocketStatus(socket.connected ? 'live' : 'offline', socket.connected ? 'LIVE' : 'OFFLINE');
+        }
       }
       state.fetchInFlight = false;
     }
