@@ -16,7 +16,7 @@ RaspberryPiServer 側へサーバー機能を切り出した後も、Window A �
 
 - Playwright（Chromium）を採用し、ヘッドレス＆ヘッドフルを切り替え可能にする（`npx playwright install chromium`）。
 - RaspberryPiServer・Window A クライアント双方を `docker compose` / systemd 上で起動したテスト用環境を想定。API トークンは `.env.test` で管理。
-- `tests/e2e/fixtures/env.mjs`（未作成）に API ベース URL / トークン / テストユーザーなどを集約し、実環境との差分を最小化する。
+- `tests/e2e/fixtures/env.mjs`（未作成）に API ベース URL / トークン / テストユーザーなどを集約し、Pi5 の実ホスト名（`raspi-server-*.local`）に合わせて生成できるようにする。
 - プレビュー用 HTML（`static/preview/right-panel.html`）を対象にした軽量スモークテストを `tests/e2e/smoke.spec.ts` として追加済み。実機 API と連携するフローを追加する場合は、ここから拡張する。
 - GitHub Actions での自動実行は未定だが、ローカル・Raspberry Pi 双方で手動実行できるよう `npm run test:e2e` スクリプトを追加済み（`tests/e2e/playwright.config.ts` を参照）。`SKIP_PREVIEW_E2E=1 npm run test:e2e` でプレビュー系テストのみスキップ可能。
 
@@ -39,7 +39,7 @@ npm run test:e2e
 ```
 
 `npm run test:e2e` は `playwright test --config=tests/e2e/playwright.config.ts` を呼び出す。ブラウザを初回実行前に `npx playwright install chromium` でインストールしておく。
-プレビュー専用テストを有効化する場合は `RUN_PREVIEW_E2E=1 npm run test:e2e` を使用する（未指定時はスキップされる）。
+プレビュー専用テストを有効化する場合は `RUN_PREVIEW_E2E=1 npm run test:e2e` を使用する（未指定時はスキップされる）。Pi5 と接続する本番シナリオでは `.env.test` に `RASPI_SERVER_BASE` とトークンを設定する。
 
 ## 4. スクリプト雛形
 

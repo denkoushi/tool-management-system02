@@ -330,11 +330,10 @@
 
 #### OnSiteLogistics（ハンディリーダ）との連携
 
-- **アプリ更新**
+- **アプリ更新（Pi4 クライアント）**
 
       cd ~/tool-management-system02
-      git checkout feature/scan-intake
-      git pull
+      git pull --ff-only
       sudo systemctl restart toolmgmt.service
       sudo systemctl --no-pager status toolmgmt.service
 
@@ -358,6 +357,8 @@
         -H 'Content-Type: application/json' \
         -H 'Authorization: Bearer <token>' \
         -d '{"part_code":"PING","location_code":"TEST","scanned_at":"2025-01-01T00:00:00Z"}'
+
+> RaspberryPiServer 側のホスト名は Avahi により `raspi-server.local` → `raspi-server-3.local` のように変化する場合があります。`/etc/toolmgmt/window-a-client.env` の `RASPI_SERVER_BASE` / `UPSTREAM_SOCKET_BASE` は実際のホスト名に合わせて設定し、`ping <ホスト名>` で解決できることを確認してください。
 
   - Pi Zero からも同様に `curl` を実行し、200 が返ることを確認する。
   - 受信後は `docker exec -it pg psql -U app -d sensordb -c "SELECT * FROM part_locations ORDER BY updated_at DESC LIMIT 5;"` で登録内容を確認。

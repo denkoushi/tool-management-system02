@@ -10,13 +10,13 @@ RaspberryPiServer (Pi5) と Window A (Pi4) の間で、USB → REST → Socket.I
 ## 手順
 1. **Pi4 から mDNS 疎通確認** (`scripts/check_e2e_scan.sh` でも実行可)
    ```bash
-   ping -c 2 raspi-server.local
+   ping -c 2 raspi-server.local (または Avahi が付与した `raspi-server-*.local`)
    ```
    - 返答がない場合: Pi5 のホスト名設定と Pi4 の Avahi (`systemctl status avahi-daemon`) を確認。
 
 2. **REST API 動作確認**
    ```bash
-   curl -s -X POST http://raspi-server.local:8501/api/v1/scans \
+   curl -s -X POST http://raspi-server.local (または Avahi が付与した `raspi-server-*.local`):8501/api/v1/scans \
      -H "Authorization: Bearer ${API_TOKEN:-raspi-token-20251027}" \
      -H "Content-Type: application/json" \
      -d '{

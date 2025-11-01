@@ -105,3 +105,10 @@
 - README に連携サマリーを追加し、ブランチ更新・UFW 設定・トークン発行・DB 確認手順を記載。
 - `RUNBOOK.md` 3.4 にトラブルシュートを含む詳細手順を追記。
 - `docs/requirements.md` の完了セクションへ所在連携を明記し、重複していたバックログ記述を整理。
+
+## 2025-10-31
+
+- `docs/requirements.md` を RaspberryPiServer 集約後の Window A クライアント向けに更新。
+- `docs/AGENTS.md` / `docs/documentation-guidelines.md` / `docs/docs-index.md` を棚卸し状況付きに整備し、Pi5 連携構成へ整合。
+- README を Pi4 クライアント前提の内容へ刷新し、主要環境変数と Pi5 サーバー連携手順を追記。
+- `docs/window-a-restore-plan.md` を追加し、復元工程と棚卸し手順を明文化。

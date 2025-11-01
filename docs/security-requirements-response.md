@@ -53,3 +53,5 @@
 
 - 上記以外の詳細な手順・運用フローは RUNBOOK と security-overview に統合してあります。
 - 追加要望があれば、関連スクリプト (`scripts/`) と連動させる形で随時拡張可能です。
+
+- 備考: Pi5 側のホスト名変更（`raspi-server-*.local`）に伴い、Window A 側の `/etc/toolmgmt/window-a-client.env` に設定する `RASPI_SERVER_BASE` / `UPSTREAM_SOCKET_BASE` は実際のホスト名へ都度合わせる。疎通確認は `ping <ホスト名>` や `curl /healthz` で行う。
