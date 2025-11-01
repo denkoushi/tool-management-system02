@@ -68,6 +68,7 @@ export function initLogisticsPanel({
     jobs: new Map(),
     messageTimer: null,
     lastRender: 0,
+    socketState: 'loading',
   };
 
   function setBadgeCount(count) {
@@ -111,6 +112,7 @@ export function initLogisticsPanel({
     const resolved = map[status] || label || '—';
     el.socketStatus.dataset.state = status;
     el.socketStatus.textContent = resolved;
+    state.socketState = status;
   }
 
   function render({ highlightId } = {}) {
@@ -201,8 +203,8 @@ export function initLogisticsPanel({
     } finally {
       if (el.refreshBtn) el.refreshBtn.disabled = false;
       if (!hadError && socketOptions.autoConnect !== false) {
-        const reconnecting = Boolean(socket?.io && (socket.io._reconnecting || socket.io._reconnect));
-        if (reconnecting) {
+        const reconnecting = Boolean(socket?.io && (socket.io._reconnecting || socket.io._connecting));
+        if (reconnecting || state.socketState === 'reconnect') {
           setSocketStatus('reconnect');
         } else {
           setSocketStatus(socket && socket.connected ? 'live' : 'offline');

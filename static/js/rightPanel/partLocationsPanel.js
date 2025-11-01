@@ -27,6 +27,7 @@ export function initPartLocations({
     lastHighlight: null,
     lastRender: 0,
     fetchInFlight: false,
+    socketState: 'loading',
   };
 
   const formatter = new Intl.DateTimeFormat('ja-JP', { dateStyle: 'short', timeStyle: 'medium' });
@@ -152,6 +153,7 @@ export function initPartLocations({
     }
     target.dataset.state = status;
     target.textContent = label || messages[status] || '—';
+    state.socketState = status;
   }
 
   async function refresh() {
@@ -178,8 +180,8 @@ export function initPartLocations({
     } finally {
       if (el.refreshBtn) el.refreshBtn.disabled = false;
       if (socketOptions && socketOptions.autoConnect !== false) {
-        const reconnecting = Boolean(socket?.io && (socket.io._reconnecting || socket.io._reconnect));
-        if (reconnecting) {
+        const reconnecting = Boolean(socket?.io && (socket.io._reconnecting || socket.io._connecting));
+        if (reconnecting || state.socketState === 'reconnect') {
           setSocketStatus('reconnect', '再接続中…');
         } else {
           setSocketStatus(socket.connected ? 'live' : 'offline', socket.connected ? 'LIVE' : 'OFFLINE');
