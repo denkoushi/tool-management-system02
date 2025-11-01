@@ -220,6 +220,10 @@ export function initPartLocations({
         onConnect: () => setSocketStatus('live', 'LIVE'),
         onDisconnect: () => setSocketStatus('offline', 'OFFLINE'),
         onError: () => setSocketStatus('error', 'ERROR'),
+        onReconnectAttempt: () => setSocketStatus('reconnect', '再接続中…'),
+        onReconnect: () => setSocketStatus('live', 'LIVE'),
+        onReconnectFailed: () => setSocketStatus('error', 'ERROR'),
+        onReconnectError: () => setSocketStatus('error', 'ERROR'),
       });
     }
 

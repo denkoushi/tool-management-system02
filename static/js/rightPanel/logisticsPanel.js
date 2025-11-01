@@ -1,3 +1,5 @@
+import { bindSocketLifecycle } from './socketClient.js';
+
 const DEFAULT_LIMIT = 100;
 
 function cssEscape(value) {
@@ -233,6 +235,18 @@ export function initLogisticsPanel({
     setSocketStatus('disabled', 'DISABLED');
   } else {
     setSocketStatus(socket && socket.connected ? 'live' : 'loading');
+  }
+
+  if (socket && socket.io) {
+    bindSocketLifecycle(socket, {
+      onConnect: () => setSocketStatus('live'),
+      onDisconnect: () => setSocketStatus('offline'),
+      onError: () => setSocketStatus('error'),
+      onReconnectAttempt: () => setSocketStatus('reconnect'),
+      onReconnect: () => setSocketStatus('live'),
+      onReconnectFailed: () => setSocketStatus('error'),
+      onReconnectError: () => setSocketStatus('error'),
+    });
   }
 
   registerSocketHandlers(socket);

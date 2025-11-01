@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 2025-10-31
+
+- 右ペインのレイアウト崩れを修正し、CSS を `templates/layout/base.html` に統合。Pi4 実機でタブ表示を確認。
+- Socket.IO ステータスチップ（所在一覧／物流）に再接続・エラー表示を追加し、`docs/requirements.md` に進捗を反映。
+- `docs/test-notes/2025-10-31-right-panel-layout.md` を追加し、実機検証ログを記録。
+
 本リポジトリ（tool-management-system02）で行った復旧・強化の履歴です。  
 ※ 日付は JST、内容は要点のみ。
 
@@ -112,3 +118,9 @@
 - `docs/AGENTS.md` / `docs/documentation-guidelines.md` / `docs/docs-index.md` を棚卸し状況付きに整備し、Pi5 連携構成へ整合。
 - README を Pi4 クライアント前提の内容へ刷新し、主要環境変数と Pi5 サーバー連携手順を追記。
 - `docs/window-a-restore-plan.md` を追加し、復元工程と棚卸し手順を明文化。
+
+## 2025-10-31
+
+- 右ペインのレイアウト崩れを修正し、CSS を `templates/layout/base.html` に統合。Pi4 実機でタブ表示を確認。
+- `docs/requirements.md` の優先度表を ✅/☐ 管理に更新し、進捗を可視化。
+- `docs/test-notes/2025-10-31-right-panel-layout.md` に検証ログを追加。
