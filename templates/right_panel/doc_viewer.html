@@ -4,18 +4,20 @@
          data-doc-viewer-online="{{ 'true' if doc_viewer_online else 'false' }}"
          data-station-process="{{ station_config.process|default('', true) }}">
   <div class="doc-viewer-header">
-    <div class="view-switch" role="tablist">
-      <button type="button" class="active" data-target="docViewerPanel">要領書</button>
-      <button type="button" data-target="partLocationsPanel">
-        所在一覧
-        <span class="tab-badge partlocations-tab-badge" id="partLocationsTabBadge">{{ part_locations|length }}</span>
-      </button>
-      <button type="button" data-target="logisticsPanel">
-        構内物流
-        <span class="tab-badge logistics-tab-badge">0</span>
-      </button>
+    <div class="doc-viewer-header__section doc-viewer-header__section--switch">
+      <div class="view-switch" role="tablist">
+        <button type="button" class="active" data-target="docViewerPanel" aria-controls="docViewerPanel">要領書</button>
+        <button type="button" data-target="partLocationsPanel" aria-controls="partLocationsPanel">
+          所在一覧
+          <span class="tab-badge partlocations-tab-badge" id="partLocationsTabBadge">{{ part_locations|length }}</span>
+        </button>
+        <button type="button" data-target="logisticsPanel" aria-controls="logisticsPanel">
+          構内物流
+          <span class="tab-badge logistics-tab-badge">0</span>
+        </button>
+      </div>
     </div>
-    <div class="doc-viewer-status-group">
+    <div class="doc-viewer-header__section doc-viewer-header__section--status doc-viewer-status-group" aria-live="polite">
       <div id="docViewerStatus"
            class="doc-viewer-status {{ 'doc-viewer-status--online' if doc_viewer_online else 'doc-viewer-status--offline' }}">
         <span class="doc-viewer-status__dot"></span>
@@ -24,25 +26,28 @@
       <span id="docViewerStateChip" class="doc-viewer-chip">状態: 未表示</span>
       <span id="docViewerPartChip" class="doc-viewer-chip doc-viewer-chip--part" data-empty="true">部品番号: -</span>
     </div>
-    <div class="doc-viewer-header-actions">
+    <div class="doc-viewer-header__section doc-viewer-header__section--actions doc-viewer-header-actions">
       <button type="button" id="docViewerReloadBtn" class="btn-reload">再読み込み</button>
       <button type="button" id="docViewerReturnBtn" class="btn-reload">待機画面に戻る</button>
     </div>
   </div>
-  <div class="doc-viewer-summary" id="docViewerSummary" data-state="empty">
+  <div class="doc-viewer-summary" id="docViewerSummary" data-state="empty" role="status" aria-live="polite" aria-atomic="true">
     <div class="doc-viewer-summary__item">
       <span class="doc-viewer-summary__label">棚位置</span>
-      <span id="docViewerSummaryLocation" class="doc-viewer-summary__value">-</span>
+      <span id="docViewerSummaryLocation" class="doc-viewer-summary__value" aria-label="棚位置">-</span>
     </div>
     <div class="doc-viewer-summary__item">
       <span class="doc-viewer-summary__label">デバイス</span>
-      <span id="docViewerSummaryDevice" class="doc-viewer-summary__value">-</span>
+      <span id="docViewerSummaryDevice" class="doc-viewer-summary__value" aria-label="デバイス">-</span>
     </div>
     <div class="doc-viewer-summary__item">
       <span class="doc-viewer-summary__label">最終更新</span>
-      <span id="docViewerSummaryUpdated" class="doc-viewer-summary__value">-</span>
+      <span id="docViewerSummaryUpdated" class="doc-viewer-summary__value" aria-label="最終更新">-</span>
     </div>
-    <button type="button" id="docViewerSummaryShowLocations" class="doc-viewer-summary__action">所在一覧を開く</button>
+    <button type="button"
+            id="docViewerSummaryShowLocations"
+            class="doc-viewer-summary__action"
+            aria-describedby="docViewerSummaryLocation docViewerSummaryDevice">所在一覧を開く</button>
   </div>
   <div class="doc-viewer-wrapper">
     <iframe id="docViewerFrame" title="Document Viewer"
