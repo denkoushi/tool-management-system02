@@ -8,7 +8,19 @@ const missingRequired = !env.TOOLMGMT_BASE_URL || !env.RASPI_SERVER_BASE || !env
 const describeLive = missingRequired ? test.describe.skip : test.describe;
 
 async function navigateToWindowA(page: Page) {
-  await page.goto(env.TOOLMGMT_BASE_URL!);
+  const targetUrl = env.TOOLMGMT_BASE_URL!;
+  const maxAttempts = 5;
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    try {
+      await page.goto(targetUrl, { waitUntil: 'domcontentloaded' });
+      break;
+    } catch (error) {
+      if (attempt === maxAttempts - 1) {
+        throw error;
+      }
+      await page.waitForTimeout(1000);
+    }
+  }
 
   if (env.TOOLMGMT_API_TOKEN) {
     const tokenField = page.locator('input[type="password"]');
@@ -50,7 +62,7 @@ describeLive('Window A live integration', () => {
     await expect(partRow.locator('td').nth(1)).toHaveText(locationCode);
     await expect(partRow.locator('td').nth(2)).toHaveText(deviceId);
 
-    await page.locator('[data-target="docViewerPanel"]').click();
+    await page.locator('#docViewerPanel .view-switch button[data-target="docViewerPanel"]').first().click();
     const summary = page.locator('#docViewerSummary');
     await expect(summary).toHaveAttribute('data-state', /ready/, { timeout: 15_000 });
     await expect(page.locator('#docViewerSummaryLocation')).toContainText(locationCode);
