@@ -14,11 +14,22 @@ RaspberryPiServer 側へサーバー機能を切り出した後も、Window A �
 
 ## 2. 環境準備
 
-- Playwright（Chromium）を採用し、ヘッドレス＆ヘッドフルを切り替え可能にする（`npx playwright install chromium`）。
-- RaspberryPiServer・Window A クライアント双方を `docker compose` / systemd 上で起動したテスト用環境を想定。API トークンは `.env.test` で管理。
-- `tests/e2e/fixtures/env.mjs`（未作成）に API ベース URL / トークン / テストユーザーなどを集約し、Pi5 の実ホスト名（`raspi-server-*.local`）に合わせて生成できるようにする。
-- プレビュー用 HTML（`static/preview/right-panel.html`）を対象にした軽量スモークテストを `tests/e2e/smoke.spec.ts` として追加済み。実機 API と連携するフローを追加する場合は、ここから拡張する。
-- GitHub Actions での自動実行は未定だが、ローカル・Raspberry Pi 双方で手動実行できるよう `npm run test:e2e` スクリプトを追加済み（`tests/e2e/playwright.config.ts` を参照）。`SKIP_PREVIEW_E2E=1 npm run test:e2e` でプレビュー系テストのみスキップ可能。
+- Playwright（Chromium）を採用し、ヘッドレス／ヘッドフルは環境変数で切り替える（初回は `npx playwright install chromium` を実行）。
+- RaspberryPiServer（Pi5）と Window A（Pi4）の実機サービスを systemd で起動した状態を前提にし、API トークンなどの接続情報は `.env.test` に集約する。サンプルとして `.env.test.sample` をリポジトリ直下に配置済み。
+- 環境変数の読み込みは `tests/e2e/utils/env.ts` で行い、`PLAYWRIGHT_ENV_FILE` を指定すれば任意パスの設定ファイルを利用できる。Playwright 設定（`tests/e2e/playwright.config.ts`）からは `loadEnv()` / `snapshotEnv()` を通じて参照する。
+- 主要な環境変数は以下の通り。
+
+| 変数名 | 用途 | 備考 |
+| --- | --- | --- |
+| `TOOLMGMT_BASE_URL` | Window A UI へのアクセス URL | 例: `http://raspi-window-a.local:8501` |
+| `TOOLMGMT_API_TOKEN` | Window A UI に表示される API トークン入力欄用 | トークン入力ダイアログが無効なら空で可 |
+| `RASPI_SERVER_BASE` | Pi5 REST / Socket.IO のベース URL | 例: `http://raspi-server.local:8501` |
+| `RASPI_SERVER_API_TOKEN` | Pi5 の API 認証トークン | `/etc/default/raspi-server` と一致させる |
+| `VIEWER_API_TOKEN` | DocumentViewer API が別トークンを要求する場合の予備枠 | 現状未使用 |
+| `PLAYWRIGHT_HEADLESS` | `1` でヘッドレス、`0` でブラウザを表示 | 既定は `1` |
+
+- プレビュー用 HTML（`static/preview/right-panel.html`）を対象にした軽量スモークテストが `tests/e2e/smoke.spec.ts` にあり、実機 API と連携する流れは `tests/e2e/window-a-live.spec.ts` の骨子に集約する方針。
+- GitHub Actions での自動実行は未定だが、ローカル／Pi 両方で手動実行できるよう `npm run test:e2e` スクリプトを定義済み。プレビューのみを実行したい場合は `RUN_PREVIEW_E2E=1 npm run test:e2e`、ライブ系のみを試す場合は `npx playwright test tests/e2e/window-a-live.spec.ts --config=tests/e2e/playwright.config.ts` を使用する。
 
 ## 3. 実行イメージ
 
@@ -38,43 +49,41 @@ sudo systemctl restart toolmgmt.service
 npm run test:e2e
 ```
 
-`npm run test:e2e` は `playwright test --config=tests/e2e/playwright.config.ts` を呼び出す。ブラウザを初回実行前に `npx playwright install chromium` でインストールしておく。
-プレビュー専用テストを有効化する場合は `RUN_PREVIEW_E2E=1 npm run test:e2e` を使用する（未指定時はスキップされる）。Pi5 と接続する本番シナリオでは `.env.test` に `RASPI_SERVER_BASE` とトークンを設定する。
+`npm run test:e2e` は `playwright test --config=tests/e2e/playwright.config.ts` を呼び出す。Pi4 / Pi5 実機と連携する際は `.env.test` を作成した上で `PLAYWRIGHT_ENV_FILE=.env.test npm run test:e2e -- tests/e2e/window-a-live.spec.ts` のように対象ファイルを絞ると確実に検証できる。
 
 ## 4. スクリプト雛形
 
-`tests/e2e/smoke.spec.mjs` に下記のような骨子を置き、実装時に `test.skip` を解除する。
+`tests/e2e/window-a-live.spec.ts` に下記のような骨子を置き、実装時に `test.describe.skip` を解除する。
 
-```javascript
+```typescript
 import { test, expect } from '@playwright/test';
+import { snapshotEnv, requireEnv } from './utils/env.js';
 
-test.describe.skip('Window A smoke flow', () => {
-  test('scan event propagates to viewer', async ({ page }) => {
-    await page.goto(process.env.TOOLMGMT_BASE_URL);
+test.describe.skip('Window A live flow', () => {
+  const env = snapshotEnv();
 
-    // 認証トークン入力（必要に応じて）
-    if (await page.getByText('APIトークン').isVisible()) {
-      await page.fill('input[type="password"]', process.env.TOOLMGMT_API_TOKEN);
-      await page.click('button:has-text("送信")');
+  test.beforeAll(() => {
+    requireEnv(['TOOLMGMT_BASE_URL', 'RASPI_SERVER_BASE', 'RASPI_SERVER_API_TOKEN']);
+  });
+
+  test('scan event propagates to viewer', async ({ page, request }) => {
+    await page.goto(env.TOOLMGMT_BASE_URL!);
+
+    if (env.TOOLMGMT_API_TOKEN) {
+      const tokenField = page.locator('input[type="password"]');
+      if (await tokenField.isVisible()) {
+        await tokenField.fill(env.TOOLMGMT_API_TOKEN);
+        await page.locator('button:has-text("送信")').click();
+      }
     }
 
-    // REST API を叩いて疑似スキャン
-    await page.request.post(`${process.env.RASPI_SERVER_BASE}/api/v1/scans`, {
-      headers: { Authorization: `Bearer ${process.env.API_TOKEN}` },
-      data: {
-        part_code: 'testpart',
-        location_code: 'RACK-A1',
-        device_id: 'preview-device',
-      },
+    await request.post(`${env.RASPI_SERVER_BASE}/api/v1/scans`, {
+      headers: { Authorization: `Bearer ${env.RASPI_SERVER_API_TOKEN}`, 'Content-Type': 'application/json' },
+      data: { part_code: 'testpart', location_code: 'RACK-A1', device_id: 'playwright-device' },
     });
 
-    // 所在一覧タブを開き、反映を待つ
     await page.locator('[data-target="partLocationsPanel"]').click();
     await expect(page.locator('#partLocationsTable tbody tr').first()).toContainText('testpart');
-
-    // DocumentViewer 側もハイライトが更新されることを確認
-    await page.locator('[data-target="docViewerPanel"]').click();
-    await expect(page.locator('#docViewerPartChip')).toContainText('testpart');
   });
 });
 ```
@@ -82,7 +91,7 @@ test.describe.skip('Window A smoke flow', () => {
 ## 5. TODO
 
 - [x] Playwright の依存関係追加と `package.json` スクリプト更新（`test:e2e`）。
-- [x] `.env.test` サンプル (`.env.test.sample`) とフィクスチャユーティリティ (`tests/e2e/utils/env.ts`) の実装。
+- [x] `.env.test` サンプル (`.env.test.sample`) とフィクスチャユーティリティ（`tests/e2e/utils/env.ts`）の実装。
 - [ ] 上記シナリオをベースにしたテスト実装＆実機（Window A / RaspberryPiServer）での動作検証。※ `tests/e2e/window-a-live.spec.ts` を `describe.skip` で骨子作成済み。実行前に DOM セレクタを調整して skip を解除する。
 - [ ] `/api/logistics/jobs` を利用した構内物流タブの検証ケースを Playwright に実装し、Socket.IO イベントの反映を確認する。※ `window-a-live.spec.ts` に雛形を追加済み。
 - [ ] GitHub Actions での自動実行要否の検討（長時間化を避けるため、手動実行から開始予定）。
