@@ -31,6 +31,17 @@ async function navigateToWindowA(page: Page) {
   }
 }
 
+async function ensureDocViewerReady(page: Page) {
+  const overlay = page.locator('#docViewerOverlay');
+  await expect(overlay).toHaveClass(/is-hidden/, { timeout: 15_000 });
+}
+
+async function showDocViewerTab(page: Page) {
+  const docViewerTab = page.locator('.future-panel-body.active .view-switch button[data-target="docViewerPanel"]').first();
+  await docViewerTab.scrollIntoViewIfNeeded();
+  await docViewerTab.click();
+}
+
 describeLive('Window A live integration', () => {
   test.beforeAll(() => {
     requireEnv(['TOOLMGMT_BASE_URL', 'RASPI_SERVER_BASE', 'RASPI_SERVER_API_TOKEN']);
@@ -38,6 +49,7 @@ describeLive('Window A live integration', () => {
 
   test('scan event updates part locations and viewer summary', async ({ page, request }) => {
     await navigateToWindowA(page);
+    await ensureDocViewerReady(page);
 
     const partCode = 'testpart';
     const locationCode = 'RACK-A1';
@@ -62,9 +74,7 @@ describeLive('Window A live integration', () => {
     await expect(partRow.locator('td').nth(1)).toHaveText(locationCode);
     await expect(partRow.locator('td').nth(2)).toHaveText(deviceId);
 
-    const docViewerTab = page.locator('.future-panel-body.active .view-switch button[data-target="docViewerPanel"]').first();
-    await docViewerTab.scrollIntoViewIfNeeded();
-    await docViewerTab.click();
+    await showDocViewerTab(page);
     const summaryLocation = page.locator('#docViewerSummaryLocation');
     const summaryDevice = page.locator('#docViewerSummaryDevice');
     await expect(summaryLocation).toContainText(locationCode, { timeout: 15_000 });
@@ -74,6 +84,7 @@ describeLive('Window A live integration', () => {
 
   test('logistics job update appears in logistics tab', async ({ page, request }) => {
     await navigateToWindowA(page);
+    await ensureDocViewerReady(page);
 
     const testJobId = `playwright-${Date.now()}`;
     const response = await request.post(`${env.RASPI_SERVER_BASE}/api/logistics/jobs`, {
@@ -95,5 +106,38 @@ describeLive('Window A live integration', () => {
     const jobRow = page.locator(`#logisticsTable tbody tr:has-text("${testJobId}")`).first();
     await expect(jobRow).toBeVisible({ timeout: 15_000 });
     await expect(jobRow.locator('td').first()).toContainText(testJobId);
+  });
+
+  test('viewer shows overlay message when PDF is missing', async ({ page, request }) => {
+    await navigateToWindowA(page);
+    await ensureDocViewerReady(page);
+
+    const missingPart = `missing-${Date.now()}`;
+    const response = await request.post(`${env.RASPI_SERVER_BASE}/api/v1/scans`, {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${env.RASPI_SERVER_API_TOKEN}`,
+      },
+      data: {
+        part_code: missingPart,
+        location_code: 'NO-LOCATION',
+        device_id: `playwright-device-${Date.now()}`,
+      },
+    });
+    expect(response.ok()).toBeTruthy();
+
+    await showDocViewerTab(page);
+
+    const overlay = page.locator('#docViewerOverlay');
+    await expect(overlay).not.toHaveClass(/is-hidden/, { timeout: 15_000 });
+    await expect(overlay).toContainText('PDF が見つかりません。USB 取り込みとファイル名をご確認ください。', {
+      timeout: 15_000,
+    });
+
+    const stateChip = page.locator('#docViewerStateChip');
+    await expect(stateChip).toHaveAttribute('data-state', 'error', { timeout: 15_000 });
+
+    const partChip = page.locator('#docViewerPartChip');
+    await expect(partChip).toContainText(missingPart, { timeout: 15_000 });
   });
 });

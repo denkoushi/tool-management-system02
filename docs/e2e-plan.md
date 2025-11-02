@@ -11,6 +11,7 @@ RaspberryPiServer 側へサーバー機能を切り出した後も、Window A �
 | ★★☆ | 工程設定の更新 | メンテナンスタブで工程を追加・保存し、`station.json` と Viewer への通知が反映されることを確認する |
 | ★★☆ | タグ登録ワークフロー | タグ確認 → ユーザー登録 → アイテム登録の3段階を通しで検証し、API への POST が成功してトースト表示が切り替わることを確認する |
 | ★☆☆ | USB 同期エラー時の警告 | `/api/usb_sync` がエラーを返した場合にオーバーレイとメッセージが期待通り表示されるか確認する |
+| ★★☆ | DocumentViewer エラー表示 | 登録されていない部品番号で `/api/v1/scans` を呼び出し、DocumentViewer iframe のオーバーレイとステータスチップが `viewer-message` の内容に更新されることを確認する |
 
 ## 2. 環境準備
 
@@ -93,6 +94,6 @@ test.describe.skip('Window A live flow', () => {
 
 - [x] Playwright の依存関係追加と `package.json` スクリプト更新（`test:e2e`）。
 - [x] `.env.test` サンプル (`.env.test.sample`) とフィクスチャユーティリティ（`tests/e2e/utils/env.ts`）の実装。
-- [ ] 上記シナリオをベースにしたテスト実装＆実機（Window A / RaspberryPiServer）での動作検証。※ `tests/e2e/window-a-live.spec.ts` を `describe.skip` で骨子作成済み。実行前に DOM セレクタを調整して skip を解除する。
-- [ ] `/api/logistics/jobs` を利用した構内物流タブの検証ケースを Playwright に実装し、Socket.IO イベントの反映を確認する。※ `window-a-live.spec.ts` に雛形を追加済み。
+- [ ] 上記シナリオをベースにしたテスト実装＆実機（Window A / RaspberryPiServer）での動作検証。※ `tests/e2e/window-a-live.spec.ts` へのスキャン・物流タブ・DocumentViewer エラーオーバーレイ検証を追加済み。定期的な実機実行と結果記録が未着手。
+- [x] `/api/logistics/jobs` を利用した構内物流タブの検証ケースを Playwright に実装し、Socket.IO イベントの反映を確認する。※ `tests/e2e/window-a-live.spec.ts` でジョブ作成→テーブル表示を検証済み。
 - [ ] GitHub Actions での自動実行要否の検討（長時間化を避けるため、手動実行から開始予定）。
