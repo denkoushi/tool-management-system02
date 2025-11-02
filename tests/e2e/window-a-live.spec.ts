@@ -33,6 +33,7 @@ async function navigateToWindowA(page: Page) {
 
 async function ensureDocViewerReady(page: Page) {
   const overlay = page.locator('#docViewerOverlay');
+  await overlay.waitFor({ state: 'attached', timeout: 15_000 });
   await expect(overlay).toHaveClass(/is-hidden/, { timeout: 15_000 });
 }
 
