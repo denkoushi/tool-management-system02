@@ -39,9 +39,9 @@ describeLive('Window A live integration', () => {
   test('scan event updates part locations and viewer summary', async ({ page, request }) => {
     await navigateToWindowA(page);
 
-    const partCode = `playwright-${Date.now()}`;
+    const partCode = 'testpart';
     const locationCode = 'RACK-A1';
-    const deviceId = 'playwright-device';
+    const deviceId = `playwright-device-${Date.now()}`;
 
     const response = await request.post(`${env.RASPI_SERVER_BASE}/api/v1/scans`, {
       headers: {
