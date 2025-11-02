@@ -4,6 +4,13 @@
 
 ## 1. 現状の優先度（2025-10-31 更新）
 
+### 1.1 システム構成の整理
+
+Window A (Pi4) は、ユーザーが直接操作するクライアント端末であり、工具管理 UI や DocumentViewer を表示すると同時に、周辺機器（NFC リーダー、USB ハンディリーダー）の制御を担う役割を持つ。サーバー側の処理は RaspberryPiServer (Pi5) に集約されており、Pi4 からのすべての API コールは RaspiServerClient を通じて Pi5 に委譲される。Pi Zero 2 W のハンディ端末は Wi-Fi を介して Pi5 の `/api/v1/scans` にデータを送信し、Pi5 が Socket.IO で配信した更新を Pi4 の UI が受信する。
+
+Pi4 左ペインの工具管理では、Pi4 に直結した NFC リーダーによる貸出／返却オートスキャンを継続し、その結果を Pi5 の工具管理 API で確定させる。右ペインの要領書タブでは USB ハンディリーダーの入力で DocumentViewer iframe を操作し、postMessage 経由で所在一覧タブに通知することで、要領書と現在の所在を同時に把握できるようになっている。この三層連携により、現場のスキャン体験を維持しながらサーバー機能のモジュール化を進める方針である。
+
+
 - ✅ **右ペイン UI レイアウト崩れの復旧**
   - Pi5 連携後に崩れていた CSS/DOM を修正済み。Pi4 ブラウザ（1080px 幅）で要領書・所在一覧・構内物流の各タブが正常表示されることを実機で確認した。
   - 証跡: 2025-10-31 Pi4 実機確認（ブラウザハードリロード後も再発なし）。
@@ -16,7 +23,7 @@
 - 2025-11-02: Socket.IO ステータス管理を状態マシン化し、ウォッチドッグ挙動を統合。`SOCKET_STATUS_WATCHDOG` 設定で抑制可能とし、Vitest に状態管理テストを追加。Pi4 実機でも停止→再開で `LIVE` に復帰することを確認済み。
 - 2025-11-02: タブ切替時に DocumentViewer iframe が残らないよう `.future-panel-body--doc` のレイアウトを調整し、切り替え動作を修正。
 - 2025-11-02: `config/window-a-client.env.sample` に `SOCKET_STATUS_WATCHDOG=1` と Pi5 と揃えた `RASPI_SERVER_API_TOKEN` を明記し、systemd drop-in (`config/systemd/toolmgmt.service.d/window-a.conf.sample`) の `TOOLMGMT_CLIENT_ROLE` を `window-a` に統一。
-- 2025-11-02: `/api/loans` / `register_*` / `tool_name` 系エンドポイントを RaspberryPiServer 側へ委譲し、Window A は RaspiServerClient 経由のプロキシに統一。`ENABLE_LOCAL_SCAN=0` を既定とし、旧 NFC スキャンは必要時のみ有効化する。
+- 2025-11-02: `/api/loans` / `register_*` / `tool_name` 系エンドポイントを RaspberryPiServer 側へ委譲し、Window A は RaspiServerClient 経由のプロキシに統一。Pi4 直結の NFC スキャンは既定で有効 (`ENABLE_LOCAL_SCAN=1`) とし、Pi5 API と併用して動作させる。
 - ✅ **構内物流・所在一覧 UI の整合**
   - Pi5 `/api/logistics/jobs` のレスポンスに合わせて物流タブの列定義とステータス表示を調整する。
   - DocumentViewer 連携イベントを再テストし、所在一覧のハイライト挙動を確認する。
@@ -41,6 +48,7 @@
 
 ### 2.2 Pi5 クライアント連携の補強
 - DocumentViewer iframe のフォールバックメッセージ／再接続ハンドリングの改善。
+- DocumentViewer パネル内に所在サマリーを表示するステータスバーを実装し、要領書表示を妨げず棚位置・最終更新を把握できるようにする。
 - Window A 側の `tool-dist-sync.sh` から Pi5 への DIST USB エクスポート判定を行い、最新データであることを表示。RUNBOOK の USB 章と合わせて手順化する。
 - Pi5 の `/api/logistics/jobs` 仕様変更に追従し、旧 local DB 参照コードを削除。UI 表示ロジックをサーバー API ベースへ統一する。
 - ハンディリーダとの疎通確認コマンド（`scripts/socketio_listener.py` 等）を Window A でも実行できるようにし、トラブルシュート手順を RUNBOOK へ追記する。

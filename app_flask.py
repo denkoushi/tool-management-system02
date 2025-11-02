@@ -87,7 +87,7 @@ def _parse_bool(value: Optional[str], default: bool = True) -> bool:
     return value.strip().lower() not in {"0", "false", "off", "no", ""}
 
 
-ENABLE_LOCAL_SCAN = _parse_bool(os.getenv("ENABLE_LOCAL_SCAN"), False)
+ENABLE_LOCAL_SCAN = _parse_bool(os.getenv("ENABLE_LOCAL_SCAN"), True)
 
 
 SOCKET_CLIENT_CONFIG = {
