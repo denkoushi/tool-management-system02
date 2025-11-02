@@ -56,13 +56,15 @@ describeLive('Window A live integration', () => {
     });
     expect(response.ok()).toBeTruthy();
 
-    await page.locator('#docViewerPanel .view-switch button[data-target="partLocationsPanel"]').first().click();
+    await page.locator('.future-panel-body.active .view-switch button[data-target="partLocationsPanel"]').first().click();
     const partRow = page.locator(`#partLocationsTable tbody tr:has-text("${partCode}")`).first();
     await expect(partRow).toBeVisible({ timeout: 15_000 });
     await expect(partRow.locator('td').nth(1)).toHaveText(locationCode);
     await expect(partRow.locator('td').nth(2)).toHaveText(deviceId);
 
-    await page.locator('#docViewerPanel .view-switch button[data-target="docViewerPanel"]').first().click();
+    const docViewerTab = page.locator('.future-panel-body.active .view-switch button[data-target="docViewerPanel"]').first();
+    await docViewerTab.scrollIntoViewIfNeeded();
+    await docViewerTab.click();
     const summary = page.locator('#docViewerSummary');
     await expect(summary).toHaveAttribute('data-state', /ready/, { timeout: 15_000 });
     await expect(page.locator('#docViewerSummaryLocation')).toContainText(locationCode);
@@ -89,7 +91,7 @@ describeLive('Window A live integration', () => {
     });
     expect(response.ok()).toBeTruthy();
 
-    await page.locator('#docViewerPanel .view-switch button[data-target="logisticsPanel"]').first().click();
+    await page.locator('.future-panel-body.active .view-switch button[data-target="logisticsPanel"]').first().click();
     const jobRow = page.locator(`#logisticsTable tbody tr:has-text("${testJobId}")`).first();
     await expect(jobRow).toBeVisible({ timeout: 15_000 });
     await expect(jobRow.locator('td').first()).toContainText(testJobId);
