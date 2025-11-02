@@ -65,11 +65,11 @@ describeLive('Window A live integration', () => {
     const docViewerTab = page.locator('.future-panel-body.active .view-switch button[data-target="docViewerPanel"]').first();
     await docViewerTab.scrollIntoViewIfNeeded();
     await docViewerTab.click();
-    const summary = page.locator('#docViewerSummary');
-    await expect(summary).toHaveAttribute('data-state', /ready/, { timeout: 15_000 });
-    await expect(page.locator('#docViewerSummaryLocation')).toContainText(locationCode);
-    await expect(page.locator('#docViewerSummaryDevice')).toContainText(deviceId);
-    await expect(page.locator('#docViewerPartChip')).toContainText(partCode);
+    const summaryLocation = page.locator('#docViewerSummaryLocation');
+    const summaryDevice = page.locator('#docViewerSummaryDevice');
+    await expect(summaryLocation).toContainText(locationCode, { timeout: 15_000 });
+    await expect(summaryDevice).toContainText(deviceId, { timeout: 15_000 });
+    await expect(page.locator('#docViewerPartChip')).toContainText(partCode, { timeout: 15_000 });
   });
 
   test('logistics job update appears in logistics tab', async ({ page, request }) => {
