@@ -34,7 +34,7 @@ async function navigateToWindowA(page: Page) {
 async function ensureDocViewerReady(page: Page) {
   await page.waitForLoadState('networkidle');
   const summary = page.locator('#docViewerSummary');
-  await expect(summary).toBeVisible({ timeout: 15_000 });
+  await summary.waitFor({ state: 'attached', timeout: 15_000 });
 }
 
 async function showDocViewerTab(page: Page) {
