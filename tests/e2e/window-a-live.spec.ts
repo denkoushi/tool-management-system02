@@ -1,5 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
-import { snapshotEnv, requireEnv } from './utils/env.js';
+import { loadEnv, snapshotEnv, requireEnv } from './utils/env.js';
+
+loadEnv();
 
 const env = snapshotEnv();
 const missingRequired = !env.TOOLMGMT_BASE_URL || !env.RASPI_SERVER_BASE || !env.RASPI_SERVER_API_TOKEN;
@@ -42,7 +44,7 @@ describeLive('Window A live integration', () => {
     });
     expect(response.ok()).toBeTruthy();
 
-    await page.locator('[data-target="partLocationsPanel"]').click();
+    await page.locator('#docViewerPanel .view-switch button[data-target="partLocationsPanel"]').first().click();
     const partRow = page.locator(`#partLocationsTable tbody tr:has-text("${partCode}")`).first();
     await expect(partRow).toBeVisible({ timeout: 15_000 });
     await expect(partRow.locator('td').nth(1)).toHaveText(locationCode);
@@ -75,7 +77,7 @@ describeLive('Window A live integration', () => {
     });
     expect(response.ok()).toBeTruthy();
 
-    await page.locator('[data-target="logisticsPanel"]').click();
+    await page.locator('#docViewerPanel .view-switch button[data-target="logisticsPanel"]').first().click();
     const jobRow = page.locator(`#logisticsTable tbody tr:has-text("${testJobId}")`).first();
     await expect(jobRow).toBeVisible({ timeout: 15_000 });
     await expect(jobRow.locator('td').first()).toContainText(testJobId);
