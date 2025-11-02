@@ -199,9 +199,6 @@ export function bootstrapLegacy({ socket: injectedSocket } = {}) {
     if (locationKey && typeof window.highlightPartLocation === 'function') {
       window.highlightPartLocation(locationKey, { refreshFallback: true });
     }
-    if (typeof window.switchFuturePanel === 'function') {
-      window.switchFuturePanel('partLocationsPanel');
-    }
   }
 
   function attachProductionRowHandlers(){

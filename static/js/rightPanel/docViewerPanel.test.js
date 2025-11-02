@@ -12,6 +12,18 @@ function mountDom() {
       <span id="docViewerPartChip" class="doc-viewer-chip doc-viewer-chip--part" data-empty="true">部品番号: -</span>
       <button id="docViewerReloadBtn" type="button">reload</button>
       <button id="docViewerReturnBtn" type="button">return</button>
+      <div id="docViewerSummary" class="doc-viewer-summary" data-state="empty">
+        <div>
+          <span id="docViewerSummaryLocation">-</span>
+        </div>
+        <div>
+          <span id="docViewerSummaryDevice">-</span>
+        </div>
+        <div>
+          <span id="docViewerSummaryUpdated">-</span>
+        </div>
+        <button id="docViewerSummaryShowLocations" type="button">open</button>
+      </div>
       <div class="doc-viewer-wrapper">
         <iframe id="docViewerFrame"></iframe>
         <div id="docViewerOverlay" class="doc-viewer-overlay"></div>
@@ -33,6 +45,7 @@ describe('docViewerPanel', () => {
     __resetSocketStateForTests();
     mountDom();
     window.handleViewerBarcode = vi.fn();
+    window.switchFuturePanel = undefined;
   });
 
   afterEach(() => {
@@ -40,6 +53,7 @@ describe('docViewerPanel', () => {
     window.requestDocViewerFocus = undefined;
     window.notifyDocViewerStationChange = undefined;
     window.handleViewerBarcode = undefined;
+    window.switchFuturePanel = undefined;
     __resetSocketStateForTests();
   });
 
@@ -105,5 +119,91 @@ describe('docViewerPanel', () => {
     expect(() => viewer.updateStateChips({})).not.toThrow();
     expect(() => viewer.notifyStationChange({})).not.toThrow();
     expect(() => viewer.setUrl('https://example.com')).not.toThrow();
+  });
+
+  it('updates summary immediately when highlight returns an entry', () => {
+    const highlightOrder = vi.fn(() => ({
+      found: true,
+      entry: {
+        order_code: 'A-100',
+        location_code: 'RACK-1',
+        device_id: 'pi-zero',
+        updated_at: '2025-10-31T00:00:00Z',
+      },
+    }));
+    const viewer = initDocViewer({
+      initialUrl: 'about:blank',
+      initialOnline: true,
+      partLocationsApi: {
+        highlightOrder,
+        getEntry: vi.fn(() => null),
+      },
+    });
+
+    window.dispatchEvent(new MessageEvent('message', { data: { type: 'dv-barcode', part: 'A-100' } }));
+
+    expect(highlightOrder).toHaveBeenCalledWith('A-100', { refreshFallback: true });
+    const summary = document.getElementById('docViewerSummary');
+    expect(summary.dataset.state).toBe('ready');
+    expect(document.getElementById('docViewerSummaryLocation').textContent).toBe('RACK-1');
+    viewer.dispose();
+  });
+
+  it('waits for summary broadcast when entry is not immediately available', () => {
+    const highlightOrder = vi.fn(() => ({ found: false, entry: null }));
+    const getEntry = vi.fn(() => null);
+    const viewer = initDocViewer({
+      initialUrl: 'about:blank',
+      initialOnline: true,
+      partLocationsApi: { highlightOrder, getEntry },
+    });
+
+    window.dispatchEvent(new MessageEvent('message', { data: { type: 'dv-barcode', part: 'ZX-999' } }));
+
+    const summary = document.getElementById('docViewerSummary');
+    expect(summary.dataset.state).toBe('pending');
+
+    window.dispatchEvent(new CustomEvent('toolmgmt:part-location-summary', {
+      detail: {
+        order_code: 'ZX-999',
+        location_code: 'A-01',
+        device_id: 'pi-zero',
+        updated_at: '2025-10-31T00:05:00Z',
+      },
+    }));
+
+    expect(summary.dataset.state).toBe('ready');
+    expect(document.getElementById('docViewerSummaryDevice').textContent).toBe('pi-zero');
+    viewer.dispose();
+  });
+
+  it('opens part locations tab via summary action button', () => {
+    const highlightOrder = vi.fn(() => ({
+      found: true,
+      entry: {
+        order_code: 'B-200',
+        location_code: 'R2',
+        device_id: 'pi-zero',
+        updated_at: '2025-10-31T01:00:00Z',
+      },
+    }));
+    const viewer = initDocViewer({
+      initialUrl: 'about:blank',
+      initialOnline: true,
+      partLocationsApi: {
+        highlightOrder,
+        getEntry: vi.fn(() => null),
+      },
+    });
+
+    window.dispatchEvent(new MessageEvent('message', { data: { type: 'dv-barcode', part: 'B-200' } }));
+    const switchSpy = vi.fn();
+    window.switchFuturePanel = switchSpy;
+
+    document.getElementById('docViewerSummaryShowLocations').click();
+
+    expect(switchSpy).toHaveBeenCalledWith('partLocationsPanel');
+    expect(highlightOrder).toHaveBeenCalledTimes(2);
+    viewer.dispose();
   });
 });

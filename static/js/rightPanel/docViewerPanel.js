@@ -1,17 +1,32 @@
 import { onSocketStateChange, getSocketState } from './socketStatusManager.js';
 
-export function initDocViewer({
-  iframeId = 'docViewerFrame',
-  panelId = 'docViewerPanel',
-  overlayId = 'docViewerOverlay',
-  statusId = 'docViewerStatus',
-  stateChipId = 'docViewerStateChip',
-  partChipId = 'docViewerPartChip',
-  reloadBtnId = 'docViewerReloadBtn',
-  returnBtnId = 'docViewerReturnBtn',
-  initialUrl = '',
-  initialOnline = false,
-}) {
+const SUMMARY_EVENT = 'toolmgmt:part-location-summary';
+
+function sanitize(value) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function coalesceTimestamp(entry) {
+  if (!entry) return null;
+  return entry.updated_at || entry.updatedAt || entry.scanned_at || entry.scannedAt || null;
+}
+
+export function initDocViewer(config = {}) {
+  const {
+    iframeId = 'docViewerFrame',
+    panelId = 'docViewerPanel',
+    overlayId = 'docViewerOverlay',
+    statusId = 'docViewerStatus',
+    stateChipId = 'docViewerStateChip',
+    partChipId = 'docViewerPartChip',
+    reloadBtnId = 'docViewerReloadBtn',
+    returnBtnId = 'docViewerReturnBtn',
+    initialUrl = '',
+    initialOnline = false,
+    partLocationsApi = null,
+    summarySelectors = {},
+  } = config;
+
   const panel = document.getElementById(panelId);
   if (!panel) {
     console.warn('[docViewer] panel not found, returning no-op handlers');
@@ -20,6 +35,7 @@ export function initDocViewer({
       updateStateChips() {},
       notifyStationChange() {},
       setUrl() {},
+      dispose() {},
     };
   }
 
@@ -34,6 +50,41 @@ export function initDocViewer({
   const datasetUrl = panel.dataset.docViewerUrl ? panel.dataset.docViewerUrl.trim() : '';
   let docViewerUrl = (initialUrl || datasetUrl || '').trim();
 
+  const summaryIds = {
+    containerId: 'docViewerSummary',
+    locationId: 'docViewerSummaryLocation',
+    deviceId: 'docViewerSummaryDevice',
+    updatedId: 'docViewerSummaryUpdated',
+    actionBtnId: 'docViewerSummaryShowLocations',
+    ...summarySelectors,
+  };
+
+  const summary = {
+    container: document.getElementById(summaryIds.containerId),
+    location: document.getElementById(summaryIds.locationId),
+    device: document.getElementById(summaryIds.deviceId),
+    updated: document.getElementById(summaryIds.updatedId),
+    actionBtn: document.getElementById(summaryIds.actionBtnId),
+  };
+
+  const summaryEnabled = !!summary.container;
+  const summaryFormatter = new Intl.DateTimeFormat('ja-JP', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  });
+
+  const summaryState = {
+    keys: [],
+    lastEntry: null,
+  };
+
+  const teardownFns = [];
+
   const socketStatusLabels = {
     live: '接続済み',
     reconnect: '再接続中…',
@@ -43,9 +94,121 @@ export function initDocViewer({
     disabled: '停止中',
   };
 
+  function formatSummaryTimestamp(value) {
+    if (!value) return '-';
+    const dt = new Date(value);
+    if (Number.isNaN(dt.getTime())) return '-';
+    return summaryFormatter.format(dt);
+  }
+
+  function clearSummary() {
+    if (!summaryEnabled) return;
+    summary.container.dataset.state = 'empty';
+    if (summary.location) summary.location.textContent = '-';
+    if (summary.device) summary.device.textContent = '-';
+    if (summary.updated) summary.updated.textContent = '-';
+    summaryState.lastEntry = null;
+    summaryState.keys = [];
+  }
+
+  function setSummaryPending() {
+    if (!summaryEnabled) return;
+    summary.container.dataset.state = 'pending';
+    if (summary.location) summary.location.textContent = '-';
+    if (summary.device) summary.device.textContent = '-';
+    if (summary.updated) summary.updated.textContent = '更新待ち…';
+    summaryState.lastEntry = null;
+  }
+
+  function applySummary(entry) {
+    if (!summaryEnabled || !entry) return;
+    summary.container.dataset.state = 'ready';
+    if (summary.location) summary.location.textContent = entry.location_code || '-';
+    if (summary.device) summary.device.textContent = entry.device_id || '-';
+    if (summary.updated) summary.updated.textContent = formatSummaryTimestamp(coalesceTimestamp(entry));
+    summaryState.lastEntry = entry;
+  }
+
+  function handleSummaryBroadcast(event) {
+    if (!summaryEnabled || !event || typeof event.detail !== 'object') return;
+    const entry = event.detail;
+    if (!entry || !entry.order_code) return;
+    const match = summaryState.keys.some((key) => key && key === entry.order_code);
+    if (match) {
+      applySummary(entry);
+    }
+  }
+
+  if (summaryEnabled) {
+    clearSummary();
+    window.addEventListener(SUMMARY_EVENT, handleSummaryBroadcast);
+    teardownFns.push(() => window.removeEventListener(SUMMARY_EVENT, handleSummaryBroadcast));
+  }
+
+  function dedupeKeys(list) {
+    const unique = [];
+    list.forEach((value) => {
+      if (value && !unique.includes(value)) {
+        unique.push(value);
+      }
+    });
+    return unique;
+  }
+
+  function resolveSummaryFromPayload(payload) {
+    const part = sanitize(payload.part || payload.part_number || payload.partNumber || '');
+    const order = sanitize(payload.order || payload.order_code || payload.orderNumber || '');
+    const primary = sanitize(payload.order_code || order || part);
+    const fallback = part && part !== primary ? part : '';
+    const keys = dedupeKeys([primary, fallback]);
+    if (summaryEnabled) {
+      summaryState.keys = keys;
+      summaryState.lastEntry = null;
+    }
+
+    if (!keys.length) {
+      if (summaryEnabled) clearSummary();
+      return;
+    }
+
+    if (!partLocationsApi) {
+      if (summaryEnabled) setSummaryPending();
+      return;
+    }
+
+    let applied = false;
+    for (const key of keys) {
+      if (!key) continue;
+      const existing = partLocationsApi.getEntry?.(key) || null;
+      if (existing && summaryEnabled && !applied) {
+        applySummary(existing);
+        applied = true;
+      }
+      if (typeof partLocationsApi.highlightOrder === 'function') {
+        const result = partLocationsApi.highlightOrder(key, { refreshFallback: true }) || null;
+        if (summaryEnabled && !applied && result && result.entry) {
+          applySummary(result.entry);
+          applied = true;
+        }
+        if (result && result.found) {
+          return;
+        }
+      }
+    }
+
+    if (summaryEnabled && !applied) {
+      setSummaryPending();
+    }
+  }
+
   function setStatus(state, label) {
     if (!statusEl) return;
-    statusEl.classList.remove('doc-viewer-status--online', 'doc-viewer-status--live', 'doc-viewer-status--offline', 'doc-viewer-status--reconnect');
+    statusEl.classList.remove(
+      'doc-viewer-status--online',
+      'doc-viewer-status--live',
+      'doc-viewer-status--offline',
+      'doc-viewer-status--reconnect',
+    );
     if (state === 'online' || state === 'live') {
       statusEl.classList.add('doc-viewer-status--live');
     } else if (state === 'reconnect') {
@@ -119,7 +282,10 @@ export function initDocViewer({
   function reloadFrame() {
     if (!frame) return;
     if (!docViewerUrl) {
-      showOverlay('DocumentViewer の URL が設定されていません。<br>環境変数 <code>DOCUMENT_VIEWER_URL</code> または <code>RASPI_SERVER_BASE</code> を確認してください。', { lock: true });
+      showOverlay(
+        'DocumentViewer の URL が設定されていません。<br>環境変数 <code>DOCUMENT_VIEWER_URL</code> または <code>RASPI_SERVER_BASE</code> を確認してください。',
+        { lock: true },
+      );
       setStatus('offline', '未設定');
       return;
     }
@@ -172,7 +338,10 @@ export function initDocViewer({
 
   if (!docViewerUrl) {
     setStatus('offline', '未設定');
-    showOverlay('DocumentViewer の URL が設定されていません。<br>環境変数 <code>DOCUMENT_VIEWER_URL</code> または <code>RASPI_SERVER_BASE</code> を確認してください。', { lock: true });
+    showOverlay(
+      'DocumentViewer の URL が設定されていません。<br>環境変数 <code>DOCUMENT_VIEWER_URL</code> または <code>RASPI_SERVER_BASE</code> を確認してください。',
+      { lock: true },
+    );
   } else if (frame) {
     if (initialOnline) {
       frame.src = docViewerUrl;
@@ -186,6 +355,18 @@ export function initDocViewer({
 
   if (reloadBtn) reloadBtn.addEventListener('click', () => reloadFrame());
   if (returnBtn) returnBtn.addEventListener('click', () => postToViewer({ type: 'viewer-return' }));
+
+  if (summary.actionBtn) {
+    summary.actionBtn.addEventListener('click', () => {
+      if (typeof window.switchFuturePanel === 'function') {
+        window.switchFuturePanel('partLocationsPanel');
+      }
+      const primary = summaryState.keys[0] || null;
+      if (primary && partLocationsApi?.highlightOrder) {
+        partLocationsApi.highlightOrder(primary, { refreshFallback: true });
+      }
+    });
+  }
 
   if (frame) {
     frame.addEventListener('load', () => {
@@ -210,6 +391,7 @@ export function initDocViewer({
     if (data.type === 'viewer-state') {
       updateStateChips(data);
     } else if (data.type === 'dv-barcode') {
+      resolveSummaryFromPayload(data);
       if (typeof window.handleViewerBarcode === 'function') {
         window.handleViewerBarcode(data);
       }
@@ -219,6 +401,9 @@ export function initDocViewer({
   panel.dataset.docViewerUrl = docViewerUrl;
 
   const unsubscribeSocket = onSocketStateChange(applySocketState);
+  if (typeof unsubscribeSocket === 'function') {
+    teardownFns.push(() => unsubscribeSocket());
+  }
   applySocketState(getSocketState());
 
   panel.__requestViewerFocus = () => postToViewer({ type: 'focus-request' });
@@ -236,10 +421,15 @@ export function initDocViewer({
     setUrl(newUrl) {
       docViewerUrl = (newUrl || '').trim();
       panel.dataset.docViewerUrl = docViewerUrl;
-
-  const unsubscribeSocket = onSocketStateChange(applySocketState);
-  applySocketState(getSocketState());
-
+    },
+    dispose() {
+      teardownFns.forEach((fn) => {
+        try {
+          fn();
+        } catch (err) {
+          console.warn('docViewer dispose error', err);
+        }
+      });
     },
   };
 }

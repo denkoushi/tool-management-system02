@@ -98,6 +98,8 @@ describe('partLocationsPanel', () => {
 
   it('highlights order programmatically', () => {
     const { socket } = createSocket(true);
+    const summarySpy = vi.fn();
+    window.addEventListener('toolmgmt:part-location-summary', summarySpy);
     const panel = initPartLocations({
       socket,
       socketOptions: { autoConnect: false },
@@ -113,13 +115,24 @@ describe('partLocationsPanel', () => {
       ],
     });
 
-    expect(panel.highlightOrder('PRT-001')).toBe(true);
+    const result = panel.highlightOrder('PRT-001');
+    expect(result.found).toBe(true);
+    expect(result.entry).toMatchObject({
+      order_code: 'PRT-001',
+      location_code: 'RACK-X1',
+      device_id: 'pi-zero',
+    });
     const row = document.querySelector('tr[data-key="PRT-001"]');
     expect(row).not.toBeNull();
     expect(row.classList.contains('is-flash')).toBe(true);
+    expect(summarySpy).toHaveBeenCalledWith(expect.objectContaining({
+      detail: expect.objectContaining({ order_code: 'PRT-001' }),
+    }));
 
     // Unknown key returns false and keeps last highlight for future refreshes
-    expect(panel.highlightOrder('UNKNOWN')).toBe(false);
+    const miss = panel.highlightOrder('UNKNOWN');
+    expect(miss.found).toBe(false);
+    window.removeEventListener('toolmgmt:part-location-summary', summarySpy);
   });
 
   it('updates table when socket event arrives', () => {

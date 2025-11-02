@@ -16,7 +16,7 @@
   - 依存ライブラリは RaspberryPiServer 側と同じバージョンを利用する。特に `psycopg2-binary` は **2.9.10** を使用し、`source venv/bin/activate && pip install -r requirements.txt -r requirements-dev.txt` を再実行する。
   - systemd drop-in の `EnvironmentFile` は `-/etc/toolmgmt/window-a-client.env` ではなく `=/etc/toolmgmt/window-a-client.env` とし、読み込みに失敗した際に黙って無視されないようにする（2025-10-28 修正）。
 - **Pi4 の NFC スキャンは既定で有効**: `ENABLE_LOCAL_SCAN=1` を基本とし、Pi4 直結の NFC リーダーで工具の貸出／返却オートスキャンを継続する。Pi Zero からの送信と併用する場合でも、Pi5 側 API が重複を吸収するため設定変更は不要。無効化したい場合のみ `ENABLE_LOCAL_SCAN=0` に変更し、RUNBOOK に沿ってリーダー接続を停止する。
-- **所在サマリーのステータスバー**: DocumentViewer iframe の上部に、現在表示している部品の棚位置・デバイス・最終スキャン時刻を表示するステータスバーを追加する。表示領域は 40px 程度に抑え、ユーザーが PDF を見ながら所在情報を確認できる導線とする。詳細を開きたい場合は所在一覧タブへ遷移するボタンを併設する。
+- **所在サマリーのステータスバー**（2025-11-02 実装済み）: DocumentViewer iframe の上部に薄いステータスバーを設置し、最新の棚位置・デバイス・最終スキャン時刻を表示する。表示領域は 40px 程度に抑え、PDF 表示領域を確保する。`dv-barcode` 受信時に所在一覧のハイライトとサマリー更新を同時に行い、自動でタブを切り替えず、必要に応じて「所在一覧を開く」ボタンから `switchFuturePanel('partLocationsPanel')` を呼び出す。
 - **フォーカスとイベント分離**: 左側のバーコード入力と右側のキーボードイベントが干渉しないように tabindex / pointer-event の制御、または iframe 内でキーボードフォーカスを明示的に管理。
 - **ヘルスチェック表示**: iframe 読み込み失敗時にアラートを表示する簡易監視を TMS に組み込み、DV 停止を即時検知できるようにする。
 - **サービスの起動／停止統一**: systemd を利用し、TMS (`toolmgmt.service`) と DV (`docviewer.service` など仮称) を個別ユニットとして管理。キオスク起動手順では「両サービスが稼働中であること」をチェックリスト化。
@@ -65,7 +65,7 @@
 2. **DocumentViewer (`docViewerPanel.js`)**
    - フレームロード成功時に `ONLINE` 表示／失敗時にオーバーレイ表示へ切り替わること。
    - `viewer-state` postMessage を受けてステータスチップが更新されること。
-   - `dv-barcode` が pageLegacy の `handleViewerBarcode` と連携し、生産計画テーブルと所在一覧タブがハイライトされること。
+   - `dv-barcode` が pageLegacy の `handleViewerBarcode` と連携して生産計画テーブルをハイライトしつつ、所在一覧のサマリー／ハイライトが更新されること（タブは自動遷移させない）。
 3. **API トークン管理 (`apiTokensPanel.js`)**
    - 発行／無効化で `<pre>` やメッセージ欄が期待する内容へ更新されること。
    - `keep_existing` チェック時に既存トークンが保持されるケース、`revoke all` 時に件数表示が期待通りになること。

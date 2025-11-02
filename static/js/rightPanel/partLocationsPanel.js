@@ -27,6 +27,7 @@ export function initPartLocations({
     lastHighlight: null,
     lastRender: 0,
     fetchInFlight: false,
+    summaryNotifiedKey: null,
   };
 
   const formatter = new Intl.DateTimeFormat('ja-JP', { dateStyle: 'short', timeStyle: 'medium' });
@@ -44,6 +45,12 @@ export function initPartLocations({
   function formatTimestamp(value) {
     const dt = parseTimestamp(value);
     return dt ? formatter.format(dt) : '—';
+  }
+
+  function emitSummary(entry) {
+    if (!entry || !entry.order_code) return;
+    state.summaryNotifiedKey = entry.order_code;
+    window.dispatchEvent(new CustomEvent('toolmgmt:part-location-summary', { detail: entry }));
   }
 
   function normalize(entry) {
@@ -117,6 +124,13 @@ export function initPartLocations({
     const targetKey = highlightKey || state.lastHighlight;
     if (targetKey) {
       highlightRow(targetKey);
+    }
+
+    if (targetKey) {
+      const entry = state.rows.get(targetKey);
+      if (entry && state.summaryNotifiedKey !== entry.order_code) {
+        emitSummary(entry);
+      }
     }
 
     state.lastRender = Date.now();
@@ -221,6 +235,9 @@ export function initPartLocations({
         if (isActive()) {
           showMessage('info', `更新: ${normalized.order_code} → ${normalized.location_code || '-'}`, 4000);
         }
+        if (state.lastHighlight === normalized.order_code) {
+          emitSummary(normalized);
+        }
       });
     }
 
@@ -265,14 +282,24 @@ export function initPartLocations({
     render,
     setSocketStatus,
     highlightOrder(orderCode, { refreshFallback = false } = {}) {
-      if (!orderCode) return false;
-      if (highlightRow(orderCode)) return true;
+      if (!orderCode) return { found: false, entry: null };
+      const entry = state.rows.get(orderCode) || null;
+      state.summaryNotifiedKey = null;
+      if (entry) {
+        highlightRow(orderCode);
+        emitSummary(entry);
+        return { found: true, entry };
+      }
       state.lastHighlight = orderCode;
       if (refreshFallback) {
         refresh();
       }
-      return false;
+      return { found: false, entry: null };
     },
     getLastRender: () => state.lastRender,
+    getEntry(orderCode) {
+      if (!orderCode) return null;
+      return state.rows.get(orderCode) || null;
+    },
   };
 }

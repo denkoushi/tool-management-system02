@@ -113,6 +113,7 @@ export function initRightPanel() {
   const docViewer = initDocViewer({
     initialUrl: panelEl?.dataset.docViewerUrl || '',
     initialOnline: panelEl?.dataset.docViewerOnline === 'true',
+    partLocationsApi: partLocations,
   });
 
   const logistics = initLogisticsPanel({

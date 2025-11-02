@@ -29,6 +29,21 @@
       <button type="button" id="docViewerReturnBtn" class="btn-reload">待機画面に戻る</button>
     </div>
   </div>
+  <div class="doc-viewer-summary" id="docViewerSummary" data-state="empty">
+    <div class="doc-viewer-summary__item">
+      <span class="doc-viewer-summary__label">棚位置</span>
+      <span id="docViewerSummaryLocation" class="doc-viewer-summary__value">-</span>
+    </div>
+    <div class="doc-viewer-summary__item">
+      <span class="doc-viewer-summary__label">デバイス</span>
+      <span id="docViewerSummaryDevice" class="doc-viewer-summary__value">-</span>
+    </div>
+    <div class="doc-viewer-summary__item">
+      <span class="doc-viewer-summary__label">最終更新</span>
+      <span id="docViewerSummaryUpdated" class="doc-viewer-summary__value">-</span>
+    </div>
+    <button type="button" id="docViewerSummaryShowLocations" class="doc-viewer-summary__action">所在一覧を開く</button>
+  </div>
   <div class="doc-viewer-wrapper">
     <iframe id="docViewerFrame" title="Document Viewer"
             src="{{ doc_viewer_url if doc_viewer_online else '' }}"
