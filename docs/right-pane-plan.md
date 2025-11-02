@@ -28,7 +28,7 @@
 | ファイル | 概要 | 備考 |
 | --- | --- | --- |
 | `static/js/rightPanel/initRightPanel.js` | Socket.IO 初期化、タブ切替、各パネルの初期化を統括 | `highlightPartLocation` などのグローバル橋渡しをここで定義 |
-| `static/js/rightPanel/docViewerPanel.js` | iframe 状態、サマリー更新、`dv-barcode` postMessage の受け口 | `toolmgmt:part-location-summary` カスタムイベントでサマリーを受信 |
+| `static/js/rightPanel/docViewerPanel.js` | iframe 状態、サマリー更新、`dv-barcode`/`viewer-message` postMessage の受け口 | `toolmgmt:part-location-summary` カスタムイベントでサマリーを受信し、`viewer-message` エラーはオーバーレイに転送 |
 | `static/js/rightPanel/partLocationsPanel.js` | 所在一覧テーブル、REST フォールバック、外部ハイライト | Playwright テストでエントリ更新を検証 |
 | `static/js/rightPanel/logisticsPanel.js` | 構内物流タブ、ステータスバッジ、Socket.IO 更新 | 依頼時刻列を Pi5 API に合わせて表示 |
 | `static/js/rightPanel/socketStatusManager.js` | 再接続ウォッチドッグ、状態イベント発行 | `SOCKET_STATUS_WATCHDOG=1` を既定有効 |
@@ -61,7 +61,7 @@ PLAYWRIGHT_ENV_FILE=.env.test npx playwright test tests/e2e/window-a-live.spec.t
 
 ## 6. 未完タスク（右ペイン関連）
 - ✅ ステータスバー UI 調整（2025-11-02）
-- ☐ DocumentViewer iframe のエラー表示改善（HTTP エラー、PDF 404 などをユーザーに提示）
+- ✅ DocumentViewer iframe のエラー表示改善（HTTP エラー、PDF 404 などをユーザーに提示） — 2025-11-05: RaspberryPiServer から `viewer-message` postMessage を送出し、Window A 側オーバーレイに文言を表示。Vitest (`npm run test:js`) でハンドリングを検証。
 - ☐ Logistics タブのフィルタ／ソート機能を検討
 - ☐ postMessage プロトコル仕様書を追加（DocumentViewer ↔ Window A）
 

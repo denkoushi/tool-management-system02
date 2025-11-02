@@ -206,4 +206,72 @@ describe('docViewerPanel', () => {
     expect(highlightOrder).toHaveBeenCalledTimes(2);
     viewer.dispose();
   });
+
+  it('shows overlay with viewer error message and escapes HTML', () => {
+    initDocViewer({ initialUrl: 'about:blank', initialOnline: true });
+    const overlay = document.getElementById('docViewerOverlay');
+    overlay.classList.add('is-hidden');
+
+    window.dispatchEvent(new MessageEvent('message', {
+      data: {
+        type: 'viewer-message',
+        level: 'error',
+        text: '<b>PDF missing</b>',
+        part: 'ERR-01',
+      },
+    }));
+
+    expect(overlay.classList.contains('is-hidden')).toBe(false);
+    expect(overlay.textContent).toBe('<b>PDF missing</b>');
+    expect(overlay.innerHTML).toBe('&lt;b&gt;PDF missing&lt;/b&gt;');
+
+    const partChip = document.getElementById('docViewerPartChip');
+    expect(partChip.textContent).toContain('ERR-01');
+    expect(partChip.dataset.empty).toBe('false');
+
+    const stateChip = document.getElementById('docViewerStateChip');
+    expect(stateChip.dataset.state).toBe('error');
+  });
+
+  it('hides overlay on viewer info message when unlocked', () => {
+    initDocViewer({ initialUrl: 'about:blank', initialOnline: true });
+    const overlay = document.getElementById('docViewerOverlay');
+
+    window.dispatchEvent(new MessageEvent('message', {
+      data: {
+        type: 'viewer-message',
+        level: 'error',
+        text: 'PDF が見つかりません。',
+      },
+    }));
+    expect(overlay.classList.contains('is-hidden')).toBe(false);
+
+    window.dispatchEvent(new MessageEvent('message', {
+      data: {
+        type: 'viewer-message',
+        level: 'info',
+        text: '表示中: test.pdf',
+      },
+    }));
+
+    expect(overlay.classList.contains('is-hidden')).toBe(true);
+  });
+
+  it('keeps locked overlay when viewer info message arrives', () => {
+    initDocViewer({ initialUrl: '', initialOnline: false });
+    const overlay = document.getElementById('docViewerOverlay');
+    expect(overlay.dataset.locked).toBe('true');
+    expect(overlay.classList.contains('is-hidden')).toBe(false);
+
+    window.dispatchEvent(new MessageEvent('message', {
+      data: {
+        type: 'viewer-message',
+        level: 'info',
+        text: '待機中です。',
+      },
+    }));
+
+    expect(overlay.dataset.locked).toBe('true');
+    expect(overlay.classList.contains('is-hidden')).toBe(false);
+  });
 });

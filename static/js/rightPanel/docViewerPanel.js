@@ -220,9 +220,14 @@ export function initDocViewer(config = {}) {
     statusEl.dataset.state = state;
   }
 
-  function showOverlay(message, { lock = false } = {}) {
+  function showOverlay(message, { lock = false, html = true } = {}) {
     if (!overlay) return;
-    overlay.innerHTML = message;
+    overlay.innerHTML = '';
+    if (html) {
+      overlay.innerHTML = message;
+    } else {
+      overlay.textContent = message;
+    }
     overlay.dataset.locked = lock ? 'true' : 'false';
     overlay.classList.remove('is-hidden');
   }
@@ -385,6 +390,34 @@ export function initDocViewer(config = {}) {
     });
   }
 
+  function handleViewerMessage(payload) {
+    const level = payload.level === 'error' ? 'error' : 'info';
+    const text = sanitize(payload.text || '');
+    const part = sanitize(payload.part || '');
+
+    if (part && partChip && partChip.dataset.empty !== 'false') {
+      partChip.textContent = `部品番号: ${part}`;
+      partChip.dataset.empty = 'false';
+    }
+
+    if (!text) {
+      if (level !== 'error') {
+        hideOverlay();
+      }
+      return;
+    }
+
+    if (level === 'error') {
+      showOverlay(text, { html: false });
+      if (stateChip && stateChip.dataset.state !== 'error') {
+        stateChip.textContent = '状態: エラー';
+        stateChip.dataset.state = 'error';
+      }
+    } else {
+      hideOverlay();
+    }
+  }
+
   window.addEventListener('message', (event) => {
     const data = event.data;
     if (!data || typeof data !== 'object') return;
@@ -395,6 +428,8 @@ export function initDocViewer(config = {}) {
       if (typeof window.handleViewerBarcode === 'function') {
         window.handleViewerBarcode(data);
       }
+    } else if (data.type === 'viewer-message') {
+      handleViewerMessage(data);
     }
   });
 

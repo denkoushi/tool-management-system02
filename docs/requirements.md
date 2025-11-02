@@ -49,7 +49,7 @@ Pi4 左ペインの工具管理では、Pi4 に直結した NFC リーダーに�
 - station.json 欠損・破損時の自動復旧、UI 上でのエラーメッセージ改善。
 
 ### 2.2 Pi5 クライアント連携の補強
-- DocumentViewer iframe のフォールバックメッセージ／再接続ハンドリングの改善。
+- ✅ DocumentViewer iframe のフォールバックメッセージ／再接続ハンドリングを改善し、RaspberryPiServer からの `viewer-message` postMessage を Window A オーバーレイに表示（2025-11-05 Vitest で検証済み）。
 - ✅ DocumentViewer パネル内に所在サマリーを表示するステータスバーを実装し、要領書表示を妨げず棚位置・最終更新を把握できるようにする（2025-11-02 実装／Vitest で動作確認済、実機確認は次ステップ）。
 - Window A 側の `tool-dist-sync.sh` から Pi5 への DIST USB エクスポート判定を行い、最新データであることを表示。RUNBOOK の USB 章と合わせて手順化する。
 - Pi5 の `/api/logistics/jobs` 仕様変更に追従し、旧 local DB 参照コードを削除。UI 表示ロジックをサーバー API ベースへ統一する。
