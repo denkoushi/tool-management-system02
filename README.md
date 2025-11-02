@@ -5,6 +5,12 @@
 > ドキュメント全体の役割分担と更新ルールは `docs/documentation-guidelines.md` にまとめています。エージェント／自動化タスクを利用するときは `docs/AGENTS.md` を最初に確認してください。
 > トークン入力を一時的に省略したい場合は、以下の手順で `API_TOKEN_ENFORCE=0` を設定します。\n> 1. `sudo systemctl edit toolmgmt.service` でドロップインファイルを開く\n> 2. `[Service]` セクションに `Environment=API_TOKEN_ENFORCE=0` を追記して保存\n> 3. `sudo systemctl daemon-reload`\n> 4. `sudo systemctl restart toolmgmt.service`\n> 元に戻すときは設定を削除または `1` に戻して同じ手順で再起動してください。
 
+## 関連ドキュメント
+- `docs/right-pane-plan.md` — 右ペイン UI の構成・テスト手順・改修方針
+- `docs/requirements/window-a-statusbar.md` — ステータスバー改修の詳細要件
+- `docs/e2e-plan.md` — Playwright シナリオと `.env.test` 運用手順
+- `docs/test-notes/2025-11-02-window-a-live-playwright.md` — Pi4 実機でのライブ E2E 検証ログ
+
 ## RaspberryPiServer との連携
 - 受信エンドポイント: `POST /api/v1/scans`（Bearer トークン必須、JSON ボディで所在を upsert）
 - 主な反映:
@@ -55,6 +61,8 @@ sudo systemctl restart toolmgmt.service
 ---
 
 ## 1) 依存関係（セットアップ手順）
+
+> **注意:** 以下の手順は旧 ZIP 構成を復旧するための完全セットアップ手順です。現行運用では Pi5 をサーバーとし、Window A はクライアントとして `RUNBOOK.md` の最小手順で構築することを推奨します。
 
 > **新規クライアント構築（推奨手順）**: Window A 向けにまっさらなラズパイ 4 を準備する場合は、RUNBOOK の「3.5 Window A クライアント新規構築」を参照してください。Docker 等を利用しないクライアント構成に最適化しています。
 > 以下は旧 ZIP 構成の復旧を含むフルセットアップ手順です。
