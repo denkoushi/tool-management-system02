@@ -38,9 +38,10 @@ Pi4 左ペインの工具管理では、Pi4 に直結した NFC リーダーに�
 - ✅ **ドキュメント更新と棚卸し**（2025-11-05 `README`/`RUNBOOK`/`docs/right-pane-plan.md` をPi5集約後構成に合わせ点検し、索引用リストも更新）
   - README／RUNBOOK／`docs/right-pane-plan.md` を Pi5 集約後構成に合わせて更新する。
   - `docs/docs-index.md` の棚卸し状況を最新化し、未整備カテゴリをゼロにする。
-- ☐ **API トークン／セキュリティ運用の整理**
-  - ステーション別トークン運用 (`scripts/manage_api_token.py`) を棚卸しし、Pi5 と同等ポリシーに統一する。
-  - `docs/security-overview.md` へ現状運用と Pi5 との整合を追記する。
+- ✅ **API トークン／セキュリティ運用の整理**（2025-11-05 `RUNBOOK.md` 6 章と `docs/security-overview.md` を更新し、Pi5 / Pi4 / Pi Zero で共通トークンを共有する手順を整備）
+  - ステーション別トークン運用 (`scripts/manage_api_token.py`) を棚卸しし、Pi5 の `API_TOKEN` / `VIEWER_API_TOKEN` と同一値を使うベストプラクティスを明文化。
+  - `docs/security-overview.md` にトークン種別とローテーション手順、フォールバック、監査ログの扱いを追記。
+  - `RUNBOOK.md` へローテーション手順（発行→各端末反映→再起動→検証）を追加し、実運用で迷わないようにした。
 
 ## 2. バックログ
 

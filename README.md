@@ -163,7 +163,7 @@ sudo systemctl restart toolmgmt.service
         sudo chmod 755 /etc/toolmgmt
 
    ブラウザの管理画面にアクセスすると、初回のみトークン入力を求められます。入力した値はキオスクブラウザの `localStorage` に保存されるため、通常は再起動後も再入力は不要です。保存済みトークンを入れ替えたい場合はブラウザのサイトデータを削除するか、開発者ツールから `localStorage.removeItem('apiToken')` を実行してください。
-   トークンは「この端末が正規か」を識別する鍵で、ステーション単位で発行しておくと監査ログに station_id が残ります。端末を入れ替える際は `revoke` → 再発行 → 新しいトークンを入力するだけでアクセスを切り替えられます。すべてのトークンを無効化した場合は下記コマンドで再発行してください。
+   トークンは「この端末が正規か」を識別する鍵で、ステーション単位で発行しておくと監査ログに station_id が残ります。端末を入れ替える際は `revoke` → 再発行 → 新しいトークンを入力するだけでアクセスを切り替えられます。Pi5 側の `API_TOKEN` / `VIEWER_API_TOKEN`、Pi Zero 側の `api_token` も同じ値で運用し、ローテーション手順は RUNBOOK 6 を参照してください。すべてのトークンを無効化した場合は下記コマンドで再発行してください。
 
         cd ~/tool-management-system02
         python3 scripts/manage_api_token.py issue --station-id CUTTING-01 --reveal

@@ -75,3 +75,48 @@ PLAYWRIGHT_ENV_FILE=.env.test   npx playwright test tests/e2e/window-a-live.spec
 - `docs/requirements/window-a-statusbar.md` — ステータスバー改修要件
 - `docs/test-notes/` — 実機検証ログ
 - RaspberryPiServer リポジトリ `RUNBOOK.md` — サーバー側運用手順
+
+## 6. API トークンのローテーション
+
+Pi5（RaspberryPiServer）と Pi4 クライアント、Pi Zero ハンディは同じ Bearer トークンを共有します。ローテーション時は以下の順序で更新し、値の不整合を避けてください。
+
+1. **新しいトークンの発行**  
+   ```bash
+   cd ~/tool-management-system02
+   python scripts/manage_api_token.py rotate --station-id WINDOW-A --reveal
+   ```  
+   - `/etc/toolmgmt/api_token.json` が更新され、管理 API 用トークンが最新化される。`station_id` は監査ログ用に端末名（例: `WINDOW-A`）を設定する。
+
+2. **Pi5 / Pi4 / Pi Zero の設定ファイルを更新**  
+   - Pi5: `/etc/default/raspi-server` の `API_TOKEN` と `VIEWER_API_TOKEN` を新しい値に差し替え。  
+   - Pi4: `/etc/toolmgmt/window-a-client.env` の `RASPI_SERVER_API_TOKEN` を更新。  
+   - Pi Zero: `/etc/onsitelogistics/config.json`（もしくはハンディ用リポジトリの `.env`）に記載した `api_token` を更新。  
+   - Playwright 用 `.env.test` や開発マシンの環境変数も同じ値にしておく。
+
+3. **サービス再起動**  
+   ```bash
+   # Pi5
+   sudo systemctl restart raspi-server.service
+   # Pi4
+   sudo systemctl restart toolmgmt.service
+   # Pi Zero (名称は運用に合わせる)
+   sudo systemctl restart onsitelogistics.service
+   ```  
+   - `journalctl -u <service> -n 20` で再起動エラーがないか確認する。
+
+4. **動作確認**  
+   - Pi5:  
+     ```bash
+     curl -s -o /dev/null -w '%{http_code}\n' \
+       -H "Authorization: Bearer <新しいトークン>" \
+       http://127.0.0.1:8501/healthz
+     ```  
+     200 が返れば認証成功。  
+   - Pi4: `python scripts/manage_api_token.py show --reveal` でトークンが更新されていることを確認し、ブラウザの管理画面に新しいトークンを入力。  
+   - Pi Zero: ハンディから `/api/v1/scans` を送信し、Pi5 ログに 401 が出ていないことを確認。
+
+5. **監査ログと記録**  
+   - `logs/api_actions.log`（Pi4）と `/var/log/raspi-server/app.log`（Pi5）に station_id 付きで操作記録が残る。ローテーション日と反映端末を `docs/test-notes/` もしくは運用ノートに追記し、パスワード管理ツールにも保存する。
+
+6. **フォールバック**  
+   - トークンが不明になった場合は Pi5 `/etc/default/raspi-server` の値を基準に、Pi4 と Pi Zero を合わせる。旧トークンを無効化したいときは `python scripts/manage_api_token.py revoke --all` を実行する。詳細は `docs/security-overview.md` の「API トークン統合ポリシー」を参照。

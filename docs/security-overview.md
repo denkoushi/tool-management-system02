@@ -65,7 +65,25 @@
 - **リスク**: 誰でもブラウザから USB 同期やシャットダウンを実行できる。
 - **対策パッケージ**:
 1. **操作 API 保護（実装済）**: `API_AUTH_TOKEN` + `X-API-Token` で管理トークンを必須化。UI からは初回入力後、セッション順守。エラー時は 401 を返し、再入力を要求。運用上の理由で一時的に入力を省略したい場合は `API_TOKEN_ENFORCE=0` を設定できるが、セキュリティ低下に留意し速やかに元へ戻す。
-  2. **アクセスログ（実装済）**: `logs/api_actions.log` に action/status/remote を JSON で記録。失敗や拒否も残るため、fail2ban や UFW と併せて監査できる。
+2. **アクセスログ（実装済）**: `logs/api_actions.log` に action/status/remote を JSON で記録。失敗や拒否も残るため、fail2ban や UFW と併せて監査できる。
+3. **API トークン統合ポリシー（2025-11-05 整備）**: Pi5 とクライアント端末のトークン値を一本化し、ローテーション手順をドキュメント化した。
+   - トークン種別の整理  
+     | 種別 | 用途 | 保存場所 | 備考 |
+     | --- | --- | --- | --- |
+     | 管理 UI / メンテナンス API | Window A の `/api/*` 操作を保護（`X-API-Token`） | `/etc/toolmgmt/api_token.json` （`scripts/manage_api_token.py` で管理） | station_id を記録し監査ログへ残す。 |
+     | Pi5 REST / Socket API | Window A / Pi Zero / Playwright から Pi5 にアクセスする Bearer | Pi5: `/etc/default/raspi-server` の `API_TOKEN` / `VIEWER_API_TOKEN`<br>Pi4: `/etc/toolmgmt/window-a-client.env` の `RASPI_SERVER_API_TOKEN`<br>Pi Zero: `/etc/onsitelogistics/config.json` 等 | 同一値を共有する（既定: `raspi-token-YYYYMMDD` 形式）。 |
+     | DocumentViewer iframe | Pi5 `/viewer` へ直接アクセスする場合の Bearer | Pi5: `VIEWER_API_TOKEN`<br>Window A: `DOCUMENT_VIEWER_URL` が Pi5 の場合は上記と同じ値を利用 | Pi5 と Window A で統一。別値を利用する場合は表に記録。 |
+
+   - ローテーション手順（例: Pi5 と Window A のトークン更新）
+     1. Window A で `python scripts/manage_api_token.py rotate --station-id WINDOW-A --reveal` を実行し、新しいトークン値を取得（同時に `/etc/toolmgmt/api_token.json` が更新される）。
+     2. 取得したトークンを Pi5 `/etc/default/raspi-server` の `API_TOKEN` / `VIEWER_API_TOKEN`、Window A `/etc/toolmgmt/window-a-client.env` の `RASPI_SERVER_API_TOKEN`、Pi Zero `/etc/onsitelogistics/config.json` の `api_token` へ反映する。必要に応じて `.env.test` や Playwright 実行端末の環境変数も更新する。
+     3. 反映後にサービスを再起動する。Pi5: `sudo systemctl restart raspi-server.service`、Pi4: `sudo systemctl restart toolmgmt.service`、Pi Zero: `sudo systemctl restart onsitelogistics.service`（名称は端末構成に合わせて調整）。再起動ログを `journalctl` で確認する。
+     4. 動作確認として Pi5 で `curl -s -o /dev/null -w '%{http_code}\n' -H "Authorization: Bearer <token>" http://127.0.0.1:8501/healthz` を実行し 200 を得る。Window A では `python scripts/manage_api_token.py show --reveal` でトークンが更新されていることを確認し、ブラウザから管理画面へアクセスして新しいトークンを入力する。
+     5. トークン値はパスワード管理ツールに記録し、`docs/test-notes/` や運用ノートへローテーション日と反映端末を記載する。
+   - フォールバック  
+     - 緊急時にトークンが不明になった場合は Pi5 `/etc/default/raspi-server` の値を基準とし、Window A / Pi Zero 側を合わせる。どうしても不明な場合は上記手順で再発行し、旧トークンは `python scripts/manage_api_token.py revoke --all` で失効させる。
+   - 監査ログ  
+     - `logs/api_actions.log` には `station_id` が記録されるため、トークンの使い回しを避け、端末ごとに `station_id` を割り当てる。Pi5 側でも `/var/log/raspi-server/app.log` に認証失敗が残るため、両ログを突き合わせて監査する。
 
 ### 2.5 アプリケーション脆弱性
 - **リスク**: 脆弱なライブラリや CSRF 等が残り、Web 経由で攻撃される。
