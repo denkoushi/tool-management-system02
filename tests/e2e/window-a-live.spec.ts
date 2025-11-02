@@ -1,41 +1,38 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { snapshotEnv, requireEnv } from './utils/env.js';
 
-/**
- * Live integration spec skeleton.
- * 実機（Window A + RaspberryPiServer）で実行する際に `describe.skip` を解除し、
- * 必要な DOM セレクタやアサーションをプロジェクト状況に合わせて調整してください。
- */
-
 const env = snapshotEnv();
+const missingRequired = !env.TOOLMGMT_BASE_URL || !env.RASPI_SERVER_BASE || !env.RASPI_SERVER_API_TOKEN;
+const describeLive = missingRequired ? test.describe.skip : test.describe;
 
-test.describe.skip('Window A live integration', () => {
+async function navigateToWindowA(page: Page) {
+  await page.goto(env.TOOLMGMT_BASE_URL!);
+
+  if (env.TOOLMGMT_API_TOKEN) {
+    const tokenField = page.locator('input[type="password"]');
+    if (await tokenField.isVisible()) {
+      await tokenField.fill(env.TOOLMGMT_API_TOKEN);
+      await page.locator('button:has-text("送信")').click();
+    }
+  }
+}
+
+describeLive('Window A live integration', () => {
   test.beforeAll(() => {
     requireEnv(['TOOLMGMT_BASE_URL', 'RASPI_SERVER_BASE', 'RASPI_SERVER_API_TOKEN']);
   });
 
-  test('scan event propagates to viewer highlight', async ({ page, request }) => {
-    const baseUrl = env.TOOLMGMT_BASE_URL!;
-    const apiBase = env.RASPI_SERVER_BASE!;
-    const apiToken = env.RASPI_SERVER_API_TOKEN!;
-    const partCode = 'testpart';
+  test('scan event updates part locations and viewer summary', async ({ page, request }) => {
+    await navigateToWindowA(page);
+
+    const partCode = `playwright-${Date.now()}`;
     const locationCode = 'RACK-A1';
     const deviceId = 'playwright-device';
 
-    await page.goto(baseUrl);
-
-    if (env.TOOLMGMT_API_TOKEN) {
-      const tokenField = page.locator('input[type="password"]');
-      if (await tokenField.isVisible()) {
-        await tokenField.fill(env.TOOLMGMT_API_TOKEN);
-        await page.locator('button:has-text("送信")').click();
-      }
-    }
-
-    const response = await request.post(`${apiBase}/api/v1/scans`, {
+    const response = await request.post(`${env.RASPI_SERVER_BASE}/api/v1/scans`, {
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiToken}`,
+        Authorization: `Bearer ${env.RASPI_SERVER_API_TOKEN}`,
       },
       data: {
         part_code: partCode,
@@ -43,28 +40,30 @@ test.describe.skip('Window A live integration', () => {
         device_id: deviceId,
       },
     });
-
     expect(response.ok()).toBeTruthy();
 
     await page.locator('[data-target="partLocationsPanel"]').click();
-    await expect(page.locator('#partLocationsTable tbody tr').first()).toContainText(partCode);
+    const partRow = page.locator(`#partLocationsTable tbody tr:has-text("${partCode}")`).first();
+    await expect(partRow).toBeVisible({ timeout: 15_000 });
+    await expect(partRow.locator('td').nth(1)).toHaveText(locationCode);
+    await expect(partRow.locator('td').nth(2)).toHaveText(deviceId);
 
     await page.locator('[data-target="docViewerPanel"]').click();
-    await expect(page.locator('.viewer-highlight-chip')).toContainText(partCode);
+    const summary = page.locator('#docViewerSummary');
+    await expect(summary).toHaveAttribute('data-state', /ready/, { timeout: 15_000 });
+    await expect(page.locator('#docViewerSummaryLocation')).toContainText(locationCode);
+    await expect(page.locator('#docViewerSummaryDevice')).toContainText(deviceId);
+    await expect(page.locator('#docViewerPartChip')).toContainText(partCode);
   });
 
   test('logistics job update appears in logistics tab', async ({ page, request }) => {
-    const baseUrl = env.TOOLMGMT_BASE_URL!;
-    const apiBase = env.RASPI_SERVER_BASE!;
-    const apiToken = env.RASPI_SERVER_API_TOKEN!;
+    await navigateToWindowA(page);
+
     const testJobId = `playwright-${Date.now()}`;
-
-    await page.goto(baseUrl);
-
-    const response = await request.post(`${apiBase}/api/logistics/jobs`, {
+    const response = await request.post(`${env.RASPI_SERVER_BASE}/api/logistics/jobs`, {
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiToken}`,
+        Authorization: `Bearer ${env.RASPI_SERVER_API_TOKEN}`,
       },
       data: {
         job_id: testJobId,
@@ -77,7 +76,8 @@ test.describe.skip('Window A live integration', () => {
     expect(response.ok()).toBeTruthy();
 
     await page.locator('[data-target="logisticsPanel"]').click();
-    const row = page.locator('#logisticsTable tbody tr').first();
-    await expect(row).toContainText(testJobId);
+    const jobRow = page.locator(`#logisticsTable tbody tr:has-text("${testJobId}")`).first();
+    await expect(jobRow).toBeVisible({ timeout: 15_000 });
+    await expect(jobRow.locator('td').first()).toContainText(testJobId);
   });
 });

@@ -29,6 +29,7 @@ RaspberryPiServer 側へサーバー機能を切り出した後も、Window A �
 | `PLAYWRIGHT_HEADLESS` | `1` でヘッドレス、`0` でブラウザを表示 | 既定は `1` |
 
 - プレビュー用 HTML（`static/preview/right-panel.html`）を対象にした軽量スモークテストが `tests/e2e/smoke.spec.ts` にあり、実機 API と連携する流れは `tests/e2e/window-a-live.spec.ts` の骨子に集約する方針。
+- `tests/e2e/window-a-live.spec.ts` は必要な環境変数が未指定の場合に自動で `describe.skip` されるため、通常の CI では影響せず、ライブ検証時のみ `.env.test` を準備して実行する。
 - GitHub Actions での自動実行は未定だが、ローカル／Pi 両方で手動実行できるよう `npm run test:e2e` スクリプトを定義済み。プレビューのみを実行したい場合は `RUN_PREVIEW_E2E=1 npm run test:e2e`、ライブ系のみを試す場合は `npx playwright test tests/e2e/window-a-live.spec.ts --config=tests/e2e/playwright.config.ts` を使用する。
 
 ## 3. 実行イメージ

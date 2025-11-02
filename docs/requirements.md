@@ -34,6 +34,7 @@ Pi4 左ペインの工具管理では、Pi4 に直結した NFC リーダーに�
   - ローカル `.env.test` と Pi5 テスト環境で実行できる npm スクリプトを整備する。
   - 2025-11-02: `.env.test.sample` と `tests/e2e/utils/env.ts` を追加し、`tests/e2e/window-a-live.spec.ts` に実機用骨子（`describe.skip`）を作成。依存パッケージ `dotenv` を導入し、`playwright.config.ts` で環境読込と headless 制御を実装。
   - 2025-11-02: `docs/e2e-plan.md` を更新し、環境変数一覧・`.env.test` 運用手順・ライブシナリオの実行フローを整理。次ステップは骨子の `describe.skip` を解除して実機検証を自動化すること。
+  - 2025-11-02: `tests/e2e/window-a-live.spec.ts` を実装し、環境変数が揃った場合に Pi4/Pi5 実機でスキャン連携と構内物流更新を検証できるようにした（未設定時は自動 skip）。
 - ☐ **ドキュメント更新と棚卸し**
   - README／RUNBOOK／`docs/right-pane-plan.md` を Pi5 集約後構成に合わせて更新する。
   - `docs/docs-index.md` の棚卸し状況を最新化し、未整備カテゴリをゼロにする。
