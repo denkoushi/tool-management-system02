@@ -34,16 +34,16 @@ def _ensure_socketio_stub():
 
 def _ensure_psycopg_stub():
     try:
-        importlib.import_module("psycopg2")
+        importlib.import_module("psycopg")
         return
     except ModuleNotFoundError:
         pass
 
     class DummyConnection:
         def __init__(self, *args, **kwargs):
-            raise RuntimeError("psycopg2 stub does not provide real connections")
+            raise RuntimeError("psycopg stub does not provide real connections")
 
-    sys.modules["psycopg2"] = SimpleNamespace(connect=DummyConnection)
+    sys.modules["psycopg"] = SimpleNamespace(connect=DummyConnection)
 
 
 def _ensure_smartcard_stub():

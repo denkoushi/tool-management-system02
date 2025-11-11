@@ -14,7 +14,7 @@ import logging
 from pathlib import Path
 from flask import Flask, render_template, request, jsonify, has_request_context
 from flask_socketio import SocketIO, emit
-import psycopg2
+import psycopg
 from smartcard.CardRequest import CardRequest
 from smartcard.util import toHexString
 import os
@@ -579,7 +579,7 @@ def get_conn():
     last_err = None
     for i in range(30):
         try:
-            conn = psycopg2.connect(**DB)
+            conn = psycopg.connect(**DB)
             return conn
         except Exception as e:
             last_err = e
